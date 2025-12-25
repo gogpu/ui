@@ -20,6 +20,10 @@
 
 ---
 
+> **Join the Discussion:** Help shape the future of Go GUI! Share your ideas, report issues, and discuss features at our [GitHub Discussions](https://github.com/orgs/gogpu/discussions/18).
+
+---
+
 ## Overview
 
 **gogpu/ui** is a reference implementation of a professional GUI library for Go, designed for building:
@@ -88,10 +92,11 @@ Current focus:
 package main
 
 import (
+    "fmt"
+
     "github.com/gogpu/gogpu"
-    "github.com/gogpu/ui"
-    "github.com/gogpu/ui/widgets"
     "github.com/gogpu/ui/layout"
+    "github.com/gogpu/ui/widgets"
     "github.com/coregx/signals"
 )
 
@@ -177,12 +182,14 @@ func main() {
 
 ## Requirements
 
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| Go | 1.25+ | Language runtime |
-| gogpu/gg | 0.13.0+ | 2D graphics |
-| gogpu/gogpu | 0.8.0+ | Windowing |
-| coregx/signals | 0.1.0+ | State management |
+| Dependency | Purpose |
+|------------|---------|
+| Go 1.25+ | Language runtime (generics, iterators) |
+| [gogpu/gg](https://github.com/gogpu/gg) | 2D graphics rendering |
+| [gogpu/gogpu](https://github.com/gogpu/gogpu) | Windowing and GPU abstraction |
+| [coregx/signals](https://github.com/coregx/signals) | Reactive state management |
+
+> **Note:** Always use the latest versions. See [Related Projects](#related-projects) for current releases.
 
 ---
 
@@ -201,12 +208,16 @@ Full details: [ROADMAP.md](ROADMAP.md)
 
 ## Related Projects
 
-| Project | Description | Status |
-|---------|-------------|--------|
-| [gogpu/gogpu](https://github.com/gogpu/gogpu) | Graphics framework, windowing | v0.4.0 |
-| [gogpu/gg](https://github.com/gogpu/gg) | 2D graphics library | v0.4.0 |
-| [gogpu/wgpu](https://github.com/gogpu/wgpu) | Pure Go WebGPU | v0.4.0 |
-| [gogpu/naga](https://github.com/gogpu/naga) | Shader compiler | v0.6.0 |
+| Project | Description | Purpose |
+|---------|-------------|---------|
+| [gogpu/gg](https://github.com/gogpu/gg) | 2D graphics | Canvas API, scene graph, GPU text |
+| [gogpu/wgpu](https://github.com/gogpu/wgpu) | Pure Go WebGPU | Vulkan, Metal, GLES, Software backends |
+| [gogpu/gogpu](https://github.com/gogpu/gogpu) | Graphics framework | GPU abstraction, windowing, input |
+| [gogpu/naga](https://github.com/gogpu/naga) | Shader compiler | WGSL → SPIR-V, MSL, GLSL |
+
+> **Note:** Always use the latest versions. Check each repository for current releases.
+
+**Total ecosystem: 200K+ lines of Pure Go** — no CGO, no Rust, no C.
 
 ---
 
