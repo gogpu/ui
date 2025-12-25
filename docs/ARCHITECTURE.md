@@ -33,6 +33,20 @@
 
 ---
 
+## Design Decisions
+
+Based on research of modern UI frameworks (GPUI, Xilem, Floem, iced, Dioxus), we made the following architectural decisions:
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Reactivity** | Fine-grained signals | O(affected) updates, not O(n). Proven by Floem/Lapce. |
+| **Styling** | Tailwind-style builders | Type-safe, IDE autocomplete, AI-friendly. |
+| **Layout** | Flexbox + incremental cache | Industry standard (Taffy-like). |
+| **Accessibility** | AccessKit schema | Cross-platform standard. |
+| **Effects** | Batched updates | Multiple changes = single render. |
+
+---
+
 ## Package Structure
 
 ### Public Packages (Stable API)
@@ -46,7 +60,7 @@
 | `theme/` | Theme interface and presets | Stable |
 | `animation/` | Animation engine | Stable |
 | `docking/` | IDE-style docking | Stable |
-| `a11y/` | Accessibility | Stable |
+| `a11y/` | Accessibility (AccessKit) | Stable |
 | `i18n/` | Internationalization | Stable |
 | `testing/` | Test utilities | Stable |
 
@@ -76,11 +90,14 @@ type Widget interface {
     // Layout calculates size given constraints
     Layout(ctx *LayoutContext) Size
 
-    // Paint renders the widget
-    Paint(ctx *PaintContext)
+    // Prepaint prepares GPU resources (optional, for batching)
+    Prepaint(ctx *PrepaintContext) any
+
+    // Paint renders the widget using prepaint state
+    Paint(state any, ctx *PaintContext)
 
     // HandleEvent processes input events
-    HandleEvent(event Event) bool
+    HandleEvent(event Event) EventResult
 }
 ```
 
@@ -95,11 +112,10 @@ type Focusable interface {
     IsFocused() bool
 }
 
-// Accessible — widgets with accessibility support
+// Accessible — widgets with accessibility support (AccessKit-compatible)
 type Accessible interface {
     Widget
-    AccessibilityRole() Role
-    AccessibilityLabel() string
+    AccessibilityNode() AccessNode
 }
 
 // Usage:
@@ -129,6 +145,59 @@ type MyWidget struct {
 
 ---
 
+## Styling API
+
+### Tailwind-style Builders (Primary API)
+
+All widgets use fluent method chaining for styling:
+
+```go
+// Clean, linear, type-safe
+Button("Submit").
+    Padding(16).
+    PaddingX(24).
+    Background(theme.Primary).
+    Rounded(8).
+    Shadow(1).
+    OnHover(func(s *Style) {
+        s.Background(theme.PrimaryDark)
+    })
+```
+
+### Style Composition
+
+Reusable styles via functional composition:
+
+```go
+// Define reusable styles
+var PrimaryButton = Style(
+    Padding(16),
+    PaddingX(24),
+    Background(theme.Primary),
+    Rounded(8),
+)
+
+var DangerButton = Style(
+    PrimaryButton,  // Inherit
+    Background(theme.Error),
+)
+
+// Apply to widgets
+Button("Submit").Apply(PrimaryButton)
+Button("Delete").Apply(DangerButton)
+```
+
+### Why This Approach?
+
+| Criteria | Tailwind-style | Struct-based | CSS-like |
+|----------|---------------|--------------|----------|
+| Type safety | 100% | 95% | 60% |
+| IDE autocomplete | Excellent | Good | Poor |
+| AI code generation | Optimal | Verbose | Error-prone |
+| Compile-time errors | Yes | Mostly | No |
+
+---
+
 ## State Management
 
 ### Signals (coregx/signals)
@@ -137,7 +206,7 @@ type MyWidget struct {
 // Reactive state
 count := signals.NewSignal(0)
 
-// Computed values
+// Computed values (auto-tracked dependencies)
 doubled := signals.NewComputed(func() int {
     return count.Get() * 2
 })
@@ -148,21 +217,38 @@ signals.NewEffect(func() {
 })
 ```
 
-### Integration with Widgets
+### Fine-grained Reactivity
+
+Widgets automatically subscribe to signals used in their render functions:
 
 ```go
-// Widgets use signals for reactive properties
-type Button struct {
-    core.WidgetBase
+func Counter() Widget {
+    count := signals.NewSignal(0)
 
-    text     string
-    disabled Signal[bool]  // Reactive property
-
-    OnClick func()
+    return VStack(
+        // Label auto-subscribes to count
+        Label(func() string {
+            return fmt.Sprintf("Count: %d", count.Get())
+        }),
+        Button("+").OnClick(func() {
+            count.Set(count.Get() + 1)  // Only Label re-renders
+        }),
+    ).Gap(8)
 }
+```
 
-// Auto-update on signal change
-btn.disabled.Set(true)  // Widget automatically re-renders
+### Effect Batching
+
+Multiple signal changes within the same event handler are batched:
+
+```go
+// Without batching: 3 renders
+// With batching: 1 render
+func handleFormSubmit() {
+    name.Set("John")      // queued
+    email.Set("j@x.com")  // queued
+    age.Set(30)           // queued
+}   // → single render at end
 ```
 
 ---
@@ -173,31 +259,30 @@ btn.disabled.Set(true)  // Widget automatically re-renders
 
 ```go
 // VStack — vertical layout
-layout.VStack(
-    widgets.Text{Content: "Title"},
-    widgets.Button{Text: "Click"},
-).WithSpacing(16)
+VStack(
+    Text("Title").Font(typography.H1),
+    Text("Subtitle").Color(theme.OnSurfaceVariant),
+    Button("Action"),
+).Gap(16).Padding(24)
 
 // HStack — horizontal layout
-layout.HStack(
-    widgets.Button{Text: "Cancel"},
-    widgets.Button{Text: "OK"},
-).WithSpacing(8)
+HStack(
+    Button("Cancel").Variant(Outlined),
+    Spacer(),
+    Button("Save").Variant(Filled),
+).Gap(8)
 
-// Flexbox — CSS Flexbox-like
-layout.Flex{
-    Direction: layout.Row,
-    Children: []Widget{
-        Box{}.Flex(1),   // flex-grow: 1
-        Box{}.Flex(2),   // flex-grow: 2
-    },
-}
+// Flex — CSS Flexbox
+Flex(
+    Box().Flex(1),   // flex-grow: 1
+    Box().Flex(2),   // flex-grow: 2
+).Direction(Row).JustifyBetween()
 
-// Grid — CSS Grid-like
-layout.Grid{
-    Columns: []GridTrack{Fr(1), Px(200), Fr(2)},
-    Rows:    []GridTrack{Px(60), Fr(1)},
-}
+// Grid — CSS Grid
+Grid(children...).
+    Columns(Fr(1), Px(200), Fr(2)).
+    Rows(Px(60), Fr(1)).
+    Gap(16)
 ```
 
 ### Constraints Model
@@ -209,9 +294,30 @@ type Constraints struct {
 }
 
 func (w *Widget) Layout(ctx *LayoutContext) Size {
-    // Measure within constraints
     size := w.measureChildren(ctx.Constraints)
     return ctx.Constraints.Constrain(size)
+}
+```
+
+### Incremental Layout
+
+Layout results are cached and only recomputed for dirty subtrees:
+
+```go
+type LayoutCache struct {
+    size        Size
+    constraints Constraints
+    valid       bool
+}
+
+func (w *WidgetBase) Layout(ctx *LayoutContext) Size {
+    if w.cache.valid && w.cache.constraints == ctx.Constraints {
+        return w.cache.size  // Use cached result
+    }
+    // Recompute only if dirty
+    size := w.computeLayout(ctx)
+    w.cache = LayoutCache{size, ctx.Constraints, true}
+    return size
 }
 ```
 
@@ -219,10 +325,19 @@ func (w *Widget) Layout(ctx *LayoutContext) Size {
 
 ## Rendering Pipeline
 
+### Two-Phase Rendering
+
+```go
+// Phase 1: Prepaint (collect GPU resources)
+state := widget.Prepaint(ctx)
+
+// Phase 2: Paint (emit draw commands)
+widget.Paint(state, ctx)
+```
+
 ### Canvas Abstraction
 
 ```go
-// internal/render/canvas.go
 type Canvas interface {
     // Drawing
     DrawRect(rect Rect, style RectStyle)
@@ -243,25 +358,11 @@ type Canvas interface {
 
 ```
 1. Process Events (from platform)
-2. Update State (signals trigger effects)
-3. Layout Pass (if dirty)
-4. Paint Pass (only dirty regions)
-5. Present (to screen)
-```
-
-### Dirty Tracking
-
-```go
-// Only re-render changed widgets
-func (w *WidgetBase) MarkDirty() {
-    renderer.AddDirty(w)
-}
-
-// Signal changes trigger dirty
-signals.NewEffect(func() {
-    value := signal.Get()
-    w.MarkDirty()
-})
+2. Update State (signals trigger effects, batched)
+3. Layout Pass (only dirty subtrees)
+4. Prepaint Pass (collect GPU resources)
+5. Paint Pass (emit draw commands)
+6. Present (to screen)
 ```
 
 ---
@@ -273,9 +374,9 @@ signals.NewEffect(func() {
 ```go
 // Mouse events
 type MouseEvent struct {
-    Type     EventType  // Enter, Leave, Move, Down, Up, Click
-    Position Point
-    Button   MouseButton
+    Type      EventType  // Enter, Leave, Move, Down, Up, Click
+    Position  Point
+    Button    MouseButton
     Modifiers Modifiers
 }
 
@@ -318,26 +419,29 @@ type Theme struct {
 }
 
 type ColorPalette struct {
-    Primary      Color
-    OnPrimary    Color
-    Secondary    Color
-    Background   Color
-    Surface      Color
-    Error        Color
-    // ...
+    Primary          Color
+    OnPrimary        Color
+    PrimaryContainer Color
+    Secondary        Color
+    Background       Color
+    Surface          Color
+    OnSurface        Color
+    OnSurfaceVariant Color
+    Error            Color
+    Outline          Color
 }
 ```
 
 ### Theme Presets
 
 ```go
-// Material Design 3
-theme := material3.Theme(seedColor)
+// Material Design 3 (default)
+theme := material3.Theme(material3.WithSeedColor(seedColor))
 
 // Microsoft Fluent
 theme := fluent.Theme()
 
-// Apple HIG
+// Apple Human Interface
 theme := cupertino.Theme()
 ```
 
@@ -345,32 +449,43 @@ theme := cupertino.Theme()
 
 ## Accessibility
 
-### ARIA-like Roles
+### AccessKit Integration
+
+We use AccessKit-compatible schema for cross-platform accessibility:
 
 ```go
-type Role int
+type AccessNode struct {
+    ID          uint64
+    Role        AccessRole
+    Name        string
+    Description string
+    Value       string
+    Actions     []AccessAction
+    Bounds      Rect
+    Children    []uint64
+    States      AccessState
+}
 
-const (
-    RoleButton Role = iota
-    RoleCheckbox
-    RoleTextField
-    RoleSlider
-    RoleList
-    RoleListItem
-    RoleDialog
-    // ...
-)
+type AccessState struct {
+    Selected bool
+    Expanded bool
+    Checked  *bool  // nil = not applicable
+    Disabled bool
+    Focused  bool
+}
 ```
 
-### Platform Integration
+### Platform Adapters
 
 ```go
 // Windows: UI Automation
 // macOS: NSAccessibility
-// Linux: AT-SPI
+// Linux: AT-SPI (D-Bus)
 
 type PlatformAccessibility interface {
-    CreateAccessibleNode(widget Accessible) AccessibleNode
+    CreateNode(widget Accessible) AccessibleNode
+    UpdateNode(node AccessibleNode)
+    RemoveNode(node AccessibleNode)
     Announce(message string, priority Priority)
 }
 ```
@@ -382,33 +497,26 @@ type PlatformAccessibility interface {
 ### Virtualization
 
 ```go
-// Only render visible items
-widgets.VirtualizedList{
-    ItemCount:  100000,
-    ItemHeight: 50,
-    RenderItem: func(index int) Widget {
-        return widgets.Text{Content: items[index]}
-    },
-}
+VirtualizedList(
+    ItemCount(100000),
+    ItemHeight(50),
+    RenderItem(func(index int) Widget {
+        return ListItem(items[index])
+    }),
+)
 ```
 
 ### Memory Pooling
 
 ```go
-// Reuse widget objects
-var pool = sync.Pool{
-    New: func() any { return &WidgetBase{} },
-}
-
-func AcquireWidget() *WidgetBase {
-    return pool.Get().(*WidgetBase)
+var nodePool = sync.Pool{
+    New: func() any { return &LayoutNode{} },
 }
 ```
 
 ### Batched Rendering
 
 ```go
-// Batch similar draw calls
 type DrawBatcher struct {
     rects []RectBatch
     texts []TextBatch
@@ -431,57 +539,60 @@ func (b *DrawBatcher) Flush(canvas Canvas) {
 
 ---
 
+## Proposals Under Discussion
+
+The following patterns are under community review. See [GitHub Discussion #18](https://github.com/gogpu/gogpu/discussions/18) for feedback.
+
+| Pattern | Description | Status |
+|---------|-------------|--------|
+| **linkedSignal** | Writable computed with reset capability for forms | Proposed |
+| **Signal Forms** | FormGroup/FormField abstraction with validation | Proposed |
+| **Context DI** | Type-safe injection for Theme, Logger, Config | Proposed |
+| **Control Flow DSL** | If/For/Switch builders | Proposed |
+| **Feature Stores** | State management best practices | Proposed |
+
+---
+
 ## Design Principles
 
 ### 1. Composition over Inheritance
 
 ```go
-// ✅ Composition
+// Embed WidgetBase for shared functionality
 type Button struct {
-    core.WidgetBase  // Embed
+    core.WidgetBase
     text string
 }
-
-// ❌ Inheritance (not possible in Go anyway)
-type Button extends WidgetBase { ... }
 ```
 
-### 2. Headless Core
+### 2. Tailwind-style API
 
 ```go
-// Core = behavior only
-type Checkbox struct {
-    Checked bool
-    OnChange func(bool)
-    // NO styling here
-}
-
-// Styling via theme
-theme.ApplyStyle(checkbox)
+// Fluent, type-safe, IDE-friendly
+Button("Submit").Padding(16).Background(theme.Primary).Rounded(8)
 ```
 
-### 3. Declarative API
+### 3. Fine-grained Reactivity
 
 ```go
-func App() Widget {
-    return VStack(
-        Text("Hello"),
-        Button{Text: "Click", OnClick: handler},
-    ).Padding(16)
-}
+// Only affected widgets re-render
+Label(func() string { return count.Get() })  // Auto-subscribes
 ```
 
 ### 4. Type Safety
 
 ```go
-// Generics for type-safe state
-type Signal[T any] interface {
-    Get() T
-    Set(T)
-}
+// Generics for compile-time safety
+name := signals.NewSignal[string]("John")
+age := signals.NewSignal[int](30)
+```
 
-name := NewSignal[string]("John")
-age := NewSignal[int](30)
+### 5. Zero Allocations in Hot Paths
+
+```go
+// Pool layout nodes, batch draw calls
+node := nodePool.Get().(*LayoutNode)
+defer nodePool.Put(node)
 ```
 
 ---
