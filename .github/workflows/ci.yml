@@ -1,0 +1,159 @@
+name: CI
+
+# CI Strategy:
+# - Tests run on Linux, macOS, and Windows (cross-platform GUI library)
+# - Go 1.25+ required (matches go.mod requirement)
+# - CGO_ENABLED=0: Pure Go library, no C compiler required
+#
+# Branch Strategy (GitHub Flow):
+# - main branch: Production-ready code
+# - feat/** branches: Feature development
+# - fix/** branches: Bug fixes
+# - Pull requests: Must pass all checks before merge
+
+env:
+  CGO_ENABLED: "0"
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Build verification - Cross-platform
+  build:
+    name: Build - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.25']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build all packages
+      run: go build ./...
+
+    - name: Build examples
+      run: |
+        if [ -d "examples" ]; then
+          go build ./examples/...
+        else
+          echo "No examples directory yet"
+        fi
+      shell: bash
+
+  # Unit tests - Cross-platform
+  test:
+    name: Test - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.25']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run go vet
+      if: matrix.os == 'ubuntu-latest'
+      run: go vet ./...
+
+    - name: Install race detector
+      run: go install github.com/kolkov/racedetector/cmd/racedetector@latest
+
+    - name: Run tests with race detector
+      shell: bash
+      run: |
+        # Check if there are any test files
+        if find . -name "*_test.go" -type f | grep -q .; then
+          racedetector test -v -coverprofile=coverage.txt -covermode=atomic ./...
+        else
+          echo "No test files yet, skipping tests"
+          echo "mode: atomic" > coverage.txt
+        fi
+
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest'
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.txt
+        flags: unittests
+        name: codecov-ui
+
+  # Linting
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+        cache: true
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: latest
+        args: --timeout=5m
+
+  # Code formatting check
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+        cache: true
+
+    - name: Check formatting
+      run: |
+        if [ -n "$(gofmt -l .)" ]; then
+          echo "ERROR: The following files are not formatted:"
+          gofmt -l .
+          echo ""
+          echo "Run 'go fmt ./...' to fix formatting issues."
+          exit 1
+        fi
+        echo "All files are properly formatted"

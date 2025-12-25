@@ -1,0 +1,67 @@
+# CODEOWNERS for gogpu/ui
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Code owners are automatically requested for review when someone opens a pull request
+# that modifies code they own.
+
+# Default owner for everything in the repo
+* @kolkov
+
+# Core widget system - Breaking changes require careful review
+/core/ @kolkov
+
+# State management integration
+/state/ @kolkov
+
+# Layout system
+/layout/ @kolkov
+
+# Widget library
+/widgets/ @kolkov
+
+# Theme system
+/theme/ @kolkov
+
+# Animation engine
+/animation/ @kolkov
+
+# Docking system
+/docking/ @kolkov
+
+# Accessibility
+/a11y/ @kolkov
+
+# Internationalization
+/i18n/ @kolkov
+
+# Testing utilities
+/testing/ @kolkov
+
+# Internal implementation (can change, but still needs review)
+/internal/ @kolkov
+
+# Experimental features
+/experimental/ @kolkov
+
+# Examples
+/examples/ @kolkov
+
+# Documentation
+*.md @kolkov
+/docs/ @kolkov
+
+# GitHub configuration and CI/CD
+/.github/ @kolkov
+
+# Code quality and linting configuration
+/.golangci.yml @kolkov
+
+# Tests
+*_test.go @kolkov
+
+# Go module files - Dependency management
+/go.mod @kolkov
+/go.sum @kolkov
+
+# Scripts
+/scripts/ @kolkov

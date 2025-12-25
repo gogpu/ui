@@ -1,0 +1,46 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+
+# Build
+/build/
+/dist/
+/bin/
+
+# Temporary
+/tmp/
+*.tmp
+*.bak
+*.log
+
+# Coverage
+coverage.out
+coverage.html
+*.coverprofile
+
+# Benchmarks
+*.bench
+
+# Private documentation (development only)
+.claude/
+.goco/
+.gode/
+docs/dev/
+
+# OS
+.DS_Store
+Thumbs.db
