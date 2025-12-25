@@ -189,7 +189,7 @@ v1.0.0  → Production (when ready)
 |------|-------------|-----|
 | TASK-UI-031 | Docking System | 2,500 |
 | TASK-UI-032 | Drag & Drop | 800 |
-| TASK-UI-033 | Accessibility (A11y) | 1,200 |
+| TASK-UI-033 | Accessibility (A11y) - Pure Go AccessKit | 2,200 |
 | TASK-UI-034 | Internationalization (i18n) | 600 |
 | TASK-UI-035 | Fluent Theme | 1,000 |
 | TASK-UI-036 | Cupertino Theme | 1,000 |
@@ -214,8 +214,8 @@ v1.0.0  → Production (when ready)
 | Phase 1 (MVP) | 10 | ~12K |
 | Phase 2 (Beta) | 10 | ~10K |
 | Phase 3 (RC) | 10 | ~10K |
-| Phase 4 (v1.0) | 10 | ~23K |
-| **Total** | **40** | **~55K LOC** |
+| Phase 4 (v1.0) | 10 | ~24K |
+| **Total** | **40** | **~56K LOC** |
 
 ---
 
