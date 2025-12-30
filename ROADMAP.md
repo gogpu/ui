@@ -1,6 +1,6 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.0.0 (Planning)
+> **Version:** 0.0.x (Foundation Complete)
 > **Updated:** December 2025
 > **Go Version:** 1.25+
 
@@ -25,6 +25,21 @@
 
 ---
 
+## Current Status
+
+### Phase 0: Foundation ✅ COMPLETE
+
+| Package | Description | LOC | Coverage |
+|---------|-------------|-----|----------|
+| `geometry` | Point, Size, Rect, Constraints, Insets | ~800 | 100% |
+| `event` | MouseEvent, KeyEvent, WheelEvent, Modifiers | ~600 | 100% |
+| `widget` | Widget, WidgetBase, Context, Canvas, Color | ~2,956 | 100% |
+| `internal/render` | Canvas implementation using gogpu/gg | ~1,740 | 96.5% |
+| `internal/layout` | Flex, Stack, Grid layout engines | ~4,165 | 89.9% |
+| **Total** | | **~10,261** | **95%+** |
+
+---
+
 ## Versioning Strategy
 
 ### Core Principle: Stay on v0.x.x
@@ -38,7 +53,8 @@ v2.0.0  → AVOID (requires /v2 import path)
 ### Version Progression:
 
 ```
-v0.1.0  → Phase 1 MVP
+v0.0.x  → Phase 0 Foundation ✅ COMPLETE
+v0.1.0  → Phase 1 MVP (In Progress)
 v0.2.0  → Phase 2 Beta
 v0.3.0  → Phase 3 RC
 v0.9.0  → Pre-1.0 API freeze
@@ -76,23 +92,26 @@ v1.0.0  → Production (when ready)
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
 │  theme/material3   │  theme/fluent   │  theme/cupertino     │
-│    (Optional)      │   (Optional)    │    (Optional)        │
+│    (Phase 2+)      │   (Phase 4)     │    (Phase 4)         │
 ├─────────────────────────────────────────────────────────────┤
 │  widgets/         │  docking/        │  animation/          │
 │  Button, TextField│  DockingHost     │  Animation, Spring   │
-│  Dropdown, etc.   │  FloatingWindow  │  Transitions         │
+│  (Phase 2)        │  (Phase 4)       │  (Phase 3)           │
 ├─────────────────────────────────────────────────────────────┤
 │  layout/                            │  state/               │
 │  VStack, HStack, Grid, Flexbox      │  coregx/signals       │
+│  (Internal ✅)                      │  (Phase 1)            │
 ├─────────────────────────────────────────────────────────────┤
-│  core/                              │  event/               │
+│  widget/                            │  event/               │
 │  Widget, WidgetBase, Context        │  Mouse, Keyboard      │
+│  (Complete ✅)                      │  (Complete ✅)        │
 ├─────────────────────────────────────────────────────────────┤
-│  render/                            │  typography/          │
-│  Canvas, Renderer                   │  Font, TextStyle      │
+│  geometry/        │  internal/render │  internal/layout     │
+│  Point, Rect      │  Canvas impl     │  Flex, Stack, Grid   │
+│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)       │
 ├─────────────────────────────────────────────────────────────┤
 │  gogpu/gg          │  gogpu/gogpu    │  coregx/signals      │
-│  2D Graphics       │  Windowing      │  State Management    │
+│  2D Graphics ✅    │  Windowing      │  State Management    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -100,30 +119,49 @@ v1.0.0  → Production (when ready)
 
 ## Phases
 
-### Phase 1: MVP (v0.1.0)
+### Phase 0: Foundation ✅ COMPLETE
+
+**Goal:** Core packages for building widgets
+
+**Completed:**
+- ✅ geometry — Point, Size, Rect, Constraints, Insets
+- ✅ event — MouseEvent, KeyEvent, WheelEvent, FocusEvent, Modifiers
+- ✅ widget — Widget interface, WidgetBase, Context, Canvas, Color
+- ✅ internal/render — Canvas implementation using gogpu/gg
+- ✅ internal/layout — Engine, FlexContainer, VStack, HStack, ZStack, Grid
+
+**Statistics:**
+- ~10,261 lines of code
+- 95%+ test coverage
+- 0 linter issues
+
+---
+
+### Phase 1: MVP (v0.1.0) 🔄 IN PROGRESS
 
 **Goal:** Working foundation with basic widgets
 
 **Tasks (10 tasks, ~12K LOC):**
 
-| Task | Description | LOC |
-|------|-------------|-----|
-| TASK-UI-001 | Core Widget Interface | 1,500 |
-| TASK-UI-002 | Signals Integration | 800 |
-| TASK-UI-003 | WidgetBase Composition | 600 |
-| TASK-UI-004 | Basic Primitives (Box, Text, Image) | 1,200 |
-| TASK-UI-005 | Stack Layout (VStack, HStack) | 800 |
-| TASK-UI-006 | Flexbox Layout Engine | 2,500 |
-| TASK-UI-007 | Event System | 1,000 |
-| TASK-UI-008 | Theme System Foundation | 1,200 |
-| TASK-UI-009 | Rendering Pipeline | 1,500 |
-| TASK-UI-010 | Window Integration | 800 |
+| Task | Description | Status | LOC |
+|------|-------------|--------|-----|
+| TASK-UI-001 | Core Widget Interface | ✅ Done (Phase 0) | — |
+| TASK-UI-002 | Signals Integration | 📋 Pending | 800 |
+| TASK-UI-003 | WidgetBase Composition | ✅ Done (Phase 0) | — |
+| TASK-UI-004 | Basic Primitives (Box, Text, Image) | 📋 Pending | 1,200 |
+| TASK-UI-005 | Stack Layout (VStack, HStack) | ✅ Done (Phase 0) | — |
+| TASK-UI-006 | Flexbox Layout Engine | ✅ Done (Phase 0) | — |
+| TASK-UI-007 | Event System | ✅ Done (Phase 0) | — |
+| TASK-UI-008 | Theme System Foundation | 📋 Pending | 1,200 |
+| TASK-UI-009 | Rendering Pipeline | ✅ Done (Phase 0) | — |
+| TASK-UI-010 | Window Integration | 📋 Pending | 800 |
 
-**Deliverables:**
-- Working hello world app
-- Basic layout system
-- Event handling
-- Theme support
+**Remaining Deliverables:**
+- Signals integration (coregx/signals)
+- Basic primitives (Box, Text, Image)
+- Public layout API
+- Theme system foundation
+- Window integration (gogpu/gogpu)
 
 ---
 
@@ -163,7 +201,7 @@ v1.0.0  → Production (when ready)
 |------|-------------|-----|
 | TASK-UI-021 | VirtualizedList | 1,200 |
 | TASK-UI-022 | VirtualizedGrid | 800 |
-| TASK-UI-023 | Grid Layout Engine | 1,500 |
+| TASK-UI-023 | Grid Layout Engine | ✅ Done (Phase 0) |
 | TASK-UI-024 | Animation Engine | 1,000 |
 | TASK-UI-025 | Transitions | 600 |
 | TASK-UI-026 | Dialog/Modal | 700 |
@@ -209,24 +247,25 @@ v1.0.0  → Production (when ready)
 
 ## Total Scope
 
-| Phase | Tasks | Estimated LOC |
-|-------|-------|---------------|
-| Phase 1 (MVP) | 10 | ~12K |
-| Phase 2 (Beta) | 10 | ~10K |
-| Phase 3 (RC) | 10 | ~10K |
-| Phase 4 (v1.0) | 10 | ~24K |
-| **Total** | **40** | **~56K LOC** |
+| Phase | Tasks | Estimated LOC | Status |
+|-------|-------|---------------|--------|
+| Phase 0 (Foundation) | 5 packages | ~10K | ✅ Complete |
+| Phase 1 (MVP) | 10 | ~4K remaining | 🔄 In Progress |
+| Phase 2 (Beta) | 10 | ~10K | Planned |
+| Phase 3 (RC) | 10 | ~8K | Planned |
+| Phase 4 (v1.0) | 10 | ~24K | Planned |
+| **Total** | **45+** | **~56K LOC** | |
 
 ---
 
 ## Dependencies
 
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| gogpu/gg | v0.13.0+ | 2D rendering |
-| gogpu/gogpu | v0.8.0+ | Windowing |
-| gogpu/wgpu | v0.7.0+ | WebGPU backend |
-| coregx/signals | v0.1.0+ | State management |
+| Dependency | Version | Purpose | Status |
+|------------|---------|---------|--------|
+| gogpu/gg | v0.15.7+ | 2D rendering | ✅ Integrated |
+| gogpu/gogpu | v0.8.0+ | Windowing | Phase 1 |
+| gogpu/wgpu | v0.7.0+ | WebGPU backend | Via gg |
+| coregx/signals | v0.1.0+ | State management | Phase 1 |
 
 ---
 
@@ -238,7 +277,7 @@ v1.0.0  → Production (when ready)
 - <1KB memory per widget
 
 ### Quality
-- 80%+ test coverage
+- 80%+ test coverage (current: 95%+)
 - WCAG 2.1 AA compliance
 - Zero known critical bugs
 
@@ -254,6 +293,8 @@ v1.0.0  → Production (when ready)
 | Resource | URL |
 |----------|-----|
 | gogpu Organization | https://github.com/gogpu |
+| UI Repository | https://github.com/gogpu/ui |
+| Discussions | https://github.com/orgs/gogpu/discussions/18 |
 | Kanban Tasks | `docs/dev/kanban/` |
 | Research | `docs/dev/research/` |
 

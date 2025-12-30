@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gogpu/ui"><img src="https://img.shields.io/badge/version-v0.0.0-blue" alt="Version"></a>
-  <a href="https://github.com/gogpu/ui"><img src="https://img.shields.io/badge/status-planning-orange" alt="Status"></a>
+  <a href="https://github.com/gogpu/ui/actions"><img src="https://github.com/gogpu/ui/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/gogpu/ui"><img src="https://img.shields.io/badge/status-foundation-brightgreen" alt="Status"></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go" alt="Go Version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
   <a href="https://github.com/gogpu/gogpu/stargazers"><img src="https://img.shields.io/github/stars/gogpu/gogpu?style=flat&labelColor=555&color=yellow" alt="Stars"></a>
@@ -47,16 +47,28 @@
 
 ---
 
-## Status: Planning (v0.0.0)
+## Status: Foundation Complete (v0.0.x)
 
-> **Development has not yet started.** The project is in the design and planning phase.
+> **Phase 0 Foundation is complete!** Core packages are implemented and tested.
 
-Current focus:
-- Architecture design
-- API specification
-- Dependency coordination with gogpu ecosystem
+### Implemented Packages
 
-**Watch/Star the repo to be notified when development begins!**
+| Package | Description | Coverage |
+|---------|-------------|----------|
+| `geometry` | Point, Size, Rect, Constraints, Insets | 100% |
+| `event` | MouseEvent, KeyEvent, WheelEvent, Modifiers | 100% |
+| `widget` | Widget interface, WidgetBase, Context, Canvas, Color | 100% |
+| `internal/render` | Canvas implementation using gogpu/gg | 96.5% |
+| `internal/layout` | Flex, Stack, Grid layout engines | 89.9% |
+
+**Total: ~10,261 lines of code with 95%+ average test coverage**
+
+### Current Focus
+
+- Phase 1: MVP with signals integration and window support
+- API refinement based on community feedback
+
+**Watch/Star the repo to follow development!**
 
 ---
 
@@ -67,17 +79,23 @@ Current focus:
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
 │  theme/material3   │  theme/fluent   │  theme/cupertino     │
-│    (Optional)      │   (Optional)    │    (Optional)        │
+│    (Planned)       │   (Planned)     │    (Planned)         │
 ├─────────────────────────────────────────────────────────────┤
 │  widgets/         │  docking/        │  animation/          │
 │  Button, TextField│  DockingHost     │  Animation, Spring   │
-│  Dropdown, etc.   │  FloatingWindow  │  Transitions         │
+│  (Planned)        │  (Planned)       │  (Planned)           │
 ├─────────────────────────────────────────────────────────────┤
 │  layout/                            │  state/               │
 │  VStack, HStack, Grid, Flexbox      │  Signals              │
+│  (Internal ✅)                      │  (Planned)            │
 ├─────────────────────────────────────────────────────────────┤
-│  core/                              │  event/               │
+│  widget/                            │  event/               │
 │  Widget, WidgetBase, Context        │  Mouse, Keyboard      │
+│  (Complete ✅)                      │  (Complete ✅)        │
+├─────────────────────────────────────────────────────────────┤
+│  geometry/        │  internal/render │  internal/layout     │
+│  Point, Rect      │  Canvas impl     │  Flex, Stack, Grid   │
+│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)       │
 ├─────────────────────────────────────────────────────────────┤
 │  gogpu/gg          │  gogpu/gogpu    │  coregx/signals      │
 │  2D Graphics       │  Windowing      │  State Management    │
@@ -138,69 +156,83 @@ func main() {
 }
 ```
 
-> **Note:** This is the target API design, not yet implemented.
+> **Note:** This is the target API design. Foundation is complete, widgets are in development.
 
 ---
 
-## Planned Features
+## Implementation Progress
 
-### Core
-- [x] Widget interface design
+### Foundation (Phase 0) ✅
+
+- [x] Geometry types (Point, Size, Rect, Constraints)
+- [x] Event system (Mouse, Keyboard, Wheel, Focus)
+- [x] Widget interface and WidgetBase
+- [x] Canvas interface and implementation
+- [x] Layout engine (Flex, Stack, Grid)
+- [x] Color type with utilities
+
+### Phase 1: MVP (In Progress)
+
 - [ ] Signals integration (coregx/signals)
-- [ ] Event system (mouse, keyboard, focus)
-- [ ] Rendering pipeline (gogpu/gg)
+- [ ] Basic primitives (Box, Text, Image)
+- [ ] Public layout API
+- [ ] Theme system foundation
+- [ ] Window integration (gogpu/gogpu)
 
-### Widgets
+### Phase 2: Beta
+
 - [ ] Button, TextField, Label
 - [ ] Checkbox, Radio, Switch
 - [ ] Slider, Progress
-- [ ] Dropdown, Select, ComboBox
+- [ ] Dropdown, Select
+- [ ] Material Design 3 theme
+
+### Phase 3: Release Candidate
+
 - [ ] List, Table, Tree (virtualized)
 - [ ] Tabs, Accordion, SplitView
-- [ ] Dialog, Popover, Tooltip
+- [ ] Animation engine
+- [ ] ScrollView with physics
 
-### Layout
-- [ ] VStack, HStack (Flexbox)
-- [ ] Grid (CSS Grid-like)
-- [ ] Absolute positioning
-- [ ] ScrollView
+### Phase 4: Production
 
-### Themes
-- [ ] Material Design 3
-- [ ] Microsoft Fluent
-- [ ] Apple Cupertino
-
-### Enterprise
 - [ ] IDE-style docking
 - [ ] Drag & drop
-- [ ] Virtualization (100K+ items)
-- [ ] Animation engine
 - [ ] Accessibility (WCAG 2.1 AA)
-- [ ] Internationalization (RTL, i18n)
+- [ ] Additional themes (Fluent, Cupertino)
 
 ---
 
 ## Requirements
 
-| Dependency | Purpose |
-|------------|---------|
-| Go 1.25+ | Language runtime (generics, iterators) |
-| [gogpu/gg](https://github.com/gogpu/gg) | 2D graphics rendering |
-| [gogpu/gogpu](https://github.com/gogpu/gogpu) | Windowing and GPU abstraction |
-| [coregx/signals](https://github.com/coregx/signals) | Reactive state management |
+| Dependency | Purpose | Status |
+|------------|---------|--------|
+| Go 1.25+ | Language runtime | Required |
+| [gogpu/gg](https://github.com/gogpu/gg) | 2D graphics rendering | ✅ Integrated |
+| [gogpu/gogpu](https://github.com/gogpu/gogpu) | Windowing and GPU abstraction | Phase 1 |
+| [coregx/signals](https://github.com/coregx/signals) | Reactive state management | Phase 1 |
 
-> **Note:** Always use the latest versions. See [Related Projects](#related-projects) for current releases.
+---
+
+## Installation
+
+```bash
+go get github.com/gogpu/ui@latest
+```
+
+> **Note:** Currently provides foundation packages only. Full widget library coming in v0.1.0.
 
 ---
 
 ## Roadmap
 
-| Phase | Version | Description |
-|-------|---------|-------------|
-| **Phase 1** | v0.1.0 | MVP: Core, layout, events |
-| **Phase 2** | v0.2.0 | Beta: Widgets, Material 3 |
-| **Phase 3** | v0.3.0 | RC: Virtualization, animation |
-| **Phase 4** | v1.0.0 | Production: Docking, a11y, themes |
+| Phase | Version | Description | Status |
+|-------|---------|-------------|--------|
+| **Phase 0** | v0.0.x | Foundation: geometry, event, widget, layout | ✅ Complete |
+| **Phase 1** | v0.1.0 | MVP: Signals, primitives, windowing | 🔄 In Progress |
+| **Phase 2** | v0.2.0 | Beta: Widgets, Material 3 | Planned |
+| **Phase 3** | v0.3.0 | RC: Virtualization, animation | Planned |
+| **Phase 4** | v1.0.0 | Production: Docking, a11y, themes | Planned |
 
 Full details: [ROADMAP.md](ROADMAP.md)
 
@@ -215,8 +247,6 @@ Full details: [ROADMAP.md](ROADMAP.md)
 | [gogpu/gogpu](https://github.com/gogpu/gogpu) | Graphics framework | GPU abstraction, windowing, input |
 | [gogpu/naga](https://github.com/gogpu/naga) | Shader compiler | WGSL → SPIR-V, MSL, GLSL |
 
-> **Note:** Always use the latest versions. Check each repository for current releases.
-
 **Total ecosystem: 200K+ lines of Pure Go** — no CGO, no Rust, no C.
 
 ---
@@ -226,10 +256,10 @@ Full details: [ROADMAP.md](ROADMAP.md)
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 **Ways to contribute:**
-- Design discussions in Issues
-- API feedback
+- Design discussions in [GitHub Discussions](https://github.com/orgs/gogpu/discussions/18)
+- API feedback and suggestions
 - Documentation improvements
-- Research on GUI patterns
+- Code contributions (see open issues)
 
 ---
 
@@ -240,5 +270,6 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>gogpu/ui</strong> — Enterprise-grade GUI for Go
+  <strong>gogpu/ui</strong> — Enterprise-grade GUI for Go<br>
+  <sub>Part of the <a href="https://github.com/gogpu">GoGPU</a> ecosystem</sub>
 </p>
