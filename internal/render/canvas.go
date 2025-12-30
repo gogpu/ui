@@ -35,11 +35,11 @@ type Canvas struct {
 // The gg.Context should already be created with matching dimensions.
 func NewCanvas(ctx *gg.Context, width, height int) *Canvas {
 	return &Canvas{
-		ctx:         ctx,
-		width:       width,
-		height:      height,
-		clipStack:   make([]geometry.Rect, 0, 8),
-		currentClip: geometry.NewRect(0, 0, float32(width), float32(height)),
+		ctx:            ctx,
+		width:          width,
+		height:         height,
+		clipStack:      make([]geometry.Rect, 0, 8),
+		currentClip:    geometry.NewRect(0, 0, float32(width), float32(height)),
 		transformStack: make([]geometry.Point, 0, 8),
 		currentOffset:  geometry.Point{},
 	}

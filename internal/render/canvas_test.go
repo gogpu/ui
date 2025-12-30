@@ -50,8 +50,8 @@ func TestCanvas_DrawRect(t *testing.T) {
 	canvas.DrawRect(rect, widget.ColorRed)
 
 	// Edge cases
-	canvas.DrawRect(geometry.NewRect(0, 0, 100, 100), widget.ColorBlue)  // Full size
-	canvas.DrawRect(geometry.NewRect(-10, -10, 20, 20), widget.ColorGreen) // Partially visible
+	canvas.DrawRect(geometry.NewRect(0, 0, 100, 100), widget.ColorBlue)     // Full size
+	canvas.DrawRect(geometry.NewRect(-10, -10, 20, 20), widget.ColorGreen)  // Partially visible
 	canvas.DrawRect(geometry.NewRect(200, 200, 50, 50), widget.ColorYellow) // Outside bounds (should skip)
 }
 
@@ -92,7 +92,7 @@ func TestCanvas_DrawCircle(t *testing.T) {
 	canvas.DrawCircle(center, 20, widget.ColorRed)
 
 	// Edge cases
-	canvas.DrawCircle(geometry.Pt(0, 0), 10, widget.ColorBlue)     // Partially visible
+	canvas.DrawCircle(geometry.Pt(0, 0), 10, widget.ColorBlue)      // Partially visible
 	canvas.DrawCircle(geometry.Pt(200, 200), 10, widget.ColorGreen) // Outside
 }
 

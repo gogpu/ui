@@ -503,7 +503,7 @@ func (f *FlexContainer) calculateFinalSize(constraints geometry.Constraints, max
 // positionChildren calculates positions for all children.
 func (f *FlexContainer) positionChildren(mainMax, crossMax float32, _ bool) {
 	totalMain := f.calculateTotalMainSize()
-	mainStart, mainSpacing := f.calculateJustification(mainMax-totalMain)
+	mainStart, mainSpacing := f.calculateJustification(mainMax - totalMain)
 
 	isReversed := f.Direction.IsReversed()
 	if isReversed {

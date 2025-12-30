@@ -1,3 +1,5 @@
+github.com/gogpu/gg v0.15.7 h1:nwfcW+Sb6bJMQq6G7wtsB64oLzloYcst1kQIWUDoI3A=
+github.com/gogpu/gg v0.15.7/go.mod h1:ZUC+T1e7y2+/t4/Rj/BNlgI4Oc5jUzE7f0PXrAaNvnA=
 golang.org/x/image v0.34.0 h1:33gCkyw9hmwbZJeZkct8XyR11yH889EQt/QH4VmXMn8=
 golang.org/x/image v0.34.0/go.mod h1:2RNFBZRB+vnwwFil8GkMdRvrJOFd1AzdZI6vOY+eJVU=
 golang.org/x/text v0.32.0 h1:ZD01bjUt1FQ9WJ0ClOL5vxgxOI/sVCNgX1YtKwcY0mU=
