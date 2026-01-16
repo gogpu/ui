@@ -67,6 +67,10 @@ type Theme struct {
 	//	    // Use ext.AccentColor, ext.BorderWidth
 	//	}
 	Extensions map[string]any
+
+	// typedExts holds ThemeExtension implementations for type-safe access.
+	// Use RegisterExtension() and TypedExtension() to access these.
+	typedExts *typedExtensions
 }
 
 // New creates a new Theme with the given name and mode.
@@ -88,6 +92,7 @@ func New(name string, mode ThemeMode) *Theme {
 		Shadows:    DefaultShadowsLight(),
 		Radii:      DefaultRadii(),
 		Extensions: make(map[string]any),
+		typedExts:  newTypedExtensions(),
 	}
 }
 
@@ -112,11 +117,17 @@ func (t *Theme) Clone() *Theme {
 		Shadows:    t.Shadows,
 		Radii:      t.Radii,
 		Extensions: make(map[string]any, len(t.Extensions)),
+		typedExts:  newTypedExtensions(),
 	}
 
 	// Shallow copy extensions
 	for k, v := range t.Extensions {
 		clone.Extensions[k] = v
+	}
+
+	// Clone typed extensions
+	if t.typedExts != nil {
+		clone.typedExts = t.typedExts.clone()
 	}
 
 	return clone
@@ -194,6 +205,105 @@ func (t *Theme) GetExtension(key string) (any, bool) {
 	}
 	v, ok := t.Extensions[key]
 	return v, ok
+}
+
+// RegisterExtension registers a ThemeExtension with the theme.
+//
+// ThemeExtension provides a type-safe way to add custom properties that
+// support animation (Lerp), inheritance (Merge), and copying (CopyWith).
+// Use this for extensions that need these advanced features.
+//
+// For simple key-value storage, use SetExtension instead.
+//
+// This modifies the theme in place. For immutable usage, use Clone() first.
+//
+// Example:
+//
+//	theme.RegisterExtension(&CorporateExtension{
+//	    BrandPrimary: widget.Hex(0x00529B),
+//	})
+func (t *Theme) RegisterExtension(ext ThemeExtension) {
+	if t.typedExts == nil {
+		t.typedExts = newTypedExtensions()
+	}
+	t.typedExts.register(ext)
+}
+
+// TypedExtension retrieves a registered ThemeExtension by name.
+//
+// Returns nil if no extension with that name is registered.
+// For type-safe access with automatic casting, use the ExtensionAs
+// generic function.
+//
+// Example:
+//
+//	ext := theme.TypedExtension("corporate")
+//	if corp, ok := ext.(*CorporateExtension); ok {
+//	    // Use corp.BrandPrimary
+//	}
+func (t *Theme) TypedExtension(name string) ThemeExtension {
+	if t.typedExts == nil {
+		return nil
+	}
+	return t.typedExts.get(name)
+}
+
+// TypedExtensions returns all registered ThemeExtensions.
+//
+// The returned map is a copy and can be safely modified.
+func (t *Theme) TypedExtensions() map[string]ThemeExtension {
+	if t.typedExts == nil {
+		return nil
+	}
+	return t.typedExts.all()
+}
+
+// MergeExtensions merges extensions from another theme.
+//
+// For each extension in the other theme, if this theme has an extension
+// with the same name, Merge is called to combine them. Otherwise, the
+// extension is simply copied.
+//
+// This enables theme inheritance where child themes can override
+// specific extension properties.
+func (t *Theme) MergeExtensions(other *Theme) {
+	if other == nil || other.typedExts == nil {
+		return
+	}
+	if t.typedExts == nil {
+		t.typedExts = newTypedExtensions()
+	}
+
+	for name, otherExt := range other.typedExts.all() {
+		if existing := t.typedExts.get(name); existing != nil {
+			// Merge existing with other's extension
+			t.typedExts.register(existing.Merge(otherExt))
+		} else {
+			// No existing extension, just copy
+			t.typedExts.register(otherExt)
+		}
+	}
+}
+
+// LerpExtensions interpolates all extensions with another theme.
+//
+// For each extension in this theme, if the other theme has an extension
+// with the same name, Lerp is called to interpolate them. Extensions
+// that exist in only one theme are not interpolated.
+//
+// t ranges from 0.0 (this theme) to 1.0 (other theme).
+//
+// This enables smooth theme transition animations.
+func (t *Theme) LerpExtensions(other *Theme, amount float32) {
+	if other == nil || other.typedExts == nil || t.typedExts == nil {
+		return
+	}
+
+	for name, ext := range t.typedExts.all() {
+		if otherExt := other.typedExts.get(name); otherExt != nil {
+			t.typedExts.register(ext.Lerp(otherExt, amount))
+		}
+	}
 }
 
 // IsLight returns true if this theme uses a light color scheme.
