@@ -1,6 +1,17 @@
 package theme
 
-// unknownStr is imported from mode.go for reuse.
+// Font weight string constants.
+const (
+	fontWeightThin       = "Thin"
+	fontWeightExtraLight = "ExtraLight"
+	fontWeightLight      = "Light"
+	fontWeightNormal     = "Normal"
+	fontWeightMedium     = "Medium"
+	fontWeightSemiBold   = "SemiBold"
+	fontWeightBold       = "Bold"
+	fontWeightExtraBold  = "ExtraBold"
+	fontWeightBlack      = "Black"
+)
 
 // defaultFontName is the default font family used by typography.
 const defaultFontName = "System"
@@ -45,23 +56,23 @@ const (
 func (w FontWeight) String() string {
 	switch w {
 	case FontWeightThin:
-		return "Thin"
+		return fontWeightThin
 	case FontWeightExtraLight:
-		return "ExtraLight"
+		return fontWeightExtraLight
 	case FontWeightLight:
-		return "Light"
+		return fontWeightLight
 	case FontWeightNormal:
-		return "Normal"
+		return fontWeightNormal
 	case FontWeightMedium:
-		return "Medium"
+		return fontWeightMedium
 	case FontWeightSemiBold:
-		return "SemiBold"
+		return fontWeightSemiBold
 	case FontWeightBold:
-		return "Bold"
+		return fontWeightBold
 	case FontWeightExtraBold:
-		return "ExtraBold"
+		return fontWeightExtraBold
 	case FontWeightBlack:
-		return "Black"
+		return fontWeightBlack
 	default:
 		return unknownStr
 	}
