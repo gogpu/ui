@@ -1,7 +1,7 @@
 # gogpu/ui Roadmap
 
 > **Version:** 0.0.x (Foundation Complete)
-> **Updated:** December 2025
+> **Updated:** January 2026
 > **Go Version:** 1.25+
 
 ---
@@ -165,6 +165,37 @@ v1.0.0  → Production (when ready)
 
 ---
 
+### Phase 1.5: Extensibility Foundation (v0.1.x) ✅ 83% COMPLETE
+
+**Goal:** Enable community to create custom widgets, themes, and layouts
+
+**Completed:** 2026-01-16 | **Total LOC:** ~9,200 | **Coverage:** 97%+
+
+| Task | Description | Status | LOC |
+|------|-------------|--------|-----|
+| ~~TASK-UI-041~~ | Widget Registry | ✅ Done | ~1,340 |
+| ~~TASK-UI-042~~ | ThemeExtension Interface | ✅ Done | ~760 |
+| ~~TASK-UI-043~~ | Public Layout API | ✅ Done | ~3,720 |
+| ~~TASK-UI-044~~ | Theme Registry | ✅ Done | ~1,180 |
+| ~~TASK-UI-045~~ | Plugin System | ✅ Done | ~3,040 |
+| TASK-UI-046 | Community Extension Guidelines | 📋 Pending | ~2,000 |
+
+**Implemented Packages:**
+- `registry/` — Widget factory registration (100% coverage)
+- `layout/` — Public layout API with custom algorithms (89.5% coverage)
+- `theme/` — Theme System + Extensions + Registry (100% coverage)
+- `plugin/` — Plugin bundling with dependency resolution (99.4% coverage)
+
+**Remaining:**
+- `docs/guides/` — Community extension documentation (UI-046)
+
+**Why Extensibility First?**
+- Community can create extensions from v0.1.x
+- Third-party widgets/themes before v1.0
+- Ecosystem growth enables faster adoption
+
+---
+
 ### Phase 2: Beta (v0.2.0)
 
 **Goal:** Complete widget library
@@ -251,10 +282,11 @@ v1.0.0  → Production (when ready)
 |-------|-------|---------------|--------|
 | Phase 0 (Foundation) | 5 packages | ~10K | ✅ Complete |
 | Phase 1 (MVP) | 10 | ~4K remaining | 🔄 In Progress |
+| Phase 1.5 (Extensibility) | 6 | ~4K | 🆕 P0 Priority |
 | Phase 2 (Beta) | 10 | ~10K | Planned |
 | Phase 3 (RC) | 10 | ~8K | Planned |
 | Phase 4 (v1.0) | 10 | ~24K | Planned |
-| **Total** | **45+** | **~56K LOC** | |
+| **Total** | **51+** | **~60K LOC** | |
 
 ---
 

@@ -47,9 +47,9 @@
 
 ---
 
-## Status: Foundation Complete (v0.0.x)
+## Status: Extensibility Foundation (v0.0.x → v0.1.x)
 
-> **Phase 0 Foundation is complete!** Core packages are implemented and tested.
+> **Phase 0 Foundation complete + Phase 1.5 Extensibility 83% done!**
 
 ### Implemented Packages
 
@@ -60,12 +60,17 @@
 | `widget` | Widget interface, WidgetBase, Context, Canvas, Color | 100% |
 | `internal/render` | Canvas implementation using gogpu/gg | 96.5% |
 | `internal/layout` | Flex, Stack, Grid layout engines | 89.9% |
+| **`registry`** | Widget factory registration (third-party support) | 100% |
+| **`layout`** | Public layout API with custom algorithms | 89.5% |
+| **`theme`** | Theme System + Extensions + Registry | 100% |
+| **`plugin`** | Plugin bundling with dependency resolution | 99.4% |
 
-**Total: ~10,261 lines of code with 95%+ average test coverage**
+**Total: ~19,500 lines of code with 97%+ average test coverage**
 
 ### Current Focus
 
 - Phase 1: MVP with signals integration and window support
+- Phase 1.5: Community extension guidelines (docs)
 - API refinement based on community feedback
 
 **Watch/Star the repo to follow development!**
@@ -85,17 +90,21 @@
 │  Button, TextField│  DockingHost     │  Animation, Spring   │
 │  (Planned)        │  (Planned)       │  (Planned)           │
 ├─────────────────────────────────────────────────────────────┤
+│  registry/        │  plugin/         │  theme/              │
+│  Widget Factory   │  Plugin System   │  Theme + Extensions  │
+│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)      │
+├─────────────────────────────────────────────────────────────┤
 │  layout/                            │  state/               │
 │  VStack, HStack, Grid, Flexbox      │  Signals              │
-│  (Internal ✅)                      │  (Planned)            │
+│  (Public API ✅)                    │  (Planned)            │
 ├─────────────────────────────────────────────────────────────┤
 │  widget/                            │  event/               │
 │  Widget, WidgetBase, Context        │  Mouse, Keyboard      │
-│  (Complete ✅)                      │  (Complete ✅)        │
+│  (Complete ✅)                      │  (Complete ✅)       │
 ├─────────────────────────────────────────────────────────────┤
 │  geometry/        │  internal/render │  internal/layout     │
 │  Point, Rect      │  Canvas impl     │  Flex, Stack, Grid   │
-│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)       │
+│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)      │
 ├─────────────────────────────────────────────────────────────┤
 │  gogpu/gg          │  gogpu/gogpu    │  coregx/signals      │
 │  2D Graphics       │  Windowing      │  State Management    │
@@ -171,12 +180,22 @@ func main() {
 - [x] Layout engine (Flex, Stack, Grid)
 - [x] Color type with utilities
 
+### Extensibility (Phase 1.5) 🔄 83%
+
+- [x] Widget Registry (third-party registration)
+- [x] Public Layout API (custom layouts)
+- [x] Theme System Foundation
+- [x] ThemeExtension Interface (Flutter-inspired)
+- [x] Theme Registry (dynamic switching)
+- [x] Plugin System (bundling, dependencies)
+- [ ] Community Extension Guidelines (docs)
+
 ### Phase 1: MVP (In Progress)
 
 - [ ] Signals integration (coregx/signals)
 - [ ] Basic primitives (Box, Text, Image)
-- [ ] Public layout API
-- [ ] Theme system foundation
+- [x] ~~Public layout API~~ (done in Phase 1.5)
+- [x] ~~Theme system foundation~~ (done in Phase 1.5)
 - [ ] Window integration (gogpu/gogpu)
 
 ### Phase 2: Beta
@@ -229,6 +248,7 @@ go get github.com/gogpu/ui@latest
 | Phase | Version | Description | Status |
 |-------|---------|-------------|--------|
 | **Phase 0** | v0.0.x | Foundation: geometry, event, widget, layout | ✅ Complete |
+| **Phase 1.5** | v0.1.x | Extensibility: registry, theme, plugin | 🔄 83% Done |
 | **Phase 1** | v0.1.0 | MVP: Signals, primitives, windowing | 🔄 In Progress |
 | **Phase 2** | v0.2.0 | Beta: Widgets, Material 3 | Planned |
 | **Phase 3** | v0.3.0 | RC: Virtualization, animation | Planned |

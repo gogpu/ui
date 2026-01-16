@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 1.5: Extensibility Foundation
+
+Extensibility infrastructure enabling third-party widgets, themes, and layouts:
+
+#### Added
+
+- **registry** — Widget factory registration
+  - `RegisterWidget()` for dynamic widget creation by name
+  - `CreateWidget()` for factory-based instantiation
+  - `ListWidgets()` for discovering registered widgets
+  - Thread-safe with `sync.RWMutex`
+  - `init()` auto-registration pattern for third-party extensions
+  - 100% test coverage
+
+- **layout** — Public layout API (moved from internal)
+  - `LayoutAlgorithm` interface for custom layouts
+  - `LayoutTree` interface for widget tree traversal
+  - `RegisterLayout()` for third-party layout algorithms
+  - Built-in: Flex, VStack, HStack, ZStack, Grid
+  - `LayoutStyle` for declarative styling
+  - 89.5% test coverage
+
+- **theme** — Theme System Foundation + Extensions + Registry
+  - `Theme` struct with Colors, Typography, Spacing, Shadows, Radii
+  - `ThemeExtension` interface (Flutter-inspired):
+    - `Name()`, `Merge()`, `Lerp()`, `CopyWith()` methods
+  - `Register()` / `Get()` for dynamic theme switching
+  - `Mode` enum: Light, Dark, System
+  - Built-in presets: Light, Dark, HighContrast, DefaultTheme
+  - 100% test coverage
+
+- **plugin** — Plugin bundling system
+  - `Plugin` interface with lifecycle management
+  - `Dependency` with semver constraints (>=, <, ^, ~)
+  - Topological sort for dependency resolution
+  - `PluginContext` with registry access
+  - `PluginInfo` for metadata and priority
+  - 99.4% test coverage
+
+#### Statistics
+
+- **Phase 1.5 LOC:** ~9,200
+- **Test Coverage:** 97%+ average
+- **Tasks Completed:** 5/6 (83%)
+
+---
+
 ### Phase 0: Foundation Complete
 
 Foundation packages implemented with enterprise-grade quality:
