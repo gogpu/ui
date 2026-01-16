@@ -43,7 +43,7 @@ func (d Display) String() string {
 	case DisplayNone:
 		return "None"
 	default:
-		return "Unknown"
+		return styleStrUnknown
 	}
 }
 
@@ -73,7 +73,7 @@ func (d FlexDirection) String() string {
 	case FlexColumnReverse:
 		return "ColumnReverse"
 	default:
-		return "Unknown"
+		return styleStrUnknown
 	}
 }
 
@@ -109,7 +109,7 @@ func (w FlexWrap) String() string {
 	case FlexWrapReverse:
 		return "WrapReverse"
 	default:
-		return "Unknown"
+		return styleStrUnknown
 	}
 }
 

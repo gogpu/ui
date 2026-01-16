@@ -1,7 +1,12 @@
 package theme
 
-// unknownStr is the string representation for unknown values.
-const unknownStr = "Unknown"
+// String constants for mode names.
+const (
+	unknownStr = "Unknown"
+	modeLight  = "Light"
+	modeDark   = "Dark"
+	modeSystem = "System"
+)
 
 // ThemeMode represents the color scheme mode for a theme.
 //
@@ -36,11 +41,11 @@ const (
 func (m ThemeMode) String() string {
 	switch m {
 	case ModeLight:
-		return "Light"
+		return modeLight
 	case ModeDark:
-		return "Dark"
+		return modeDark
 	case ModeSystem:
-		return "System"
+		return modeSystem
 	default:
 		return unknownStr
 	}
