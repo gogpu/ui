@@ -6,6 +6,10 @@ github.com/go-text/typesetting-utils v0.0.0-20250618110550-c820a94c77b8 h1:4KCsc
 github.com/go-text/typesetting-utils v0.0.0-20250618110550-c820a94c77b8/go.mod h1:3/62I4La/HBRX9TcTpBj4eipLiwzf+vhI+7whTc9V7o=
 github.com/gogpu/gg v0.26.1 h1:e09ItVRqxAaszRdRxvMU3gh+a/5mLMxYYRrUuCHbvtw=
 github.com/gogpu/gg v0.26.1/go.mod h1:PCjIVMCn4icItjmWFktbfjeZLxrtecyBPyZONcqMaOU=
+github.com/gogpu/gpucontext v0.8.0 h1:6rme+Az709wy6UcA4R91CGC1tEYDsdZG47Qvt7W1fTA=
+github.com/gogpu/gpucontext v0.8.0/go.mod h1:d+6V6OVk81cFRpsJcl+9Qnd8qCDLTQGelMVMEzjPTUg=
+github.com/gogpu/gputypes v0.2.0 h1:Quv3ekiU12zK4ZhBZsSZmalHYc+zj2gr9ZWRyzKgkKk=
+github.com/gogpu/gputypes v0.2.0/go.mod h1:cnXrDMwTpWTvJLW1Vreop3PcT6a2YP/i3s91rPaOavw=
 golang.org/x/image v0.35.0 h1:LKjiHdgMtO8z7Fh18nGY6KDcoEtVfsgLDPeLyguqb7I=
 golang.org/x/image v0.35.0/go.mod h1:MwPLTVgvxSASsxdLzKrl8BRFuyqMyGhLwmC+TO1Sybk=
 golang.org/x/text v0.33.0 h1:B3njUFyqtHDUI5jMn1YIr5B0IE2U0qck04r6d4KPAxE=
