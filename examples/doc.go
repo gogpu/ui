@@ -1,3 +1,4 @@
-// Package examples will contain UI examples.
-// Currently empty - examples will be added as more components are implemented.
+// Package examples contains integration examples for gogpu/ui.
+//
+// hello — Minimal window with Box, Text, and styled widgets rendered via gogpu.
 package examples

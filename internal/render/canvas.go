@@ -1,9 +1,14 @@
 package render
 
 import (
+	"sync"
+
 	"github.com/gogpu/gg"
+	"github.com/gogpu/gg/text"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
+	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
 // Canvas implements [widget.Canvas] using gogpu/gg as the 2D drawing backend.
@@ -317,6 +322,60 @@ func (c *Canvas) Reset() {
 	c.currentClip = geometry.NewRect(0, 0, float32(c.width), float32(c.height))
 	c.transformStack = c.transformStack[:0]
 	c.currentOffset = geometry.Point{}
+}
+
+// default font sources, loaded lazily.
+var (
+	defaultFontsOnce sync.Once
+	defaultRegular   *text.FontSource
+	defaultBold      *text.FontSource
+)
+
+func ensureDefaultFonts() {
+	defaultFontsOnce.Do(func() {
+		defaultRegular, _ = text.NewFontSource(goregular.TTF)
+		defaultBold, _ = text.NewFontSource(gobold.TTF)
+	})
+}
+
+// DrawText draws text within the given bounding rectangle.
+func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align float32) {
+	if s == "" {
+		return
+	}
+
+	bounds = c.applyTransform(bounds)
+	if !c.isVisible(bounds) {
+		return
+	}
+
+	ensureDefaultFonts()
+
+	source := defaultRegular
+	if bold {
+		source = defaultBold
+	}
+	if source == nil {
+		return
+	}
+
+	face := source.Face(float64(fontSize))
+	c.ctx.SetFont(face)
+	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+
+	// Calculate baseline Y from top of bounds using font ascent.
+	metrics := face.Metrics()
+	baselineY := float64(bounds.Min.Y) + metrics.Ascent
+
+	// Calculate x position based on alignment.
+	w, _ := c.ctx.MeasureString(s)
+	available := float64(bounds.Width())
+	x := float64(bounds.Min.X)
+	if w < available {
+		x += (available - w) * float64(align)
+	}
+
+	c.ctx.DrawString(s, x, baselineY)
 }
 
 // applyTransform applies the current transform offset to a rectangle.

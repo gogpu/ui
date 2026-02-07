@@ -58,6 +58,12 @@ type Canvas interface {
 	// DrawLine draws a line between two points.
 	DrawLine(from, to geometry.Point, color Color, strokeWidth float32)
 
+	// DrawText draws text within the given bounding rectangle.
+	//
+	// The fontSize is in logical pixels. The bold flag selects bold weight.
+	// The align parameter controls horizontal alignment: 0 = left, 0.5 = center, 1 = right.
+	DrawText(text string, bounds geometry.Rect, fontSize float32, color Color, bold bool, align float32)
+
 	// PushClip pushes a clipping rectangle onto the clip stack.
 	//
 	// All subsequent drawing operations will be clipped to this rectangle

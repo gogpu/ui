@@ -487,6 +487,7 @@ type mockCanvas struct {
 	drawCircleCount      int
 	strokeCircleCount    int
 	drawLineCount        int
+	drawTextCount        int
 	pushClipCount        int
 	popClipCount         int
 	pushTransformCount   int
@@ -507,10 +508,13 @@ func (c *mockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _
 	c.strokeCircleCount++
 }
 func (c *mockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) { c.drawLineCount++ }
-func (c *mockCanvas) PushClip(_ geometry.Rect)                                { c.pushClipCount++ }
-func (c *mockCanvas) PopClip()                                                { c.popClipCount++ }
-func (c *mockCanvas) PushTransform(_ geometry.Point)                          { c.pushTransformCount++ }
-func (c *mockCanvas) PopTransform()                                           { c.popTransformCount++ }
+func (c *mockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+	c.drawTextCount++
+}
+func (c *mockCanvas) PushClip(_ geometry.Rect)       { c.pushClipCount++ }
+func (c *mockCanvas) PopClip()                       { c.popClipCount++ }
+func (c *mockCanvas) PushTransform(_ geometry.Point) { c.pushTransformCount++ }
+func (c *mockCanvas) PopTransform()                  { c.popTransformCount++ }
 
 // eventConsumer is a mock widget that optionally consumes events.
 type eventConsumer struct {

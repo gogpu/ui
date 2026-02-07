@@ -280,15 +280,15 @@ func TestTextDrawNoPanicEmpty(t *testing.T) {
 	tw.Draw(ctx, canvas) // Should not panic
 }
 
-func TestTextDrawRendersPlaceholder(t *testing.T) {
+func TestTextDrawRendersText(t *testing.T) {
 	tw := primitives.Text("Hello").FontSize(14)
 	ctx := widget.NewContext()
 	canvas := &mockCanvas{}
 	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(100, 100)))
 	tw.Draw(ctx, canvas)
 
-	if canvas.drawRectCount == 0 {
-		t.Error("text draw should render placeholder rect")
+	if canvas.drawTextCount == 0 {
+		t.Error("text draw should call DrawText")
 	}
 }
 

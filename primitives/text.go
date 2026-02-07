@@ -170,32 +170,30 @@ func (t *TextWidget) Layout(_ widget.Context, constraints geometry.Constraints) 
 }
 
 // Draw renders the text content.
-//
-// The current implementation draws the text as a colored rectangle
-// representing the text area. Full text rendering requires a Canvas
-// implementation that supports DrawText, which will be provided by the
-// rendering backend.
 func (t *TextWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 	if !t.IsVisible() {
 		return
 	}
 
-	bounds := t.Bounds()
-
-	// Placeholder: draw the text color as a thin line at the top of the
-	// bounds to indicate where text would appear. A real implementation
-	// would call canvas.DrawText(text, position, style).
-	if !t.style.Color.IsTransparent() && !bounds.IsEmpty() {
-		lineH := t.style.FontSize
-		if lineH > bounds.Height() {
-			lineH = bounds.Height()
-		}
-		textRect := geometry.NewRect(
-			bounds.Min.X, bounds.Min.Y,
-			bounds.Width(), lineH,
-		)
-		canvas.DrawRect(textRect, t.style.Color.WithAlpha(t.style.Color.A*0.15))
+	text := t.Content()
+	if text == "" {
+		return
 	}
+
+	bounds := t.Bounds()
+	if bounds.IsEmpty() {
+		return
+	}
+
+	var align float32
+	switch t.style.Align {
+	case TextAlignCenter:
+		align = 0.5
+	case TextAlignEnd:
+		align = 1.0
+	}
+
+	canvas.DrawText(text, bounds, t.style.FontSize, t.style.Color, t.style.Bold, align)
 }
 
 // Event returns false. Text widgets do not consume events.
