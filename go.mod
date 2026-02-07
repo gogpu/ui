@@ -2,7 +2,10 @@ module github.com/gogpu/ui
 
 go 1.25.0
 
-require github.com/gogpu/gg v0.26.1
+require (
+	github.com/coregx/signals v0.1.0
+	github.com/gogpu/gg v0.26.1
+)
 
 require (
 	github.com/go-text/typesetting v0.3.3 // indirect

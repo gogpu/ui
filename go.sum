@@ -1,3 +1,5 @@
+github.com/coregx/signals v0.1.0 h1:ek6icAtUwjZKUO8K4OaYQn7Wftl+v03DHe1iePzkOsI=
+github.com/coregx/signals v0.1.0/go.mod h1:ZTFOeupJF6b73QmxLcDqbB0V2f0TWnCyVkQlA+gMIm4=
 github.com/go-text/typesetting v0.3.3 h1:ihGNJU9KzdK2QRDy1Bm7FT5RFQoYb+3n3EIhI/4eaQc=
 github.com/go-text/typesetting v0.3.3/go.mod h1:vIRUT25mLQaSh4C8H/lIsKppQz/Gdb8Pu/tNwpi52ts=
 github.com/go-text/typesetting-utils v0.0.0-20250618110550-c820a94c77b8 h1:4KCscI9qYWMGTuz6BpJtbUSRzcBrUSSE0ENMJbNSrFs=
