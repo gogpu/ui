@@ -1,0 +1,309 @@
+package primitives
+
+import (
+	"github.com/gogpu/ui/a11y"
+	"github.com/gogpu/ui/event"
+	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/widget"
+)
+
+// defaultFontSize is the font size used when none is specified.
+const defaultFontSize float32 = 14
+
+// defaultLineHeight is the default line height multiplier relative to font size.
+const defaultLineHeight float32 = 1.2
+
+// estimatedCharWidth is a rough ratio of character width to font size for
+// simple text measurement heuristics. Real measurement is provided by the
+// Canvas implementation.
+const estimatedCharWidth float32 = 0.6
+
+// TextStyle holds all visual styling for a [TextWidget].
+type TextStyle struct {
+	FontSize   float32
+	Color      widget.Color
+	Bold       bool
+	Italic     bool
+	Align      TextAlign
+	MaxLines   int
+	Overflow   TextOverflow
+	LineHeight float32
+}
+
+// TextWidget displays static or reactive text content.
+//
+// TextWidget implements [widget.Widget] and [a11y.Accessible].
+//
+// Create a TextWidget with [Text] (static) or [TextFn] (reactive).
+type TextWidget struct {
+	widget.WidgetBase
+
+	style   TextStyle
+	content string
+	fn      func() string
+}
+
+// Text creates a new text widget with static content.
+//
+//	label := primitives.Text("Hello World").FontSize(18).Bold()
+func Text(content string) *TextWidget {
+	t := &TextWidget{
+		content: content,
+		style: TextStyle{
+			FontSize:   defaultFontSize,
+			Color:      widget.ColorBlack,
+			LineHeight: defaultLineHeight,
+		},
+	}
+	t.SetVisible(true)
+	t.SetEnabled(true)
+	return t
+}
+
+// TextFn creates a new text widget with reactive content.
+//
+// The function fn is called during layout and draw to obtain the current
+// text. When the function reads a signal's value, changes to that signal
+// will cause re-layout and re-draw when the binding is set up externally.
+//
+//	counter := state.NewSignal(0)
+//	label := primitives.TextFn(func() string {
+//	    return fmt.Sprintf("Count: %d", counter.Get())
+//	}).FontSize(14)
+func TextFn(fn func() string) *TextWidget {
+	t := &TextWidget{
+		fn: fn,
+		style: TextStyle{
+			FontSize:   defaultFontSize,
+			Color:      widget.ColorBlack,
+			LineHeight: defaultLineHeight,
+		},
+	}
+	t.SetVisible(true)
+	t.SetEnabled(true)
+	return t
+}
+
+// --- Fluent style methods ---
+
+// FontSize sets the font size in logical pixels.
+func (t *TextWidget) FontSize(size float32) *TextWidget {
+	t.style.FontSize = size
+	return t
+}
+
+// Color sets the text color.
+func (t *TextWidget) Color(c widget.Color) *TextWidget {
+	t.style.Color = c
+	return t
+}
+
+// Bold enables bold font weight.
+func (t *TextWidget) Bold() *TextWidget {
+	t.style.Bold = true
+	return t
+}
+
+// Italic enables italic font style.
+func (t *TextWidget) Italic() *TextWidget {
+	t.style.Italic = true
+	return t
+}
+
+// Align sets horizontal text alignment.
+func (t *TextWidget) Align(a TextAlign) *TextWidget {
+	t.style.Align = a
+	return t
+}
+
+// MaxLines limits the number of displayed lines. Zero means unlimited.
+func (t *TextWidget) MaxLines(n int) *TextWidget {
+	t.style.MaxLines = n
+	return t
+}
+
+// Ellipsis enables truncation with "..." when text overflows.
+func (t *TextWidget) Ellipsis() *TextWidget {
+	t.style.Overflow = TextOverflowEllipsis
+	return t
+}
+
+// LineHeight sets the line height multiplier. The default is 1.2.
+func (t *TextWidget) LineHeight(v float32) *TextWidget {
+	t.style.LineHeight = v
+	return t
+}
+
+// Style returns the current text style (read-only snapshot).
+func (t *TextWidget) Style() TextStyle {
+	return t.style
+}
+
+// Content returns the current text content.
+//
+// If the widget was created with [TextFn], this calls the function to obtain
+// the latest value.
+func (t *TextWidget) Content() string {
+	if t.fn != nil {
+		return t.fn()
+	}
+	return t.content
+}
+
+// IsReactive returns true if the widget uses a function for its content.
+func (t *TextWidget) IsReactive() bool {
+	return t.fn != nil
+}
+
+// --- widget.Widget interface ---
+
+// Layout measures the text and returns the constrained size.
+//
+// Text measurement uses a simple character-width heuristic. Real font
+// measurement is delegated to the Canvas implementation in production.
+func (t *TextWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+	text := t.Content()
+	size := t.measureText(text, constraints.MaxWidth)
+	resultSize := constraints.Constrain(size)
+	t.SetBounds(geometry.FromPointSize(t.Position(), resultSize))
+	return resultSize
+}
+
+// Draw renders the text content.
+//
+// The current implementation draws the text as a colored rectangle
+// representing the text area. Full text rendering requires a Canvas
+// implementation that supports DrawText, which will be provided by the
+// rendering backend.
+func (t *TextWidget) Draw(_ widget.Context, canvas widget.Canvas) {
+	if !t.IsVisible() {
+		return
+	}
+
+	bounds := t.Bounds()
+
+	// Placeholder: draw the text color as a thin line at the top of the
+	// bounds to indicate where text would appear. A real implementation
+	// would call canvas.DrawText(text, position, style).
+	if !t.style.Color.IsTransparent() && !bounds.IsEmpty() {
+		lineH := t.style.FontSize
+		if lineH > bounds.Height() {
+			lineH = bounds.Height()
+		}
+		textRect := geometry.NewRect(
+			bounds.Min.X, bounds.Min.Y,
+			bounds.Width(), lineH,
+		)
+		canvas.DrawRect(textRect, t.style.Color.WithAlpha(t.style.Color.A*0.15))
+	}
+}
+
+// Event returns false. Text widgets do not consume events.
+func (t *TextWidget) Event(_ widget.Context, _ event.Event) bool {
+	return false
+}
+
+// Children returns nil. Text is a leaf widget.
+func (t *TextWidget) Children() []widget.Widget {
+	return nil
+}
+
+// --- a11y.Accessible interface ---
+
+// AccessibilityRole returns [a11y.RoleLabel].
+func (t *TextWidget) AccessibilityRole() a11y.Role {
+	return a11y.RoleLabel
+}
+
+// AccessibilityLabel returns the text content.
+func (t *TextWidget) AccessibilityLabel() string {
+	return t.Content()
+}
+
+// AccessibilityHint returns an empty string.
+func (t *TextWidget) AccessibilityHint() string {
+	return ""
+}
+
+// AccessibilityValue returns an empty string.
+func (t *TextWidget) AccessibilityValue() string {
+	return ""
+}
+
+// AccessibilityState returns the default state.
+func (t *TextWidget) AccessibilityState() a11y.State {
+	return a11y.State{
+		Hidden: !t.IsVisible(),
+	}
+}
+
+// AccessibilityActions returns nil. Text has no actions.
+func (t *TextWidget) AccessibilityActions() []a11y.Action {
+	return nil
+}
+
+// --- internal ---
+
+// measureText estimates the size of text using a simple heuristic.
+//
+// It counts runes, applies the character width ratio, and wraps lines
+// when the available width is bounded. MaxLines and Ellipsis are respected.
+func (t *TextWidget) measureText(text string, maxWidth float32) geometry.Size {
+	if text == "" {
+		return geometry.Size{}
+	}
+
+	fontSize := t.style.FontSize
+	if fontSize <= 0 {
+		fontSize = defaultFontSize
+	}
+	lineH := fontSize * t.style.LineHeight
+	charW := fontSize * estimatedCharWidth
+
+	runes := []rune(text)
+	runeCount := len(runes)
+
+	if !isBoundedWidth(maxWidth) || maxWidth <= 0 {
+		// Unbounded: single line
+		width := float32(runeCount) * charW
+		return geometry.Sz(width, lineH)
+	}
+
+	// Calculate characters per line
+	charsPerLine := int(maxWidth / charW)
+	if charsPerLine < 1 {
+		charsPerLine = 1
+	}
+
+	lines := (runeCount + charsPerLine - 1) / charsPerLine
+	if lines < 1 {
+		lines = 1
+	}
+
+	// Apply max lines
+	if t.style.MaxLines > 0 && lines > t.style.MaxLines {
+		lines = t.style.MaxLines
+	}
+
+	width := maxWidth
+	if lines == 1 {
+		singleLineWidth := float32(runeCount) * charW
+		if singleLineWidth < maxWidth {
+			width = singleLineWidth
+		}
+	}
+
+	height := float32(lines) * lineH
+	return geometry.Sz(width, height)
+}
+
+// isBoundedWidth returns true if the width value is bounded (not infinity).
+func isBoundedWidth(v float32) bool {
+	return v < geometry.Infinity
+}
+
+// Compile-time interface checks.
+var (
+	_ widget.Widget   = (*TextWidget)(nil)
+	_ a11y.Accessible = (*TextWidget)(nil)
+)
