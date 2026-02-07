@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 1: MVP
+
+Complete MVP with accessibility, reactive state, widget primitives, and window integration.
+
+#### Added
+
+- **a11y** — Accessibility foundation (Day 1 requirement)
+  - 35+ ARIA roles across 5 categories (Structural, Input, Display, Container, Navigation)
+  - `Accessible` interface: Role, Label, Hint, Value, State, Actions
+  - `AccessibilityNode` with stable uint64 IDs (atomic counter, not pointer-based)
+  - `TreeProvider` interface + `MemoryTree` with O(1) ID lookup and dirty tracking
+  - `Announcer` interface + `NoOpAnnouncer` default
+  - `CheckedState` enum (Unchecked/Checked/Mixed)
+  - 99.1% test coverage
+
+- **state** — Reactive signals integration (coregx/signals v0.1.0)
+  - Type aliases: `Signal[T]`, `ReadonlySignal[T]`, `Computed`, `Effect`
+  - `Bind[T]` connects signal changes to `widget.Context.Invalidate()`
+  - `BindToScheduler[T]` for batched rendering through `Scheduler`
+  - `Scheduler` with `MarkDirty`, `Flush`, `Batch` and deduplication
+  - `NewEffect` and `NewEffectWithCleanup` for side effects
+  - 100% test coverage
+
+- **primitives** — Basic widget primitives with Tailwind-style fluent API
+  - `Box` — container with Padding, Background, Rounded, Border, Shadow, Gap
+  - `Text` — static text with FontSize, Color, Bold, Italic, Align, MaxLines, Ellipsis
+  - `TextFn` — reactive text via `func() string` (auto-updates with signals)
+  - `Image` — image display with Fit modes (Cover, Contain, Fill, None), Rounded, Alt
+  - All primitives implement `widget.Widget` and `a11y.Accessible`
+  - Builders ARE widgets (no separate `.Build()` step)
+  - 94.4% test coverage
+
+- **app** — Window integration via gpucontext interfaces
+  - `App` with Options pattern (`WithWindowProvider`, `WithPlatformProvider`, `WithTheme`)
+  - `Window` manages widget tree lifecycle (SetRoot, Frame, HandleEvent)
+  - Event bridge translates platform events to `ui/event` types
+  - Headless mode for testing (nil providers, 800x600 default)
+  - DPI scaling via `WindowProvider.ScaleFactor`
+  - Cursor forwarding to `PlatformProvider.SetCursor`
+  - Dependency inversion: imports `gpucontext` interfaces only, never `gogpu`
+  - 98.6% test coverage
+
+#### Dependencies
+
+- Added `github.com/coregx/signals` v0.1.0
+- Added `github.com/gogpu/gpucontext` v0.8.0
+- Updated `github.com/gogpu/gg` v0.15.7 → v0.26.1
+
+#### Statistics
+
+- **New LOC:** ~8,900
+- **Total LOC:** ~40,000
+- **New tests:** ~250
+- **Total tests:** 1,017
+- **Average coverage:** ~97%
+
+---
+
 ### Phase 1.5: Extensibility Foundation
 
 Extensibility infrastructure enabling third-party widgets, themes, and layouts:
@@ -50,7 +108,6 @@ Extensibility infrastructure enabling third-party widgets, themes, and layouts:
 
 - **Phase 1.5 LOC:** ~9,200
 - **Test Coverage:** 97%+ average
-- **Tasks Completed:** 5/6 (83%)
 
 ---
 
@@ -64,7 +121,7 @@ Foundation packages implemented with enterprise-grade quality:
   - `Point`, `Size`, `Rect` with float32 components (GPU-compatible)
   - `Constraints` for constraint-based layout (Flutter-inspired)
   - `Insets` for padding/margin calculations
-  - 100% test coverage
+  - 98.8% test coverage
 
 - **event** — Type-safe event system
   - `Event` interface with timestamp and consumption tracking
@@ -88,35 +145,18 @@ Foundation packages implemented with enterprise-grade quality:
   - `Canvas` implementing widget.Canvas using gogpu/gg
   - Clip stack with intersection-based clipping
   - Transform stack with cumulative offsets
-  - Color conversion utilities (widget.Color ↔ gg.RGBA)
-  - `Renderer` for render cycle orchestration
-  - `RenderTarget` interface with `SoftwareTarget` implementation
   - 96.5% test coverage
 
 - **internal/layout** — Layout engine
-  - `Engine` with caching and dirty tracking
   - `FlexContainer` — Full CSS Flexbox implementation
-    - Direction: Row, RowReverse, Column, ColumnReverse
-    - Justify: Start, End, Center, SpaceBetween, SpaceAround, SpaceEvenly
-    - Align: Start, End, Center, Stretch, Baseline
-    - flex-grow, flex-shrink, flex-basis support
   - `VStack`, `HStack`, `ZStack` — Simple stack layouts
   - `GridContainer` — Grid layout with auto/fixed/fractional tracks
   - 89.9% test coverage
 
 #### Statistics
 
-- **Total Lines of Code:** ~10,261
+- **Phase 0 LOC:** ~10,261
 - **Test Coverage:** 95%+ average
-- **Linter Issues:** 0
-
-### Planned for v0.1.0 (Phase 1: MVP)
-
-- [ ] Signals integration (coregx/signals)
-- [ ] Basic primitives (Box, Text, Image)
-- [ ] Public layout API
-- [ ] Theme system foundation
-- [ ] Window integration (gogpu/gogpu)
 
 ---
 
@@ -124,8 +164,8 @@ Foundation packages implemented with enterprise-grade quality:
 
 | Version | Phase | Description |
 |---------|-------|-------------|
-| v0.1.0 | MVP | Core, layout, events, windowing |
-| v0.2.0 | Beta | Widgets, Material 3 |
+| v0.1.0 | MVP | Accessibility, signals, primitives, windowing |
+| v0.2.0 | Beta | Interactive widgets, Material 3 |
 | v0.3.0 | RC | Virtualization, animation |
 | v1.0.0 | Production | Enterprise features |
 
