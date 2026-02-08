@@ -447,13 +447,12 @@ func TestLayout_VerticalPositioning(t *testing.T) {
 
 	g.Layout(ctx, constraints)
 
-	// Items are positioned in local coordinates (0,0)-based.
-	// The group's Draw applies PushTransform(g.Bounds().Min).
-	if g.items[0].Bounds().Min.X != 0 {
-		t.Errorf("item 0 X = %v, want 0 (local coords)", g.items[0].Bounds().Min.X)
+	// First item should be at the group's origin.
+	if g.items[0].Bounds().Min.X != 10 {
+		t.Errorf("item 0 X = %v, want 10", g.items[0].Bounds().Min.X)
 	}
-	if g.items[0].Bounds().Min.Y != 0 {
-		t.Errorf("item 0 Y = %v, want 0 (local coords)", g.items[0].Bounds().Min.Y)
+	if g.items[0].Bounds().Min.Y != 20 {
+		t.Errorf("item 0 Y = %v, want 20", g.items[0].Bounds().Min.Y)
 	}
 
 	// Second item should be below the first.
@@ -476,9 +475,9 @@ func TestLayout_HorizontalPositioning(t *testing.T) {
 
 	g.Layout(ctx, constraints)
 
-	// Items are positioned in local coordinates (0,0)-based.
-	if g.items[0].Bounds().Min.X != 0 {
-		t.Errorf("item 0 X = %v, want 0 (local coords)", g.items[0].Bounds().Min.X)
+	// First item at origin.
+	if g.items[0].Bounds().Min.X != 10 {
+		t.Errorf("item 0 X = %v, want 10", g.items[0].Bounds().Min.X)
 	}
 
 	// Second item should be to the right of the first.
