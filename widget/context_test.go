@@ -424,11 +424,23 @@ func TestContextImpl_ThemeProvider_ThreadSafety(t *testing.T) {
 
 // mockThemeProvider is a minimal ThemeProvider implementation for testing.
 type mockThemeProvider struct {
-	dark bool
+	dark      bool
+	onSurface Color
 }
 
 func (m *mockThemeProvider) IsDark() bool {
 	return m.dark
+}
+
+func (m *mockThemeProvider) OnSurface() Color {
+	if m.onSurface != (Color{}) {
+		return m.onSurface
+	}
+	// Sensible default: black for light, white for dark.
+	if m.dark {
+		return ColorWhite
+	}
+	return ColorBlack
 }
 
 func TestContextImpl_Interface(t *testing.T) {

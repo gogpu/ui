@@ -24,6 +24,9 @@ type Theme struct {
 
 	// Shape holds the Material 3 corner radius scale.
 	Shape ShapeScale
+
+	// dark indicates whether this theme uses a dark color scheme.
+	dark bool
 }
 
 // New creates a Material 3 theme from a seed color.
@@ -51,5 +54,20 @@ func NewDark(seedColor widget.Color) *Theme {
 		Colors:     Dark(seedColor),
 		Typography: DefaultTypeScale(),
 		Shape:      DefaultShapeScale(),
+		dark:       true,
 	}
+}
+
+// IsDark returns true if this theme uses a dark color scheme.
+func (t *Theme) IsDark() bool {
+	return t.dark
+}
+
+// OnSurface returns the default text/icon color for surface backgrounds.
+//
+// In Material 3, this is the OnSurface color role derived from the
+// neutral tonal palette. It provides the highest contrast on surface
+// backgrounds for body text and icons.
+func (t *Theme) OnSurface() widget.Color {
+	return t.Colors.OnSurface
 }

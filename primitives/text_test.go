@@ -427,3 +427,104 @@ func TestTextOverflowString(t *testing.T) {
 		})
 	}
 }
+
+// --- Theme-aware default color ---
+
+func TestTextDefaultColor_WithTheme(t *testing.T) {
+	// When a ThemeProvider is set, Text should use OnSurface color.
+	onSurface := widget.Hex(0x1C1B1F) // M3 light OnSurface
+	tp := &testThemeProvider{onSurface: onSurface}
+
+	ctx := widget.NewContext()
+	ctx.SetThemeProvider(tp)
+
+	tw := primitives.Text("Hello").FontSize(14)
+	canvas := &mockCanvas{}
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawTextCount == 0 {
+		t.Fatal("expected DrawText call")
+	}
+	if canvas.lastTextColor != onSurface {
+		t.Errorf("text color = %+v, want theme OnSurface %+v",
+			canvas.lastTextColor, onSurface)
+	}
+}
+
+func TestTextExplicitColor_OverridesTheme(t *testing.T) {
+	// Explicit .Color() always wins over theme.
+	onSurface := widget.Hex(0x1C1B1F)
+	tp := &testThemeProvider{onSurface: onSurface}
+
+	ctx := widget.NewContext()
+	ctx.SetThemeProvider(tp)
+
+	explicitRed := widget.ColorRed
+	tw := primitives.Text("Hello").FontSize(14).Color(explicitRed)
+	canvas := &mockCanvas{}
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawTextCount == 0 {
+		t.Fatal("expected DrawText call")
+	}
+	if canvas.lastTextColor != explicitRed {
+		t.Errorf("text color = %+v, want explicit %+v",
+			canvas.lastTextColor, explicitRed)
+	}
+}
+
+func TestTextNoTheme_FallsBackToBlack(t *testing.T) {
+	// Without a theme, text should default to black.
+	ctx := widget.NewContext() // no theme provider
+
+	tw := primitives.Text("Hello").FontSize(14)
+	canvas := &mockCanvas{}
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawTextCount == 0 {
+		t.Fatal("expected DrawText call")
+	}
+	if canvas.lastTextColor != widget.ColorBlack {
+		t.Errorf("text color = %+v, want ColorBlack %+v",
+			canvas.lastTextColor, widget.ColorBlack)
+	}
+}
+
+func TestTextReactiveFn_UsesThemeColor(t *testing.T) {
+	// TextFn should also use theme colors.
+	onSurface := widget.Hex(0xE6E1E5) // M3 dark OnSurface
+	tp := &testThemeProvider{onSurface: onSurface, dark: true}
+
+	ctx := widget.NewContext()
+	ctx.SetThemeProvider(tp)
+
+	tw := primitives.TextFn(func() string { return "Dynamic" }).FontSize(14)
+	canvas := &mockCanvas{}
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawTextCount == 0 {
+		t.Fatal("expected DrawText call")
+	}
+	if canvas.lastTextColor != onSurface {
+		t.Errorf("text color = %+v, want theme OnSurface %+v",
+			canvas.lastTextColor, onSurface)
+	}
+}
+
+// testThemeProvider is a minimal ThemeProvider for testing theme-aware primitives.
+type testThemeProvider struct {
+	dark      bool
+	onSurface widget.Color
+}
+
+func (tp *testThemeProvider) IsDark() bool {
+	return tp.dark
+}
+
+func (tp *testThemeProvider) OnSurface() widget.Color {
+	return tp.onSurface
+}

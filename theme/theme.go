@@ -1,5 +1,7 @@
 package theme
 
+import "github.com/gogpu/ui/widget"
+
 // Theme defines the complete visual style for an application.
 //
 // Theme combines all visual properties needed to style UI components:
@@ -314,6 +316,14 @@ func (t *Theme) IsLight() bool {
 // IsDark returns true if this theme uses a dark color scheme.
 func (t *Theme) IsDark() bool {
 	return t.Mode == ModeDark
+}
+
+// OnSurface returns the default text/icon color for surface backgrounds.
+//
+// This satisfies the widget.ThemeProvider interface and returns the
+// OnSurface color from the theme's color palette.
+func (t *Theme) OnSurface() widget.Color {
+	return t.Colors.OnSurface
 }
 
 // ScaleTypography returns a copy of the theme with scaled typography.

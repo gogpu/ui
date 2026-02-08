@@ -35,12 +35,20 @@ type TextStyle struct {
 // TextWidget implements [widget.Widget] and [a11y.Accessible].
 //
 // Create a TextWidget with [Text] (static) or [TextFn] (reactive).
+//
+// # Theme-Aware Default Color
+//
+// By default, TextWidget uses the theme's OnSurface color for text
+// when a ThemeProvider is available on the context. If no theme is set,
+// the fallback is [widget.ColorBlack]. An explicit call to [TextWidget.Color]
+// always takes precedence over the theme default.
 type TextWidget struct {
 	widget.WidgetBase
 
-	style   TextStyle
-	content string
-	fn      func() string
+	style         TextStyle
+	content       string
+	fn            func() string
+	colorExplicit bool // true when Color() was called explicitly
 }
 
 // Text creates a new text widget with static content.
@@ -92,9 +100,13 @@ func (t *TextWidget) FontSize(size float32) *TextWidget {
 	return t
 }
 
-// Color sets the text color.
+// Color sets the text color explicitly.
+//
+// An explicit color always takes precedence over the theme's default
+// OnSurface color.
 func (t *TextWidget) Color(c widget.Color) *TextWidget {
 	t.style.Color = c
+	t.colorExplicit = true
 	return t
 }
 
@@ -170,7 +182,12 @@ func (t *TextWidget) Layout(_ widget.Context, constraints geometry.Constraints) 
 }
 
 // Draw renders the text content.
-func (t *TextWidget) Draw(_ widget.Context, canvas widget.Canvas) {
+//
+// The text color is resolved with the following priority:
+//  1. Explicit color set via [TextWidget.Color] (always wins)
+//  2. ThemeProvider's OnSurface color (if a theme is active)
+//  3. [widget.ColorBlack] (fallback when no theme is set)
+func (t *TextWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if !t.IsVisible() {
 		return
 	}
@@ -193,7 +210,22 @@ func (t *TextWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 		align = 1.0
 	}
 
-	canvas.DrawText(text, bounds, t.style.FontSize, t.style.Color, t.style.Bold, align)
+	color := t.resolveColor(ctx)
+	canvas.DrawText(text, bounds, t.style.FontSize, color, t.style.Bold, align)
+}
+
+// resolveColor returns the text color using the priority chain:
+// explicit > ThemeProvider.OnSurface() > ColorBlack.
+func (t *TextWidget) resolveColor(ctx widget.Context) widget.Color {
+	if t.colorExplicit {
+		return t.style.Color
+	}
+	if ctx != nil {
+		if tp := ctx.ThemeProvider(); tp != nil {
+			return tp.OnSurface()
+		}
+	}
+	return t.style.Color // defaults to ColorBlack from constructor
 }
 
 // Event returns false. Text widgets do not consume events.

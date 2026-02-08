@@ -229,6 +229,29 @@ func TestTheme_IsDark(t *testing.T) {
 	}
 }
 
+func TestTheme_OnSurface(t *testing.T) {
+	light := DefaultLight()
+	onSurface := light.OnSurface()
+	if onSurface != light.Colors.OnSurface {
+		t.Errorf("OnSurface() = %+v, want Colors.OnSurface = %+v",
+			onSurface, light.Colors.OnSurface)
+	}
+	if onSurface.A == 0 {
+		t.Error("OnSurface should have non-zero alpha")
+	}
+
+	dark := DefaultDark()
+	darkOnSurface := dark.OnSurface()
+	if darkOnSurface != dark.Colors.OnSurface {
+		t.Errorf("dark OnSurface() = %+v, want Colors.OnSurface = %+v",
+			darkOnSurface, dark.Colors.OnSurface)
+	}
+}
+
+func TestTheme_ImplementsThemeProvider(t *testing.T) {
+	var _ widget.ThemeProvider = (*Theme)(nil)
+}
+
 func TestTheme_ScaleTypography(t *testing.T) {
 	original := DefaultLight()
 	originalSize := original.Typography.BodyMedium.Size

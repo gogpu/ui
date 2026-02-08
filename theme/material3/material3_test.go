@@ -226,6 +226,48 @@ func TestPublicTypesUsable(t *testing.T) {
 	_ = style.FontSize
 }
 
+func TestTheme_ImplementsThemeProvider(t *testing.T) {
+	// Compile-time: *Theme must satisfy widget.ThemeProvider.
+	var _ widget.ThemeProvider = (*material3.Theme)(nil)
+}
+
+func TestTheme_IsDark(t *testing.T) {
+	light := material3.New(m3Purple)
+	if light.IsDark() {
+		t.Error("light theme should return false for IsDark")
+	}
+
+	dark := material3.NewDark(m3Purple)
+	if !dark.IsDark() {
+		t.Error("dark theme should return true for IsDark")
+	}
+}
+
+func TestTheme_OnSurface(t *testing.T) {
+	theme := material3.New(m3Purple)
+	onSurface := theme.OnSurface()
+
+	// OnSurface should be a dark color (near-black) for light themes.
+	if onSurface.A == 0 {
+		t.Error("OnSurface should have non-zero alpha")
+	}
+	if onSurface != theme.Colors.OnSurface {
+		t.Errorf("OnSurface() = %+v, want Colors.OnSurface = %+v",
+			onSurface, theme.Colors.OnSurface)
+	}
+
+	// Dark theme OnSurface should be a light color.
+	darkTheme := material3.NewDark(m3Purple)
+	darkOnSurface := darkTheme.OnSurface()
+	if darkOnSurface.A == 0 {
+		t.Error("dark OnSurface should have non-zero alpha")
+	}
+	if darkOnSurface != darkTheme.Colors.OnSurface {
+		t.Errorf("dark OnSurface() = %+v, want Colors.OnSurface = %+v",
+			darkOnSurface, darkTheme.Colors.OnSurface)
+	}
+}
+
 // --- Test helpers ---
 
 func assertNonZero(t *testing.T, name string, c widget.Color) {
