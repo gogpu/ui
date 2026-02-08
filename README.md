@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/gogpu/ui/actions"><img src="https://github.com/gogpu/ui/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/gogpu/ui"><img src="https://img.shields.io/badge/status-Phase_1_MVP-brightgreen" alt="Status"></a>
+  <a href="https://github.com/gogpu/ui"><img src="https://img.shields.io/badge/status-Phase_2_Beta-brightgreen" alt="Status"></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go" alt="Go Version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
   <a href="https://github.com/gogpu/gogpu/stargazers"><img src="https://img.shields.io/github/stars/gogpu/gogpu?style=flat&labelColor=555&color=yellow" alt="Stars"></a>
@@ -107,7 +107,7 @@ func main() {
 |---------|-------------|----------|
 | `geometry` | Point, Size, Rect, Constraints, Insets | 98.8% |
 | `event` | MouseEvent, KeyEvent, WheelEvent, FocusEvent, Modifiers | 100% |
-| `widget` | Widget interface, WidgetBase, Context, Canvas, Color | 100% |
+| `widget` | Widget interface, WidgetBase, Context, Canvas, Color, ThemeProvider | 100% |
 | `internal/render` | Canvas implementation using gogpu/gg | 96.5% |
 | `internal/layout` | Flex, Stack, Grid layout engines | 89.9% |
 
@@ -129,7 +129,17 @@ func main() {
 | `theme` | Theme system with Extensions and Registry | 100% |
 | `plugin` | Plugin bundling with dependency resolution | 99.4% |
 
-**Total: ~40,000 lines of code | 14 packages | 1,017 tests | ~97% average coverage**
+### Interactive Widgets (Phase 2 — Partial)
+
+| Package | Description | Coverage |
+|---------|-------------|----------|
+| `cdk` | Component Development Kit — Content[C] polymorphic pattern | 100% |
+| `core/button` | Generic button with pluggable Painter, 4 variants, 3 sizes | 96%+ |
+| `theme/material3` | Material Design 3 — theme (HCT color science) + theme-aware ButtonPainter | 97%+ |
+| `focus` | Keyboard focus management with Tab/Shift+Tab navigation | 95.2% |
+| `internal/focus` | Internal focus manager implementation | 15.2% |
+
+**Total: ~45,000+ lines of code | 21 packages | 1,194+ tests | ~97% average coverage**
 
 ---
 
@@ -137,15 +147,19 @@ func main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    User Application                          │
+│                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
-│  theme/material3   │  theme/fluent   │  theme/cupertino     │
-│    (Planned)       │   (Planned)     │    (Planned)         │
+│  theme/material3/  │  fluent/        │  cupertino/          │
+│  Theme + Painters  │   (Planned)     │    (Planned)         │
+│  (Complete ✅)     │                 │                      │
 ├─────────────────────────────────────────────────────────────┤
-│  widgets/          │  docking/       │  animation/          │
-│  Button, TextField │  DockingHost    │  Animation, Spring   │
-│  (Phase 2)         │  (Phase 3+)    │  (Phase 3)           │
-├─────────────────────────────────────────────────────────────┤
+│  core/button/      │  docking/       │  animation/          │
+│  focus/            │  DockingHost    │  Animation, Spring   │
+│  (Complete ✅)     │  (Phase 3+)    │  (Phase 3)            │
+├──────────────┬──────────────────────────────────────────────┤
+│  cdk/        │  Content[C] polymorphic pattern              │
+│  (Complete ✅)│  Headless behaviors (Phase 3)               │
+├──────────────┴──────────────────────────────────────────────┤
 │  primitives/       │  app/           │  a11y/               │
 │  Box, Text, Image  │  Window, Loop   │  Roles, Tree, Node   │
 │  (Complete ✅)     │  (Complete ✅) │  (Complete ✅)       │
@@ -157,7 +171,7 @@ func main() {
 │  layout/           │  state/                                │
 │  VStack, HStack,   │  Signals, Binding,                     │
 │  Grid, Flexbox     │  Scheduler                             │
-│  (Complete ✅)     │  (Complete ✅)                         │
+│  (Complete ✅)     │  (Complete ✅)                        │
 ├─────────────────────────────────────────────────────────────┤
 │  widget/           │  event/         │  geometry/           │
 │  Widget, Context   │  Mouse, Key     │  Point, Rect         │
@@ -304,10 +318,13 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Theme System + Extensions + Registry
 - [x] Plugin System (bundling, dependency resolution)
 
-### Phase 2: Beta (Next)
+### Phase 2: Beta (In Progress)
 
-- [ ] Interactive widgets (Button, TextField, Checkbox, Slider)
-- [ ] Material Design 3 theme
+- [x] Button widget (4 variants, 3 sizes, keyboard activation)
+- [x] Material Design 3 theme (HCT color science, light/dark schemes)
+- [x] Keyboard navigation (focus management, Tab/Shift+Tab, shortcuts)
+- [ ] TextField widget
+- [ ] Checkbox & Radio
 - [ ] Container widgets (ScrollView, Panel)
 - [ ] Typography system
 

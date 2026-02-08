@@ -61,6 +61,11 @@ func newWindow(
 		needsLayout: true,
 	}
 
+	// Set the theme provider on the context so widgets can access theme.
+	if t != nil {
+		ctx.SetThemeProvider(t)
+	}
+
 	// Set initial scale from WindowProvider.
 	w.updateScale()
 
@@ -104,6 +109,7 @@ func (w *Window) Theme() *theme.Theme {
 // setTheme updates the window's theme and marks layout as dirty.
 func (w *Window) setTheme(t *theme.Theme) {
 	w.theme = t
+	w.ctx.SetThemeProvider(t)
 	w.needsLayout = true
 }
 

@@ -1,7 +1,7 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.0.x (Foundation Complete)
-> **Updated:** January 2026
+> **Version:** 0.2.x (Phase 2 In Progress)
+> **Updated:** February 2026
 > **Go Version:** 1.25+
 
 ---
@@ -54,8 +54,9 @@ v2.0.0  → AVOID (requires /v2 import path)
 
 ```
 v0.0.x  → Phase 0 Foundation ✅ COMPLETE
-v0.1.0  → Phase 1 MVP (In Progress)
-v0.2.0  → Phase 2 Beta
+v0.1.0  → Phase 1 MVP ✅ COMPLETE
+v0.1.x  → Phase 1.5 Extensibility ✅ COMPLETE
+v0.2.0  → Phase 2 Beta (In Progress)
 v0.3.0  → Phase 3 RC
 v0.9.0  → Pre-1.0 API freeze
 v0.10+  → Stabilization
@@ -92,15 +93,15 @@ v1.0.0  → Production (when ready)
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
 │  theme/material3   │  theme/fluent   │  theme/cupertino     │
-│    (Phase 2+)      │   (Phase 4)     │    (Phase 4)         │
+│  (Complete ✅)     │   (Phase 4)     │    (Phase 4)         │
 ├─────────────────────────────────────────────────────────────┤
-│  widgets/         │  docking/        │  animation/          │
-│  Button, TextField│  DockingHost     │  Animation, Spring   │
-│  (Phase 2)        │  (Phase 4)       │  (Phase 3)           │
+│  button/  focus/   │  docking/       │  animation/          │
+│  (Complete ✅)     │  DockingHost    │  Animation, Spring   │
+│  TextField (Next)  │  (Phase 4)      │  (Phase 3)           │
 ├─────────────────────────────────────────────────────────────┤
 │  layout/                            │  state/               │
 │  VStack, HStack, Grid, Flexbox      │  coregx/signals       │
-│  (Internal ✅)                      │  (Phase 1)            │
+│  (Complete ✅)                      │  (Complete ✅)        │
 ├─────────────────────────────────────────────────────────────┤
 │  widget/                            │  event/               │
 │  Widget, WidgetBase, Context        │  Mouse, Keyboard      │
@@ -137,7 +138,7 @@ v1.0.0  → Production (when ready)
 
 ---
 
-### Phase 1: MVP (v0.1.0) 🔄 IN PROGRESS
+### Phase 1: MVP (v0.1.0) ✅ COMPLETE
 
 **Goal:** Working foundation with basic widgets
 
@@ -146,26 +147,26 @@ v1.0.0  → Production (when ready)
 | Task | Description | Status | LOC |
 |------|-------------|--------|-----|
 | TASK-UI-001 | Core Widget Interface | ✅ Done (Phase 0) | — |
-| TASK-UI-002 | Signals Integration | 📋 Pending | 800 |
+| TASK-UI-002 | Signals Integration | ✅ Done | ~800 |
 | TASK-UI-003 | WidgetBase Composition | ✅ Done (Phase 0) | — |
-| TASK-UI-004 | Basic Primitives (Box, Text, Image) | 📋 Pending | 1,200 |
+| TASK-UI-004 | Basic Primitives (Box, Text, Image) | ✅ Done | ~1,200 |
 | TASK-UI-005 | Stack Layout (VStack, HStack) | ✅ Done (Phase 0) | — |
 | TASK-UI-006 | Flexbox Layout Engine | ✅ Done (Phase 0) | — |
 | TASK-UI-007 | Event System | ✅ Done (Phase 0) | — |
-| TASK-UI-008 | Theme System Foundation | 📋 Pending | 1,200 |
+| TASK-UI-008 | Theme System Foundation | ✅ Done | ~1,200 |
 | TASK-UI-009 | Rendering Pipeline | ✅ Done (Phase 0) | — |
-| TASK-UI-010 | Window Integration | 📋 Pending | 800 |
+| TASK-UI-010 | Window Integration | ✅ Done | ~800 |
 
-**Remaining Deliverables:**
+**Delivered:**
 - Signals integration (coregx/signals)
 - Basic primitives (Box, Text, Image)
 - Public layout API
 - Theme system foundation
-- Window integration (gogpu/gogpu)
+- Window integration (app package via gpucontext interfaces)
 
 ---
 
-### Phase 1.5: Extensibility Foundation (v0.1.x) ✅ 83% COMPLETE
+### Phase 1.5: Extensibility Foundation (v0.1.x) ✅ COMPLETE
 
 **Goal:** Enable community to create custom widgets, themes, and layouts
 
@@ -178,16 +179,13 @@ v1.0.0  → Production (when ready)
 | ~~TASK-UI-043~~ | Public Layout API | ✅ Done | ~3,720 |
 | ~~TASK-UI-044~~ | Theme Registry | ✅ Done | ~1,180 |
 | ~~TASK-UI-045~~ | Plugin System | ✅ Done | ~3,040 |
-| TASK-UI-046 | Community Extension Guidelines | 📋 Pending | ~2,000 |
+| ~~TASK-UI-046~~ | Community Extension Guidelines | ✅ Done | ~2,000 |
 
 **Implemented Packages:**
 - `registry/` — Widget factory registration (100% coverage)
 - `layout/` — Public layout API with custom algorithms (89.5% coverage)
 - `theme/` — Theme System + Extensions + Registry (100% coverage)
 - `plugin/` — Plugin bundling with dependency resolution (99.4% coverage)
-
-**Remaining:**
-- `docs/guides/` — Community extension documentation (UI-046)
 
 **Why Extensibility First?**
 - Community can create extensions from v0.1.x
@@ -196,29 +194,36 @@ v1.0.0  → Production (when ready)
 
 ---
 
-### Phase 2: Beta (v0.2.0)
+### Phase 2: Beta (v0.2.0) 🔄 IN PROGRESS
 
 **Goal:** Complete widget library
 
 **Tasks (10 tasks, ~10K LOC):**
 
-| Task | Description | LOC |
-|------|-------------|-----|
-| TASK-UI-011 | Button Widget | 600 |
-| TASK-UI-012 | TextField Widget | 1,200 |
-| TASK-UI-013 | Checkbox & Radio | 600 |
-| TASK-UI-014 | Dropdown/Select | 900 |
-| TASK-UI-015 | Slider Widget | 500 |
-| TASK-UI-016 | Progress Indicators | 400 |
-| TASK-UI-017 | Material 3 Theme | 1,500 |
-| TASK-UI-018 | Typography System | 600 |
-| TASK-UI-019 | Icon System | 400 |
-| TASK-UI-020 | Keyboard Navigation | 700 |
+| Task | Description | Status | LOC |
+|------|-------------|--------|-----|
+| ~~TASK-UI-011~~ | Button Widget | ✅ Done | ~2,400 |
+| TASK-UI-012 | TextField Widget | 📋 Pending | 1,200 |
+| TASK-UI-013 | Checkbox & Radio | 📋 Pending | 600 |
+| TASK-UI-014 | Dropdown/Select | 📋 Pending | 900 |
+| TASK-UI-015 | Slider Widget | 📋 Pending | 500 |
+| TASK-UI-016 | Progress Indicators | 📋 Pending | 400 |
+| ~~TASK-UI-017~~ | Material 3 Theme | ✅ Done | ~1,800 |
+| TASK-UI-018 | Typography System | 📋 Pending | 600 |
+| TASK-UI-019 | Icon System | 📋 Pending | 400 |
+| ~~TASK-UI-020~~ | Keyboard Navigation (Focus) | ✅ Done | ~1,600 |
 
-**Deliverables:**
-- All standard widgets
-- Material 3 theme
-- Full keyboard support
+**Implemented Packages:**
+- `button/` — Interactive button widget, 4 variants, 3 sizes (96.8% coverage)
+- `focus/` — Keyboard focus management with Tab/Shift+Tab (95.2% coverage)
+- `internal/focus/` — Internal focus manager implementation
+- `theme/material3/` — Material Design 3 with HCT color science (97.7% coverage)
+- `widget/focusable.go` — Focusable interface (IsFocusable, SetFocused, IsFocused)
+
+**Remaining Deliverables:**
+- TextField, Checkbox, Radio, Dropdown, Slider widgets
+- Progress indicators
+- Typography and icon systems
 
 ---
 
@@ -281,12 +286,12 @@ v1.0.0  → Production (when ready)
 | Phase | Tasks | Estimated LOC | Status |
 |-------|-------|---------------|--------|
 | Phase 0 (Foundation) | 5 packages | ~10K | ✅ Complete |
-| Phase 1 (MVP) | 10 | ~4K remaining | 🔄 In Progress |
-| Phase 1.5 (Extensibility) | 6 | ~4K | 🆕 P0 Priority |
-| Phase 2 (Beta) | 10 | ~10K | Planned |
+| Phase 1 (MVP) | 10 | ~12K | ✅ Complete |
+| Phase 1.5 (Extensibility) | 6 | ~9K | ✅ Complete |
+| Phase 2 (Beta) | 10 | ~10K | 🔄 In Progress (3/10) |
 | Phase 3 (RC) | 10 | ~8K | Planned |
 | Phase 4 (v1.0) | 10 | ~24K | Planned |
-| **Total** | **51+** | **~60K LOC** | |
+| **Total** | **51+** | **~73K LOC** | |
 
 ---
 
@@ -294,10 +299,10 @@ v1.0.0  → Production (when ready)
 
 | Dependency | Version | Purpose | Status |
 |------------|---------|---------|--------|
-| gogpu/gg | v0.15.7+ | 2D rendering | ✅ Integrated |
-| gogpu/gogpu | v0.8.0+ | Windowing | Phase 1 |
+| gogpu/gg | v0.26.1+ | 2D rendering | ✅ Integrated |
+| gogpu/gogpu | v0.8.0+ | Windowing | ✅ Integrated |
 | gogpu/wgpu | v0.7.0+ | WebGPU backend | Via gg |
-| coregx/signals | v0.1.0+ | State management | Phase 1 |
+| coregx/signals | v0.1.0+ | State management | ✅ Integrated |
 
 ---
 

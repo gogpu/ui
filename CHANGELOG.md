@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 2: Interactive Widgets (Partial)
+
+First batch of interactive widgets with 3-layer architecture (ADR-003), keyboard focus management,
+CDK foundation, and Material Design 3 theming with pluggable painters.
+
+#### Added
+
+- **cdk** -- Component Development Kit foundation (ADR-003)
+  - `Content[C]` polymorphic content interface for composite widgets
+  - `StringContent`, `FuncContent[C]`, `WidgetContent` implementations
+  - Foundation for Phase 3 container widgets (VirtualizedList, Tabs, ComboBox)
+  - 15 tests, 100% coverage
+
+- **core/button** -- Generic button widget with pluggable Painter
+  - `button.Widget` with functional options pattern
+  - `Painter` interface for design-system-agnostic rendering
+  - `DefaultPainter` as minimal fallback (gray, no design system)
+  - `PaintState` struct for painter context with `ButtonColorScheme` for theme-derived colors
+  - 4 variant styles: Filled, Outlined, TextOnly, Tonal
+  - 3 size presets: Small (32px), Medium (40px), Large (48px)
+  - Mouse click and keyboard (Enter/Space) activation
+  - Hover/press/focus visual states with color modifiers
+  - Fluent styling: Padding, MinWidth, MaxWidth, SetBackground, SetRounded
+  - 75+ tests (external + internal), 96%+ coverage
+
+- **theme/material3** -- Material Design 3 theme + component painters (moved from `material3/`)
+  - `ButtonPainter` implementing `core/button.Painter` with M3 visual style
+  - `ButtonPainter` now holds `*Theme` field and resolves colors from M3 ColorScheme instead of hardcoded values
+  - M3 color palette: primary, outline, secondary container, on-colors
+  - Light/Dark color schemes with 29 color roles
+  - Tonal palette generation (primary, secondary, tertiary, neutral, error)
+  - 15 typography roles (Display, Headline, Title, Body, Label x 3 sizes)
+  - 7-level shape scale (None to Full)
+  - HCT (Hue, Chroma, Tone) color space approximation via HSL
+  - 50+ tests (external + internal), 97%+ coverage
+
+- **focus** -- Keyboard focus management
+  - `focus.Manager` with delegation pattern (public wrapper around internal impl)
+  - Tab/Shift+Tab navigation through focusable widgets
+  - Keyboard shortcut registration and dispatch
+  - Focus ring drawing with configurable offset/color
+  - `focus.Shortcut` for key combination matching
+  - 44 tests (39 external + 5 internal)
+  - 95.2% coverage (focus), 15.2% (internal/focus)
+
+- **widget** -- Added Focusable interface and ThemeProvider
+  - `IsFocusable`, `SetFocused`, `IsFocused` for keyboard focus support
+  - `ThemeProvider` interface for dark/light mode queries (`IsDark()`)
+  - `Context.ThemeProvider()` / `Context.SetThemeProvider()` for theme access from widgets
+
+#### Architecture (ADR-003)
+
+- 3-layer architecture: Foundation → CDK → Core Widgets / Design Systems
+- Design-system-agnostic widgets in `core/` with pluggable `Painter` interfaces
+- Design system implementations in `theme/material3/`, `fluent/` (planned), `cupertino/` (planned)
+- Content[C] polymorphic pattern in `cdk/` for Phase 3 composite widgets
+
+#### Statistics
+
+- **New tests:** 180+ (core/button: 75+, focus: 44, material3: 50+, cdk: 15)
+- **Total tests:** 1,194+
+- **Total packages:** 21
+
+---
+
 ### Phase 1: MVP
 
 Complete MVP with accessibility, reactive state, widget primitives, and window integration.

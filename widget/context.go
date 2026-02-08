@@ -15,6 +15,7 @@ import (
 //   - Time information: Current time and delta for animations
 //   - Invalidation: Mark areas as needing redraw
 //   - Cursor management: Change the mouse cursor
+//   - Theme access: Query the current visual theme
 //
 // Thread Safety:
 //
@@ -87,6 +88,12 @@ type Context interface {
 	// Returns 1.0 for standard displays, 2.0 for Retina/HiDPI displays, etc.
 	// Use this to scale coordinates and sizes for proper rendering.
 	Scale() float32
+
+	// ThemeProvider returns the current theme for this context.
+	//
+	// Returns nil if no theme is set (headless mode without a theme).
+	// Widgets should check for nil before using the returned provider.
+	ThemeProvider() ThemeProvider
 }
 
 // CursorType represents the type of mouse cursor to display.
@@ -193,6 +200,9 @@ type ContextImpl struct {
 
 	// Display scale
 	scale float32
+
+	// Theme provider
+	themeProvider ThemeProvider
 
 	// Callback for invalidation (called when Invalidate is called)
 	onInvalidate func()
@@ -345,6 +355,24 @@ func (c *ContextImpl) SetScale(scale float32) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.scale = scale
+}
+
+// ThemeProvider returns the current theme for this context.
+//
+// Returns nil if no theme is set (headless mode without a theme).
+func (c *ContextImpl) ThemeProvider() ThemeProvider {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.themeProvider
+}
+
+// SetThemeProvider sets the theme provider for this context.
+//
+// Pass nil to clear the theme provider (e.g., for headless testing).
+func (c *ContextImpl) SetThemeProvider(tp ThemeProvider) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.themeProvider = tp
 }
 
 // SetNow updates the current time and calculates delta time.

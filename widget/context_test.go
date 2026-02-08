@@ -60,6 +60,9 @@ func TestNewContext(t *testing.T) {
 	if ctx.DeltaTime() != 0 {
 		t.Errorf("DeltaTime() = %v, want 0", ctx.DeltaTime())
 	}
+	if ctx.ThemeProvider() != nil {
+		t.Error("expected nil ThemeProvider by default")
+	}
 }
 
 func TestContextImpl_Focus(t *testing.T) {
@@ -362,6 +365,70 @@ func TestContextImpl_ThreadSafety(t *testing.T) {
 
 	wg.Wait()
 	// If we get here without deadlock or panic, the test passes
+}
+
+func TestContextImpl_ThemeProvider_NilByDefault(t *testing.T) {
+	ctx := NewContext()
+	if ctx.ThemeProvider() != nil {
+		t.Error("expected nil ThemeProvider by default (headless mode)")
+	}
+}
+
+func TestContextImpl_ThemeProvider_RoundTrip(t *testing.T) {
+	ctx := NewContext()
+	tp := &mockThemeProvider{dark: true}
+
+	ctx.SetThemeProvider(tp)
+	got := ctx.ThemeProvider()
+	if got == nil {
+		t.Fatal("ThemeProvider() returned nil after SetThemeProvider")
+	}
+	if !got.IsDark() {
+		t.Error("ThemeProvider().IsDark() = false, want true")
+	}
+
+	// Set to nil (clear)
+	ctx.SetThemeProvider(nil)
+	if ctx.ThemeProvider() != nil {
+		t.Error("expected nil ThemeProvider after SetThemeProvider(nil)")
+	}
+}
+
+func TestContextImpl_ThemeProvider_ThreadSafety(t *testing.T) {
+	ctx := NewContext()
+	tp1 := &mockThemeProvider{dark: false}
+	tp2 := &mockThemeProvider{dark: true}
+
+	var wg sync.WaitGroup
+	const numGoroutines = 100
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if i%2 == 0 {
+				ctx.SetThemeProvider(tp1)
+			} else {
+				ctx.SetThemeProvider(tp2)
+			}
+			tp := ctx.ThemeProvider()
+			if tp != nil {
+				_ = tp.IsDark()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	// If we get here without deadlock or panic, the test passes
+}
+
+// mockThemeProvider is a minimal ThemeProvider implementation for testing.
+type mockThemeProvider struct {
+	dark bool
+}
+
+func (m *mockThemeProvider) IsDark() bool {
+	return m.dark
 }
 
 func TestContextImpl_Interface(t *testing.T) {
