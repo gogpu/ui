@@ -186,17 +186,21 @@ func (g *Group) Layout(ctx widget.Context, constraints geometry.Constraints) geo
 }
 
 // layoutVertical positions items from top to bottom and returns the total size.
+// Items are positioned in the group's local coordinate space starting at (0,0).
+// The parent widget sets the group's bounds; Draw applies PushTransform.
 // Caller must hold mu.
 func (g *Group) layoutVertical(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
 	var totalWidth, totalHeight float32
-	origin := g.Bounds().Min
+
+	// Items size to their content — use loose constraints with parent max bounds.
+	itemConstraints := geometry.Loose(geometry.Sz(constraints.MaxWidth, constraints.MaxHeight))
 
 	for i, it := range g.items {
-		itemSize := it.Layout(ctx, constraints)
+		itemSize := it.Layout(ctx, itemConstraints)
 		if i > 0 {
 			totalHeight += itemSpacing
 		}
-		it.SetBounds(geometry.NewRect(origin.X, origin.Y+totalHeight, itemSize.Width, itemSize.Height))
+		it.SetBounds(geometry.NewRect(0, totalHeight, itemSize.Width, itemSize.Height))
 		totalHeight += itemSize.Height
 		if itemSize.Width > totalWidth {
 			totalWidth = itemSize.Width
@@ -207,17 +211,20 @@ func (g *Group) layoutVertical(ctx widget.Context, constraints geometry.Constrai
 }
 
 // layoutHorizontal positions items from left to right and returns the total size.
+// Items are positioned in the group's local coordinate space starting at (0,0).
 // Caller must hold mu.
 func (g *Group) layoutHorizontal(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
 	var totalWidth, totalHeight float32
-	origin := g.Bounds().Min
+
+	// Items size to their content — use loose constraints with parent max bounds.
+	itemConstraints := geometry.Loose(geometry.Sz(constraints.MaxWidth, constraints.MaxHeight))
 
 	for i, it := range g.items {
-		itemSize := it.Layout(ctx, constraints)
+		itemSize := it.Layout(ctx, itemConstraints)
 		if i > 0 {
 			totalWidth += itemSpacing
 		}
-		it.SetBounds(geometry.NewRect(origin.X+totalWidth, origin.Y, itemSize.Width, itemSize.Height))
+		it.SetBounds(geometry.NewRect(totalWidth, 0, itemSize.Width, itemSize.Height))
 		totalWidth += itemSize.Width
 		if itemSize.Height > totalHeight {
 			totalHeight = itemSize.Height
@@ -241,9 +248,13 @@ func (g *Group) Draw(ctx widget.Context, canvas widget.Canvas) {
 	copy(items, g.items)
 	g.mu.RUnlock()
 
+	// Items are positioned in local coordinates (0,0)-based.
+	// Push the group's position so items render at the correct screen location.
+	canvas.PushTransform(g.Bounds().Min)
 	for _, it := range items {
 		it.Draw(ctx, canvas)
 	}
+	canvas.PopTransform()
 }
 
 // Event handles an input event by delegating to the appropriate item.
@@ -255,6 +266,21 @@ func (g *Group) Event(ctx widget.Context, e event.Event) bool {
 	items := make([]*Item, len(g.items))
 	copy(items, g.items)
 	g.mu.RUnlock()
+
+	// For mouse events, translate to Group-local coordinates and hit-test.
+	// This mirrors PushTransform(g.Bounds().Min) used in Draw.
+	if me, ok := e.(*event.MouseEvent); ok {
+		local := *me
+		local.Position = me.Position.Sub(g.Bounds().Min)
+		for _, it := range items {
+			if it.Bounds().Contains(local.Position) {
+				if it.Event(ctx, &local) {
+					return true
+				}
+			}
+		}
+		return false
+	}
 
 	for _, it := range items {
 		if it.Event(ctx, e) {
