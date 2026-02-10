@@ -1,6 +1,7 @@
 package render
 
 import (
+	"math"
 	"sync"
 
 	"github.com/gogpu/gg"
@@ -364,28 +365,48 @@ func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, colo
 	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
 
 	// Calculate baseline Y from top of bounds using font ascent.
+	// Round to pixel grid for crisp text rendering.
 	metrics := face.Metrics()
-	baselineY := float64(bounds.Min.Y) + metrics.Ascent
+	baselineY := math.Round(float64(bounds.Min.Y) + metrics.Ascent)
 
 	// Calculate x position based on alignment.
+	// Round to pixel grid.
 	w, _ := c.ctx.MeasureString(s)
 	available := float64(bounds.Width())
 	x := float64(bounds.Min.X)
 	if w < available {
 		x += (available - w) * float64(align)
 	}
+	x = math.Round(x)
 
 	c.ctx.DrawString(s, x, baselineY)
 }
 
-// applyTransform applies the current transform offset to a rectangle.
-func (c *Canvas) applyTransform(r geometry.Rect) geometry.Rect {
-	return r.Translate(c.currentOffset)
+// snapF rounds a float32 to the nearest integer for pixel-perfect rendering.
+// Sub-pixel coordinates cause blurry lines, asymmetric AA on circles, and
+// fuzzy text. Snapping to the pixel grid eliminates these artifacts.
+func snapF(v float32) float32 {
+	return float32(math.Round(float64(v)))
 }
 
-// applyTransformPoint applies the current transform offset to a point.
+// applyTransform applies the current transform offset to a rectangle
+// and snaps the result to the pixel grid for crisp rendering.
+func (c *Canvas) applyTransform(r geometry.Rect) geometry.Rect {
+	r = r.Translate(c.currentOffset)
+	r.Min.X = snapF(r.Min.X)
+	r.Min.Y = snapF(r.Min.Y)
+	r.Max.X = snapF(r.Max.X)
+	r.Max.Y = snapF(r.Max.Y)
+	return r
+}
+
+// applyTransformPoint applies the current transform offset to a point
+// and snaps the result to the pixel grid for crisp rendering.
 func (c *Canvas) applyTransformPoint(p geometry.Point) geometry.Point {
-	return p.Add(c.currentOffset)
+	p = p.Add(c.currentOffset)
+	p.X = snapF(p.X)
+	p.Y = snapF(p.Y)
+	return p
 }
 
 // isVisible returns true if the rectangle intersects with the current clip bounds.

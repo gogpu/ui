@@ -285,9 +285,37 @@ func (b *BoxWidget) Event(ctx widget.Context, e event.Event) bool {
 	if !b.IsVisible() || !b.IsEnabled() {
 		return false
 	}
-	// Dispatch to children in reverse order (top-most first)
+
+	// For mouse events, translate position to local coordinates and
+	// dispatch only to children whose bounds contain the position.
+	if me, ok := e.(*event.MouseEvent); ok {
+		return b.dispatchMouseEvent(ctx, me)
+	}
+
+	// Non-mouse events (keyboard, focus) broadcast to all children.
 	for i := len(b.children) - 1; i >= 0; i-- {
 		if b.children[i].Event(ctx, e) {
+			return true
+		}
+	}
+	return false
+}
+
+// dispatchMouseEvent translates mouse coordinates to Box-local space
+// and dispatches only to children whose bounds contain the position.
+// This mirrors PushTransform(bounds.Min) used in Draw.
+func (b *BoxWidget) dispatchMouseEvent(ctx widget.Context, e *event.MouseEvent) bool {
+	local := *e
+	local.Position = e.Position.Sub(b.Bounds().Min)
+
+	for i := len(b.children) - 1; i >= 0; i-- {
+		child := b.children[i]
+		if bw, ok := child.(interface{ Bounds() geometry.Rect }); ok {
+			if !bw.Bounds().Contains(local.Position) {
+				continue
+			}
+		}
+		if child.Event(ctx, &local) {
 			return true
 		}
 	}
