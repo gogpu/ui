@@ -1,6 +1,6 @@
 # Creating Extensions for gogpu/ui
 
-> **Version:** 0.1.x | **Updated:** January 2026
+> **Version:** 0.2.x | **Updated:** February 2026
 
 This guide explains how to extend gogpu/ui with custom widgets, themes, layouts, and plugins.
 
@@ -559,7 +559,7 @@ module github.com/yourname/ui-extension
 
 go 1.25
 
-require github.com/gogpu/ui v0.1.0
+require github.com/gogpu/ui latest
 ```
 
 ### README Template
@@ -596,10 +596,10 @@ import _ "github.com/yourname/ui-extension"
 
 | gogpu/ui | Extension API |
 |----------|---------------|
-| v0.1.x | Stable (registry, theme, layout, plugin) |
-| v0.2.x | Stable + new widget primitives |
+| Phase 1.x | Stable (registry, theme, layout, plugin) |
+| Phase 2.x | Stable + interactive widgets (button, checkbox, radio) + Painter pattern |
 
-Extensions built for v0.1.x will remain compatible with future v0.x releases.
+The extension API is stable and will remain compatible across future releases.
 
 ---
 

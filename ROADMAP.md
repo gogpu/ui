@@ -96,20 +96,20 @@ v1.0.0  → Production (when ready)
 │  (Complete ✅)     │   (Phase 4)     │    (Phase 4)         │
 ├─────────────────────────────────────────────────────────────┤
 │  button/  focus/   │  docking/       │  animation/          │
-│  (Complete ✅)     │  DockingHost    │  Animation, Spring   │
+│  (Complete ✅)     │  DockingHost    │  Animation, Spring  │
 │  TextField (Next)  │  (Phase 4)      │  (Phase 3)           │
 ├─────────────────────────────────────────────────────────────┤
 │  layout/                            │  state/               │
 │  VStack, HStack, Grid, Flexbox      │  coregx/signals       │
-│  (Complete ✅)                      │  (Complete ✅)        │
+│  (Complete ✅)                      │  (Complete ✅)       │
 ├─────────────────────────────────────────────────────────────┤
 │  widget/                            │  event/               │
 │  Widget, WidgetBase, Context        │  Mouse, Keyboard      │
-│  (Complete ✅)                      │  (Complete ✅)        │
+│  (Complete ✅)                      │  (Complete ✅)       │
 ├─────────────────────────────────────────────────────────────┤
 │  geometry/        │  internal/render │  internal/layout     │
 │  Point, Rect      │  Canvas impl     │  Flex, Stack, Grid   │
-│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)       │
+│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)      │
 ├─────────────────────────────────────────────────────────────┤
 │  gogpu/gg          │  gogpu/gogpu    │  coregx/signals      │
 │  2D Graphics ✅    │  Windowing      │  State Management    │
@@ -204,7 +204,7 @@ v1.0.0  → Production (when ready)
 |------|-------------|--------|-----|
 | ~~TASK-UI-011~~ | Button Widget | ✅ Done | ~2,400 |
 | TASK-UI-012 | TextField Widget | 📋 Pending | 1,200 |
-| TASK-UI-013 | Checkbox & Radio | 📋 Pending | 600 |
+| ~~TASK-UI-013~~ | Checkbox & Radio | ✅ Done | ~2,000 |
 | TASK-UI-014 | Dropdown/Select | 📋 Pending | 900 |
 | TASK-UI-015 | Slider Widget | 📋 Pending | 500 |
 | TASK-UI-016 | Progress Indicators | 📋 Pending | 400 |
@@ -214,14 +214,16 @@ v1.0.0  → Production (when ready)
 | ~~TASK-UI-020~~ | Keyboard Navigation (Focus) | ✅ Done | ~1,600 |
 
 **Implemented Packages:**
-- `button/` — Interactive button widget, 4 variants, 3 sizes (96.8% coverage)
+- `core/button/` — Interactive button widget, 4 variants, 3 sizes (96%+ coverage)
+- `core/checkbox/` — Toggleable checkbox with checked/unchecked/indeterminate (96%+ coverage)
+- `core/radio/` — Radio group with vertical/horizontal layout, arrow key navigation (96%+ coverage)
 - `focus/` — Keyboard focus management with Tab/Shift+Tab (95.2% coverage)
 - `internal/focus/` — Internal focus manager implementation
-- `theme/material3/` — Material Design 3 with HCT color science (97.7% coverage)
+- `theme/material3/` — Material Design 3 with HCT color science (97%+ coverage)
 - `widget/focusable.go` — Focusable interface (IsFocusable, SetFocused, IsFocused)
 
 **Remaining Deliverables:**
-- TextField, Checkbox, Radio, Dropdown, Slider widgets
+- TextField, Dropdown, Slider widgets
 - Progress indicators
 - Typography and icon systems
 
@@ -288,7 +290,7 @@ v1.0.0  → Production (when ready)
 | Phase 0 (Foundation) | 5 packages | ~10K | ✅ Complete |
 | Phase 1 (MVP) | 10 | ~12K | ✅ Complete |
 | Phase 1.5 (Extensibility) | 6 | ~9K | ✅ Complete |
-| Phase 2 (Beta) | 10 | ~10K | 🔄 In Progress (3/10) |
+| Phase 2 (Beta) | 10 | ~10K | 🔄 In Progress (4/10) |
 | Phase 3 (RC) | 10 | ~8K | Planned |
 | Phase 4 (v1.0) | 10 | ~24K | Planned |
 | **Total** | **51+** | **~73K LOC** | |
@@ -299,9 +301,10 @@ v1.0.0  → Production (when ready)
 
 | Dependency | Version | Purpose | Status |
 |------------|---------|---------|--------|
-| gogpu/gg | v0.26.1+ | 2D rendering | ✅ Integrated |
-| gogpu/gogpu | v0.8.0+ | Windowing | ✅ Integrated |
-| gogpu/wgpu | v0.7.0+ | WebGPU backend | Via gg |
+| gogpu/gg | v0.28.1+ | 2D rendering | ✅ Integrated |
+| gogpu/gogpu | v0.18.1+ | Windowing (event-driven) | ✅ Integrated |
+| gogpu/gpucontext | v0.9.0+ | Shared interfaces | ✅ Integrated |
+| gogpu/wgpu | v0.16.0+ | WebGPU backend | Via gg |
 | coregx/signals | v0.1.0+ | State management | ✅ Integrated |
 
 ---

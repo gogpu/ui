@@ -9,52 +9,52 @@
 ### 3-Layer Architecture (ADR-003)
 
 ```
-+-------------------------------------------------------------+
++--------------------------------------------------------------+
 |                    User Application                          |
-+=============================================================+
++==============================================================+
 |            Layer 3b: Design Systems (styling)                |
-| theme/material3/  |  (future)         |  (future)           |
-| M3 ButtonPainter  |  fluent/          |  cupertino/         |
-| Theme, ColorScheme|                   |                      |
+| theme/material3/  |  (future)         |  (future)            |
+| M3 Button/Check/  |  fluent/          |  cupertino/          |
+| RadioPainter      |                   |                      |
 +-------------------+-------------------+----------------------+
 |         Layer 3a: Generic Widgets (behavior)                 |
-| core/button/      |  primitives/      |  (future)           |
-| Widget, Painter   |  Box, Text, Image |  core/textfield/    |
-| ButtonColorScheme |                   |  core/checkbox/     |
+| core/button/      |  core/checkbox/   |  primitives/         |
+| core/radio/       |  (future)         |  Box, Text, Image    |
+| Widget, Painter   |  core/textfield/  |                      |
 +-------------------+-------------------+----------------------+
 |         Layer 2: Component Development Kit                   |
 | cdk/              |                                          |
 | Content[C]        |  (future: clickable, hoverable, overlay) |
 +-------------------+------------------------------------------+
 |         Layer 1: Foundation                                  |
-| widget/                              |  event/              |
-| Widget, WidgetBase, Context, Canvas  |  Mouse, Key, Wheel   |
-| Focusable, ThemeProvider, Color      |  Focus, Modifiers    |
-+--------------------------------------+----------------------+
+| widget/                              |  event/               |
+| Widget, WidgetBase, Context, Canvas  |  Mouse, Key, Wheel    |
+| Focusable, ThemeProvider, Color      |  Focus, Modifiers     |
++--------------------------------------+-----------------------+
 | geometry/                                                    |
 | Point, Size, Rect, Constraints, Insets                       |
-+=============================================================+
++==============================================================+
 |                    Infrastructure                            |
-| focus/           |  layout/          |  state/              |
-| Focus Manager    |  Flex, Stack, Grid|  Signals, Binding    |
-| (delegation)     |  (public API)     |  Computed, Effect    |
+| focus/           |  layout/          |  state/               |
+| Focus Manager    |  Flex, Stack, Grid|  Signals, Binding     |
+| (delegation)     |  (public API)     |  Computed, Effect     |
++------------------+-------------------+-----------------------+
+| a11y/            |  registry/        |  plugin/              |
+| Accessible       |  Widget Registry  |  Plugin System        |
+| Node, Tree, Role |  Categories       |  Manager, Assets      |
 +------------------+-------------------+----------------------+
-| a11y/            |  registry/        |  plugin/             |
-| Accessible       |  Widget Registry  |  Plugin System       |
-| Node, Tree, Role |  Categories       |  Manager, Assets     |
-+------------------+-------------------+----------------------+
-| render/                   |  app/                           |
-| Public Canvas factory     |  App, Window, EventBridge       |
-+---------------------------+---------------------------------+
+| render/                   |  app/                            |
+| Public Canvas factory     |  App, Window, EventBridge        |
++---------------------------+----------------------------------+
 |                 Internal Implementation                      |
-| internal/render  |  internal/layout  |  internal/focus      |
-| Canvas (gg)      |  Flex, Stack,     |  Manager, Ring,      |
-| Renderer         |  Grid, Engine     |  Traversal, Shortcut |
-+------------------+-------------------+----------------------+
+| internal/render  |  internal/layout  |  internal/focus       |
+| Canvas (gg)      |  Flex, Stack,     |  Manager, Ring,       |
+| Renderer         |  Grid, Engine     |  Traversal, Shortcut  |
++------------------+-------------------+-----------------------+
 |                 External Dependencies                        |
-| gogpu/gg         |  gogpu/gpucontext |  coregx/signals      |
-| 2D Graphics      |  Window/Platform  |  Reactive State      |
-+------------------+-------------------+----------------------+
+| gogpu/gg         |  gogpu/gpucontext |  coregx/signals       |
+| 2D Graphics      |  Window/Platform  |  Reactive State       |
++------------------+-------------------+-----------------------+
 ```
 
 ---
@@ -80,13 +80,15 @@
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
 | `core/button/` | Button widget (behavior + Painter) | `Widget`, `Painter`, `PaintState`, `ButtonColorScheme`, `DefaultPainter` |
+| `core/checkbox/` | Checkbox widget (toggle + Painter) | `Widget`, `Painter`, `PaintState`, `DefaultPainter` |
+| `core/radio/` | Radio group widget (selection + Painter) | `Group`, `Item`, `Painter`, `PaintState`, `DefaultPainter` |
 | `primitives/` | Display-only widgets | `BoxWidget`, `TextWidget`, `ImageWidget` |
 
 ### Layer 3b: Design Systems
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `theme/material3/` | M3 design tokens + painters | `Theme`, `ButtonPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
+| `theme/material3/` | M3 design tokens + painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
 
 ### Infrastructure
 
@@ -452,6 +454,69 @@ The button is a leaf widget (`Children()` returns nil). It embeds `widget.Widget
 | `core/button/painter.go` | Painter interface, PaintState, ButtonColorScheme, DefaultPainter |
 | `core/button/event.go` | Mouse and keyboard event handling |
 | `core/button/styling.go` | Fluent styling methods |
+
+---
+
+## Checkbox Widget
+
+The `core/checkbox/` package implements a toggleable checkbox with three visual states: unchecked, checked, and indeterminate. Like the button, it uses the pluggable `Painter` pattern for design-system-agnostic rendering.
+
+### Check States
+
+- **Unchecked** (default) -- empty box with a border
+- **Checked** -- filled box with a checkmark
+- **Indeterminate** -- filled box with a horizontal dash (for "select all" scenarios)
+
+### Construction
+
+```go
+cb := checkbox.New(
+    checkbox.LabelOpt("Accept terms"),
+    checkbox.OnToggle(func(checked bool) { /* ... */ }),
+    checkbox.Checked(true),
+    checkbox.Disabled(false),
+)
+```
+
+### Interaction
+
+- Mouse click (left button) toggles checked state
+- Space key toggles when focused
+- Disabled checkboxes ignore all interaction
+- Implements `widget.Focusable` for Tab navigation
+
+---
+
+## Radio Group Widget
+
+The `core/radio/` package implements a mutually exclusive radio group with configurable layout direction (vertical or horizontal) and arrow key navigation.
+
+### Construction
+
+```go
+rg := radio.NewGroup(
+    radio.Items(
+        radio.ItemDef{Value: "s", Label: "Small"},
+        radio.ItemDef{Value: "m", Label: "Medium"},
+        radio.ItemDef{Value: "l", Label: "Large"},
+    ),
+    radio.Selected("m"),
+    radio.OnChange(func(v string) { /* ... */ }),
+    radio.DirectionOpt(radio.Horizontal),
+)
+```
+
+### Layout Direction
+
+- `Vertical` (default) -- items stacked top-to-bottom, Up/Down arrow keys
+- `Horizontal` -- items placed left-to-right, Left/Right arrow keys
+
+### Interaction
+
+- Mouse click selects an item and deselects the previous one
+- Arrow keys navigate between items within the group
+- Space/Enter on a focused item selects it
+- Individual items implement `widget.Focusable` for Tab navigation
 
 ---
 
@@ -902,10 +967,10 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics backend for Canvas | v0.26.1 |
-| `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.8.0 |
+| `github.com/gogpu/gg` | 2D graphics backend for Canvas | v0.28.1 |
+| `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.9.0 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
-| `golang.org/x/image` | Standard Go fonts (goregular, gobold) | v0.35.0 |
+| `golang.org/x/image` | Standard Go fonts (goregular, gobold) | v0.36.0 |
 
 Go version: **1.25.0**
 
@@ -951,9 +1016,10 @@ Public packages provide clean APIs while delegating to internal implementations:
 Generic widgets in `core/` define behavior and delegate visual rendering to a `Painter` interface. Each design system provides its own Painter:
 
 ```go
-// core/button/ defines:   Painter interface + ButtonColorScheme value struct
-// theme/material3/ provides: ButtonPainter{Theme} implementing Painter
-// (future) fluent/ provides: ButtonPainter implementing Painter
+// core/button/   defines: Painter interface + ButtonColorScheme value struct
+// core/checkbox/ defines: Painter interface + PaintState
+// core/radio/    defines: Painter interface + PaintState
+// theme/material3/ provides: ButtonPainter, CheckboxPainter, RadioPainter
 ```
 
 This lets the same widget render as Material 3, Fluent, or Cupertino by swapping the Painter. Colors flow as a value struct (`ButtonColorScheme`) -- no import cycle between `core/` and `theme/`.
@@ -968,4 +1034,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of February 2026.*
+*This document reflects the actual codebase as of February 15, 2026.*

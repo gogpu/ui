@@ -34,7 +34,9 @@ CDK foundation, and Material Design 3 theming with pluggable painters.
 
 - **theme/material3** -- Material Design 3 theme + component painters (moved from `material3/`)
   - `ButtonPainter` implementing `core/button.Painter` with M3 visual style
-  - `ButtonPainter` now holds `*Theme` field and resolves colors from M3 ColorScheme instead of hardcoded values
+  - `CheckboxPainter` implementing `core/checkbox.Painter` with M3 visual style
+  - `RadioPainter` implementing `core/radio.Painter` with M3 visual style
+  - Painters hold `*Theme` field and resolve colors from M3 ColorScheme instead of hardcoded values
   - M3 color palette: primary, outline, secondary container, on-colors
   - Light/Dark color schemes with 29 color roles
   - Tonal palette generation (primary, secondary, tertiary, neutral, error)
@@ -42,6 +44,25 @@ CDK foundation, and Material Design 3 theming with pluggable painters.
   - 7-level shape scale (None to Full)
   - HCT (Hue, Chroma, Tone) color space approximation via HSL
   - 50+ tests (external + internal), 97%+ coverage
+
+- **core/checkbox** -- Toggleable checkbox widget with pluggable Painter
+  - Three visual states: unchecked, checked, indeterminate
+  - `Painter` interface for design-system-agnostic rendering
+  - `DefaultPainter` as minimal fallback (gray, no design system)
+  - Mouse click and keyboard (Space) activation
+  - `LabelOpt` for text label, `Disabled` for read-only state
+  - Implements `widget.Focusable` for Tab navigation with focus ring
+  - 96%+ coverage
+
+- **core/radio** -- Mutually exclusive radio group widget with pluggable Painter
+  - `NewGroup` with functional options: `Items`, `Selected`, `OnChange`, `DirectionOpt`
+  - `ItemDef{Value, Label}` for item definition
+  - Vertical (default) and Horizontal layout directions
+  - Arrow key navigation within group (Up/Down or Left/Right)
+  - Space/Enter selection on focused item
+  - `Painter` interface with `DefaultPainter` fallback
+  - Individual items implement `widget.Focusable`
+  - 96%+ coverage
 
 - **focus** -- Keyboard focus management
   - `focus.Manager` with delegation pattern (public wrapper around internal impl)
@@ -66,9 +87,9 @@ CDK foundation, and Material Design 3 theming with pluggable painters.
 
 #### Statistics
 
-- **New tests:** 180+ (core/button: 75+, focus: 44, material3: 50+, cdk: 15)
-- **Total tests:** 1,194+
-- **Total packages:** 21
+- **New tests:** 280+ (core/button: 75+, core/checkbox: 40+, core/radio: 40+, focus: 44, material3: 50+, cdk: 15)
+- **Total tests:** 1,300+
+- **Total packages:** 23
 
 ---
 
@@ -118,7 +139,9 @@ Complete MVP with accessibility, reactive state, widget primitives, and window i
 
 - Added `github.com/coregx/signals` v0.1.0
 - Added `github.com/gogpu/gpucontext` v0.8.0
-- Updated `github.com/gogpu/gg` v0.15.7 → v0.26.1
+- Updated `github.com/gogpu/gg` v0.15.7 → v0.28.1
+- Updated `github.com/gogpu/gogpu` v0.17.0 → v0.18.1 (in examples)
+- Updated `github.com/gogpu/gpucontext` v0.8.0 → v0.9.0
 
 #### Statistics
 

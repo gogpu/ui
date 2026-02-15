@@ -7,9 +7,12 @@
 //
 //	ui widgets → render.Canvas (gg) → ggcanvas → gogpu.Context (GPU) → Window
 //
+// Rendering: event-driven (ContinuousRender=false).
+// 0% CPU when idle. Redraws only on user interaction (click, key, resize).
+//
 // Requirements:
-//   - gogpu v0.17.0+
-//   - gg v0.27.0+
+//   - gogpu v0.18.1+
+//   - gg v0.28.1+
 package main
 
 import (
@@ -33,7 +36,8 @@ func main() {
 	// Create gogpu application with builder pattern.
 	gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
 		WithTitle("gogpu/ui — Widget Demo").
-		WithSize(800, 600))
+		WithSize(800, 600).
+		WithContinuousRender(false)) // Event-driven: 0% CPU when idle
 
 	// Create UI application wired to gogpu providers.
 	uiApp := app.New(

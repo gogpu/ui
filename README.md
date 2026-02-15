@@ -63,11 +63,10 @@ import (
 )
 
 func main() {
-    gogpuApp := gogpu.NewApp(gogpu.Config{
-        Title:  "My App",
-        Width:  800,
-        Height: 600,
-    })
+    gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
+        WithTitle("My App").
+        WithSize(800, 600).
+        WithContinuousRender(false)) // Event-driven: 0% CPU when idle
 
     uiApp := app.New(
         app.WithWindowProvider(gogpuApp),
@@ -135,11 +134,13 @@ func main() {
 |---------|-------------|----------|
 | `cdk` | Component Development Kit — Content[C] polymorphic pattern | 100% |
 | `core/button` | Generic button with pluggable Painter, 4 variants, 3 sizes | 96%+ |
-| `theme/material3` | Material Design 3 — theme (HCT color science) + theme-aware ButtonPainter | 97%+ |
+| `core/checkbox` | Toggleable checkbox with checked/unchecked/indeterminate states | 96%+ |
+| `core/radio` | Mutually exclusive radio group with vertical/horizontal layout | 96%+ |
+| `theme/material3` | Material Design 3 — theme (HCT color science) + component painters | 97%+ |
 | `focus` | Keyboard focus management with Tab/Shift+Tab navigation | 95.2% |
 | `internal/focus` | Internal focus manager implementation | 15.2% |
 
-**Total: ~45,000+ lines of code | 21 packages | 1,194+ tests | ~97% average coverage**
+**Total: ~48,000+ lines of code | 23 packages | 1,300+ tests | ~97% average coverage**
 
 ---
 
@@ -154,8 +155,9 @@ func main() {
 │  (Complete ✅)     │                 │                      │
 ├─────────────────────────────────────────────────────────────┤
 │  core/button/      │  docking/       │  animation/          │
-│  focus/            │  DockingHost    │  Animation, Spring   │
-│  (Complete ✅)     │  (Phase 3+)    │  (Phase 3)            │
+│  core/checkbox/    │  DockingHost    │  Animation, Spring   │
+│  core/radio/       │  (Phase 3+)    │  (Phase 3)           │
+│  focus/  ✅        │                │                      │
 ├──────────────┬──────────────────────────────────────────────┤
 │  cdk/        │  Content[C] polymorphic pattern              │
 │  (Complete ✅)│  Headless behaviors (Phase 3)               │
@@ -321,10 +323,11 @@ testApp.Window().Frame()  // processes layout + draw
 ### Phase 2: Beta (In Progress)
 
 - [x] Button widget (4 variants, 3 sizes, keyboard activation)
+- [x] Checkbox widget (checked/unchecked/indeterminate, pluggable Painter)
+- [x] Radio group widget (vertical/horizontal, arrow key navigation)
 - [x] Material Design 3 theme (HCT color science, light/dark schemes)
 - [x] Keyboard navigation (focus management, Tab/Shift+Tab, shortcuts)
 - [ ] TextField widget
-- [ ] Checkbox & Radio
 - [ ] Container widgets (ScrollView, Panel)
 - [ ] Typography system
 
