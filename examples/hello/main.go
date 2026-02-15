@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gogpu/gg"
 	_ "github.com/gogpu/gg/gpu" // enable GPU SDF acceleration
 	"github.com/gogpu/gg/integration/ggcanvas"
 	"github.com/gogpu/gogpu"
@@ -67,17 +68,23 @@ func main() {
 			}
 		}
 
-		// Clear 2D canvas, run layout, draw widget tree.
-		cc := canvas.Context()
-		cc.SetRGBA(0, 0, 0, 0)
-		cc.Clear()
-
-		cw, ch := canvas.Size()
-		widgetCanvas := render.NewCanvas(cc, cw, ch)
+		// Check if UI needs redraw before Frame() clears the flag.
+		needsRedraw := uiApp.Window().NeedsLayout()
 		uiApp.Frame()
-		uiApp.Window().DrawTo(widgetCanvas)
 
-		// Blit to GPU.
+		// Only redraw and re-upload when UI content changed.
+		if needsRedraw {
+			cw, ch := canvas.Size()
+			canvas.Draw(func(cc *gg.Context) {
+				cc.SetRGBA(0, 0, 0, 0)
+				cc.Clear()
+
+				widgetCanvas := render.NewCanvas(cc, cw, ch)
+				uiApp.Window().DrawTo(widgetCanvas)
+			})
+		}
+
+		// Display texture (skips GPU upload if not dirty).
 		if err := canvas.RenderTo(dc.AsTextureDrawer()); err != nil {
 			log.Printf("render: %v", err)
 		}
