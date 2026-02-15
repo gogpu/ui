@@ -164,6 +164,11 @@ linters:
           - gosec        # Platform syscalls are intentional
           - errcheck     # Platform calls often ignore returns
 
+      # Plugin package - name intentionally matches stdlib for discoverability
+      - path: plugin/.*\.go
+        linters:
+          - revive       # var-naming: package name conflict is intentional
+
       # Theme implementations - similar structure
       - path: theme/.*\.go
         linters:
