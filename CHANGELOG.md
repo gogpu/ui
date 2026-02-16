@@ -85,6 +85,12 @@ CDK foundation, and Material Design 3 theming with pluggable painters.
 - Design system implementations in `theme/material3/`, `fluent/` (planned), `cupertino/` (planned)
 - Content[C] polymorphic pattern in `cdk/` for Phase 3 composite widgets
 
+#### Dependencies
+
+- gg v0.28.2 → v0.28.3 (wgpu v0.16.2 — Metal autorelease pool fix)
+- gogpu v0.18.2 → v0.19.0 (cross-platform Rust backend) in hello example
+- wgpu v0.16.1 → v0.16.2 in hello example
+
 #### Statistics
 
 - **New tests:** 280+ (core/button: 75+, core/checkbox: 40+, core/radio: 40+, focus: 44, material3: 50+, cdk: 15)
