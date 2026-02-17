@@ -103,13 +103,20 @@ func main() {
 		}
 	})
 
+	// Release GPU resources before renderer destroys the device.
+	// OnClose runs on the render thread BEFORE Renderer.Destroy(),
+	// so the device is still alive for proper cleanup.
+	gogpuApp.OnClose(func() {
+		gg.CloseAccelerator()
+		if canvas != nil {
+			_ = canvas.Close()
+			canvas = nil
+		}
+	})
+
 	// Run application.
 	if err := gogpuApp.Run(); err != nil {
 		log.Fatal(err)
-	}
-
-	if canvas != nil {
-		canvas.Close()
 	}
 }
 
