@@ -5,7 +5,7 @@
 //
 // Architecture:
 //
-//	ui widgets → render.Canvas (gg) → ggcanvas → gogpu.Context (GPU) → Window
+//	ui widgets → render.Canvas (gg) → ggcanvas → GPU surface (zero-copy)
 //
 // Rendering: event-driven (ContinuousRender=false).
 // 0% CPU when idle. Redraws only on user interaction (click, key, resize).
@@ -23,7 +23,6 @@ import (
 	_ "github.com/gogpu/gg/gpu" // enable GPU SDF acceleration
 	"github.com/gogpu/gg/integration/ggcanvas"
 	"github.com/gogpu/gogpu"
-	"github.com/gogpu/gogpu/gmath"
 	"github.com/gogpu/ui/app"
 	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/radio"
@@ -56,8 +55,6 @@ func main() {
 			return
 		}
 
-		dc.ClearColor(gmath.Hex(0xF0F0F0))
-
 		// Lazy canvas initialization.
 		if canvas == nil {
 			provider := gogpuApp.GPUContextProvider()
@@ -72,24 +69,29 @@ func main() {
 			}
 		}
 
-		// Check if UI needs redraw before Frame() clears the flag.
-		needsRedraw := uiApp.Window().NeedsLayout()
 		uiApp.Frame()
 
-		// Only redraw and re-upload when UI content changed.
-		if needsRedraw {
-			cw, ch := canvas.Size()
-			canvas.Draw(func(cc *gg.Context) {
-				cc.SetRGBA(0, 0, 0, 0)
-				cc.Clear()
+		// Surface is transient — draw every frame.
+		cw, ch := canvas.Size()
+		sv := dc.SurfaceView()
+		sw, sh := dc.SurfaceSize()
 
-				widgetCanvas := render.NewCanvas(cc, cw, ch)
-				uiApp.Window().DrawTo(widgetCanvas)
-			})
-		}
+		// Set surface target BEFORE drawing so all GPU operations
+		// (including mid-draw flushes) render to the surface.
+		gg.SetAcceleratorSurfaceTarget(sv, sw, sh)
 
-		// Display texture (skips GPU upload if not dirty).
-		if err := canvas.RenderTo(dc.AsTextureDrawer()); err != nil {
+		canvas.Draw(func(cc *gg.Context) {
+			// Background via GPU-accelerated filled rect.
+			cc.SetRGBA(0.94, 0.94, 0.94, 1) // #F0F0F0
+			cc.DrawRectangle(0, 0, float64(cw), float64(ch))
+			cc.Fill()
+
+			widgetCanvas := render.NewCanvas(cc, cw, ch)
+			uiApp.Window().DrawTo(widgetCanvas)
+		})
+
+		// Flush any remaining GPU shapes to surface.
+		if err := canvas.RenderDirect(sv, sw, sh); err != nil {
 			log.Printf("render: %v", err)
 		}
 	})
@@ -118,7 +120,8 @@ func main() {
 }
 
 func buildUI() *primitives.BoxWidget {
-	return primitives.Box(
+	// Card with content.
+	card := primitives.Box(
 		// Title.
 		primitives.Text("gogpu/ui — Widget Demo").
 			FontSize(28).
@@ -193,4 +196,7 @@ func buildUI() *primitives.BoxWidget {
 		Background(widget.RGBA8(255, 255, 255, 255)).
 		Rounded(12).
 		ShadowLevel(2)
+
+	// Outer container provides margin around the card.
+	return primitives.Box(card).Padding(24)
 }

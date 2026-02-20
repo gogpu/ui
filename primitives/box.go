@@ -246,7 +246,7 @@ func (b *BoxWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		offset := shadowOffset(b.style.Shadow.Level)
 		alpha := shadowAlpha(b.style.Shadow.Level)
 		shadowColor := widget.RGBA(0, 0, 0, alpha)
-		shadowRect := bounds.TranslateXY(0, offset)
+		shadowRect := bounds.TranslateXY(offset/2, offset)
 		if b.style.Radius > 0 {
 			canvas.DrawRoundRect(shadowRect, shadowColor, b.style.Radius)
 		} else {

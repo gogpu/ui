@@ -364,10 +364,11 @@ func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, colo
 	c.ctx.SetFont(face)
 	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
 
-	// Calculate baseline Y from top of bounds using font ascent.
+	// Calculate baseline Y by centering text vertically within bounds.
 	// Round to pixel grid for crisp text rendering.
 	metrics := face.Metrics()
-	baselineY := math.Round(float64(bounds.Min.Y) + metrics.Ascent)
+	textHeight := metrics.Ascent + metrics.Descent
+	baselineY := math.Round(float64(bounds.Min.Y) + (float64(bounds.Height())-textHeight)/2 + metrics.Ascent)
 
 	// Calculate x position based on alignment.
 	// Round to pixel grid.
