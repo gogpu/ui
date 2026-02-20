@@ -103,15 +103,12 @@ func main() {
 		}
 	})
 
-	// Release GPU resources before renderer destroys the device.
-	// OnClose runs on the render thread BEFORE Renderer.Destroy(),
-	// so the device is still alive for proper cleanup.
+	// GPU resources are automatically cleaned up on shutdown:
+	// - ggcanvas.Canvas auto-registers with App's ResourceTracker
+	// - App.Run() calls tracker.CloseAll() before Renderer.Destroy()
+	// - OnClose is still available for additional cleanup if needed
 	gogpuApp.OnClose(func() {
 		gg.CloseAccelerator()
-		if canvas != nil {
-			_ = canvas.Close()
-			canvas = nil
-		}
 	})
 
 	// Run application.

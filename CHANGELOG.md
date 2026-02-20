@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Automatic resource cleanup** — examples updated to use gogpu `App.TrackResource()` for automatic ggcanvas shutdown. No manual `canvas.Close()` in `OnClose` needed.
+
+### Dependencies
+- gogpu v0.19.6 → v0.20.0 (ResourceTracker, automatic GPU resource cleanup)
+
 ### Phase 2: Interactive Widgets (Partial)
 
 First batch of interactive widgets with 3-layer architecture (ADR-003), keyboard focus management,
