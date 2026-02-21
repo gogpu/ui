@@ -241,17 +241,9 @@ func (b *BoxWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 
 	bounds := b.Bounds()
 
-	// Draw shadow
+	// Draw shadow layers (outermost first, innermost last).
 	if !b.style.Shadow.IsZero() {
-		offset := shadowOffset(b.style.Shadow.Level)
-		alpha := shadowAlpha(b.style.Shadow.Level)
-		shadowColor := widget.RGBA(0, 0, 0, alpha)
-		shadowRect := bounds.TranslateXY(offset/2, offset)
-		if b.style.Radius > 0 {
-			canvas.DrawRoundRect(shadowRect, shadowColor, b.style.Radius)
-		} else {
-			canvas.DrawRect(shadowRect, shadowColor)
-		}
+		b.drawShadow(canvas, bounds)
 	}
 
 	// Draw background
@@ -278,6 +270,24 @@ func (b *BoxWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		child.Draw(ctx, canvas)
 	}
 	canvas.PopTransform()
+}
+
+// drawShadow renders multi-layer concentric rounded rectangles that
+// approximate a Gaussian blur shadow. Each layer is slightly larger and
+// more offset than the previous one, with decreasing alpha, creating
+// a soft gradient falloff that looks like a real elevation shadow.
+func (b *BoxWidget) drawShadow(canvas widget.Canvas, bounds geometry.Rect) {
+	layers := shadowLayers(b.style.Shadow.Level)
+	for _, layer := range layers {
+		r := bounds.Expand(layer.spread).TranslateXY(layer.offsetX, layer.offsetY)
+		color := widget.RGBA(0, 0, 0, layer.alpha)
+		radius := b.style.Radius + layer.radiusExtra
+		if radius > 0 {
+			canvas.DrawRoundRect(r, color, radius)
+		} else {
+			canvas.DrawRect(r, color)
+		}
+	}
 }
 
 // Event dispatches the event to children. Returns true if any child consumed it.

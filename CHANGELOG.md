@@ -7,21 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **TextField widget** (`core/textfield/`) — full-featured text input with cursor, selection, clipboard (Ctrl+A/C/X/V), password masking, validation, signal two-way binding, accessibility (role=textbox). 12 functional options, pluggable Painter interface, 55 tests
+- **Material 3 TextField painter** (`theme/material3/textfield.go`) — outlined variant with theme-derived colors (Primary focus, Outline unfocused, Error invalid)
+
 ### Changed
-- **GPU direct rendering** — hello example switched from CPU readback (`RenderTo`) to zero-copy
-  GPU surface rendering (`RenderDirect`). All shapes, strokes, and text render directly to the
-  window surface in a single render pass — no CPU readback, no texture re-upload.
-- **Material Design card layout** — hello example wraps content card in outer container with
-  24px margin. White card with rounded corners and shadow is now visually distinct from the
-  gray background.
-- **Automatic resource cleanup** — examples updated to use gogpu `App.TrackResource()` for automatic ggcanvas shutdown. No manual `canvas.Close()` in `OnClose` needed.
+- **Multi-layer box shadow** — Material Design elevation now uses 3-4 concentric semi-transparent rounded rects (approximated Gaussian blur) instead of single flat rectangle. Levels 1-5 with progressive elevation
+- **GPU direct rendering** — hello example switched from CPU readback (`RenderTo`) to zero-copy GPU surface rendering (`RenderDirect`). Single render pass, no CPU readback
+- **Material Design card layout** — hello example wraps content card in outer container with 24px margin
+- **Automatic resource cleanup** — examples updated to use gogpu `App.TrackResource()` for automatic ggcanvas shutdown
 
 ### Fixed
-- **Text vertical alignment** — `DrawText` now centers text vertically within bounds using
-  `(boundsHeight - textHeight)/2 + ascent` instead of top-anchoring at `ascent`. Fixes
-  checkbox/radio label misalignment with icons.
-- **Box shadow direction** — shadow offset now includes horizontal component (`offset/2, offset`)
-  matching Material Design light source (top-left). Previously shadow was only vertical.
+- **Text vertical alignment** — `DrawText` now centers text vertically within bounds using `(boundsHeight - textHeight)/2 + ascent` instead of top-anchoring at `ascent`
+- **Box shadow direction** — shadow offset now includes horizontal component matching Material Design light source
 
 ### Dependencies
 - gogpu v0.19.6 → v0.20.0 (ResourceTracker, automatic GPU resource cleanup)

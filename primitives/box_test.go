@@ -288,15 +288,72 @@ func TestBoxDrawRoundedBackground(t *testing.T) {
 	}
 }
 
-func TestBoxDrawShadow(t *testing.T) {
+func TestBoxDrawShadowMultiLayer(t *testing.T) {
+	// Level 3 has 3 layers. Even without box radius, shadow layers have
+	// radiusExtra > 0, so they use DrawRoundRect.
 	b := primitives.Box().ShadowLevel(3).Width(100).Height(50)
 	ctx := widget.NewContext()
 	canvas := &mockCanvas{}
 	_ = b.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
 	b.Draw(ctx, canvas)
 
-	if canvas.drawRectCount == 0 {
-		t.Error("expected shadow DrawRect call")
+	if canvas.drawRoundRectCount < 3 {
+		t.Errorf("level 3 shadow should produce at least 3 DrawRoundRect calls, got %d",
+			canvas.drawRoundRectCount)
+	}
+}
+
+func TestBoxDrawShadowRoundedMultiLayer(t *testing.T) {
+	// Level 2 with rounded corners and visible background.
+	// Level 2 has 3 shadow layers (DrawRoundRect each) + 1 background = 4.
+	b := primitives.Box().
+		ShadowLevel(2).
+		Rounded(8).
+		Background(widget.ColorWhite).
+		Width(100).Height(50)
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+	_ = b.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	b.Draw(ctx, canvas)
+
+	// 3 shadow layers (DrawRoundRect) + 1 background (DrawRoundRect) = 4
+	if canvas.drawRoundRectCount != 4 {
+		t.Errorf("level 2 rounded shadow + background should produce 4 DrawRoundRect calls, got %d",
+			canvas.drawRoundRectCount)
+	}
+}
+
+func TestBoxDrawShadowLevelZero(t *testing.T) {
+	// Level 0 should produce no shadow draw calls at all.
+	b := primitives.Box().ShadowLevel(0).Background(widget.ColorWhite).Width(100).Height(50)
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+	_ = b.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	b.Draw(ctx, canvas)
+
+	// Only 1 DrawRect for background, no shadow rects.
+	if canvas.drawRectCount != 1 {
+		t.Errorf("level 0 shadow should produce only background DrawRect (1), got %d", canvas.drawRectCount)
+	}
+}
+
+func TestBoxDrawShadowProgressiveLayers(t *testing.T) {
+	// Higher shadow levels should produce more or equal draw calls.
+	// All shadow layers have radiusExtra > 0, so they use DrawRoundRect.
+	ctx := widget.NewContext()
+	var prevCount int
+	for level := 1; level <= 5; level++ {
+		b := primitives.Box().ShadowLevel(level).Width(100).Height(50)
+		canvas := &mockCanvas{}
+		_ = b.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+		b.Draw(ctx, canvas)
+
+		count := canvas.drawRoundRectCount
+		if level > 1 && count < prevCount {
+			t.Errorf("level %d produced %d DrawRoundRect calls, less than level %d (%d)",
+				level, count, level-1, prevCount)
+		}
+		prevCount = count
 	}
 }
 

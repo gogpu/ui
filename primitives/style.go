@@ -131,28 +131,77 @@ func (s Shadow) IsZero() bool {
 	return s.Level <= 0
 }
 
-// shadowAlpha returns the alpha value for a given shadow level.
-// Each level increases opacity slightly.
-func shadowAlpha(level int) float32 {
-	if level <= 0 {
-		return 0
-	}
-	if level > maxShadowLevel {
-		level = maxShadowLevel
-	}
-	// Linear ramp: level 1 = 0.08, level 5 = 0.40
-	return float32(level) * 0.08
+// shadowLayer describes a single concentric layer in a multi-layer shadow.
+//
+// Multiple layers with decreasing alpha and increasing spread approximate
+// a Gaussian blur without requiring a GPU compute pass.
+type shadowLayer struct {
+	// offsetX is the horizontal offset in logical pixels.
+	offsetX float32
+	// offsetY is the vertical offset in logical pixels.
+	offsetY float32
+	// spread expands the rect by this amount on all sides.
+	spread float32
+	// alpha is the opacity of this layer (0..1).
+	alpha float32
+	// radiusExtra is added to the box corner radius for this layer.
+	radiusExtra float32
 }
 
-// shadowOffset returns the vertical offset for a given shadow level.
-func shadowOffset(level int) float32 {
+// shadowLayers returns the multi-layer shadow definition for a given
+// elevation level. Each level uses progressively more layers with larger
+// offsets and spreads to approximate Gaussian blur.
+//
+// Level 0 returns nil (no shadow). Levels 1-5 return 2-4 layers ordered
+// from outermost (softest, most spread) to innermost (sharpest, least spread).
+func shadowLayers(level int) []shadowLayer {
 	if level <= 0 {
-		return 0
+		return nil
 	}
 	if level > maxShadowLevel {
 		level = maxShadowLevel
 	}
-	return float32(level) * 2
+	return shadowPresets[level-1]
+}
+
+// shadowPresets contains pre-computed shadow layers for levels 1-5.
+// Each preset is ordered outermost-first so that inner (darker) layers
+// paint on top of outer (lighter) ones.
+//
+// The values approximate Material Design elevation shadows using
+// concentric rounded rectangles with varying alpha and spread.
+var shadowPresets = [maxShadowLevel][]shadowLayer{
+	// Level 1: subtle elevation (cards at rest). 2 layers.
+	{
+		{offsetX: 0, offsetY: 0.5, spread: 3, alpha: 0.04, radiusExtra: 3},
+		{offsetX: 0, offsetY: 1, spread: 1, alpha: 0.08, radiusExtra: 1},
+	},
+	// Level 2: medium elevation (hovering buttons, raised cards). 3 layers.
+	{
+		{offsetX: 0, offsetY: 1, spread: 6, alpha: 0.04, radiusExtra: 4},
+		{offsetX: 0, offsetY: 2, spread: 3, alpha: 0.06, radiusExtra: 2},
+		{offsetX: 0, offsetY: 2, spread: 1, alpha: 0.10, radiusExtra: 0},
+	},
+	// Level 3: pronounced elevation (navigation drawers, menus). 3 layers.
+	{
+		{offsetX: 0, offsetY: 2, spread: 10, alpha: 0.04, radiusExtra: 5},
+		{offsetX: 0, offsetY: 4, spread: 5, alpha: 0.06, radiusExtra: 3},
+		{offsetX: 0, offsetY: 4, spread: 2, alpha: 0.12, radiusExtra: 1},
+	},
+	// Level 4: strong elevation (dialogs). 4 layers.
+	{
+		{offsetX: 0, offsetY: 3, spread: 14, alpha: 0.03, radiusExtra: 6},
+		{offsetX: 0, offsetY: 6, spread: 8, alpha: 0.05, radiusExtra: 4},
+		{offsetX: 0, offsetY: 6, spread: 4, alpha: 0.08, radiusExtra: 2},
+		{offsetX: 0, offsetY: 8, spread: 2, alpha: 0.12, radiusExtra: 0},
+	},
+	// Level 5: highest elevation (tooltips, overlays). 4 layers.
+	{
+		{offsetX: 0, offsetY: 4, spread: 18, alpha: 0.03, radiusExtra: 8},
+		{offsetX: 0, offsetY: 8, spread: 10, alpha: 0.05, radiusExtra: 5},
+		{offsetX: 0, offsetY: 10, spread: 5, alpha: 0.08, radiusExtra: 2},
+		{offsetX: 0, offsetY: 12, spread: 2, alpha: 0.14, radiusExtra: 0},
+	},
 }
 
 // ImageSource provides the natural dimensions of an image.
