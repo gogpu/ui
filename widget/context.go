@@ -94,6 +94,32 @@ type Context interface {
 	// Returns nil if no theme is set (headless mode without a theme).
 	// Widgets should check for nil before using the returned provider.
 	ThemeProvider() ThemeProvider
+
+	// OverlayManager returns the overlay manager for pushing/removing overlays.
+	//
+	// Returns nil if no overlay manager is set (headless mode without a window).
+	// Widgets should check for nil before calling overlay methods.
+	OverlayManager() OverlayManager
+
+	// WindowSize returns the current window size in logical pixels.
+	WindowSize() geometry.Size
+}
+
+// OverlayManager provides methods for pushing and removing overlays from the
+// window's overlay stack. This interface lives in the widget package to avoid
+// circular imports: the overlay package imports widget, so widget cannot
+// import overlay. Instead, widgets call OverlayManager methods on the Context
+// without needing to know the concrete overlay.Stack type.
+type OverlayManager interface {
+	// PushOverlay pushes a widget as an overlay. The onDismiss callback is
+	// called when the overlay should be closed (e.g. click outside, Escape key).
+	PushOverlay(w Widget, onDismiss func())
+
+	// PopOverlay removes the topmost overlay from the stack.
+	PopOverlay()
+
+	// RemoveOverlay removes a specific overlay widget from the stack.
+	RemoveOverlay(w Widget)
 }
 
 // CursorType represents the type of mouse cursor to display.
@@ -209,6 +235,12 @@ type ContextImpl struct {
 
 	// Callback for invalidate rect (called when InvalidateRect is called)
 	onInvalidateRect func(geometry.Rect)
+
+	// Overlay manager
+	overlayManager OverlayManager
+
+	// Window size
+	windowSize geometry.Size
 }
 
 // NewContext creates a new ContextImpl with default settings.
@@ -434,6 +466,34 @@ func (c *ContextImpl) SetOnInvalidateRect(callback func(geometry.Rect)) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.onInvalidateRect = callback
+}
+
+// OverlayManager returns the overlay manager, or nil if none is set.
+func (c *ContextImpl) OverlayManager() OverlayManager {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.overlayManager
+}
+
+// SetOverlayManager sets the overlay manager for this context.
+func (c *ContextImpl) SetOverlayManager(om OverlayManager) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.overlayManager = om
+}
+
+// WindowSize returns the current window size in logical pixels.
+func (c *ContextImpl) WindowSize() geometry.Size {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.windowSize
+}
+
+// SetWindowSize sets the current window size.
+func (c *ContextImpl) SetWindowSize(size geometry.Size) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.windowSize = size
 }
 
 // Verify ContextImpl implements Context.

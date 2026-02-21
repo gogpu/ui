@@ -6,6 +6,7 @@ import (
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/overlay"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/theme"
 	"github.com/gogpu/ui/widget"
@@ -32,6 +33,7 @@ type Window struct {
 	pp        gpucontext.PlatformProvider
 	scheduler *state.Scheduler
 	theme     *theme.Theme
+	overlays  *overlay.Stack
 
 	// needsLayout indicates that layout should be recalculated.
 	needsLayout bool
@@ -61,6 +63,14 @@ func newWindow(
 		needsLayout: true,
 	}
 
+	// Initialize overlay stack.
+	w.overlays = overlay.NewStack(func() {
+		w.needsLayout = true
+		if w.wp != nil {
+			w.wp.RequestRedraw()
+		}
+	})
+
 	// Set the theme provider on the context so widgets can access theme.
 	if t != nil {
 		ctx.SetThemeProvider(t)
@@ -71,6 +81,9 @@ func newWindow(
 
 	// Set initial window size.
 	w.updateWindowSize()
+
+	// Set overlay manager on context so widgets can push/remove overlays.
+	ctx.SetOverlayManager(&windowOverlayManager{window: w})
 
 	// Wire invalidation callback to request redraw.
 	ctx.SetOnInvalidate(func() {
@@ -115,8 +128,9 @@ func (w *Window) setTheme(t *theme.Theme) {
 
 // HandleEvent dispatches a single event to the widget tree.
 //
-// Events are propagated to the root widget. If the root widget does not
-// consume the event, it is silently discarded.
+// Events are first offered to the overlay stack (top overlay has priority).
+// If no overlay consumes the event (and no modal overlay blocks it),
+// the event is propagated to the root widget.
 func (w *Window) HandleEvent(e event.Event) {
 	if w.root == nil || e == nil {
 		return
@@ -124,6 +138,11 @@ func (w *Window) HandleEvent(e event.Event) {
 
 	// Update context time for event processing.
 	w.ctx.SetNow(time.Now())
+
+	// Overlays get priority.
+	if w.overlays.HandleEvent(w.ctx, e) {
+		return
+	}
 
 	// Dispatch event to root widget.
 	_ = w.root.Event(w.ctx, e)
@@ -230,11 +249,14 @@ func (w *Window) WindowSize() geometry.Size {
 	return w.windowSize
 }
 
-// layout performs the layout pass on the widget tree.
+// layout performs the layout pass on the widget tree and overlays.
 func (w *Window) layout() {
 	if w.root == nil {
 		return
 	}
+
+	// Update window size on context so widgets can access it.
+	w.ctx.SetWindowSize(w.windowSize)
 
 	// Create tight constraints matching the window size.
 	constraints := geometry.Tight(w.windowSize)
@@ -246,6 +268,9 @@ func (w *Window) layout() {
 	if setter, ok := w.root.(interface{ SetBounds(geometry.Rect) }); ok {
 		setter.SetBounds(geometry.NewRect(0, 0, size.Width, size.Height))
 	}
+
+	// Layout overlays with window-sized constraints.
+	w.overlays.Layout(w.ctx, w.windowSize)
 }
 
 // draw performs the draw pass on the widget tree.
@@ -267,13 +292,17 @@ func (w *Window) draw() {
 // DrawTo performs the draw pass using the provided canvas.
 //
 // This method is called by the host application when it has a canvas
-// ready for drawing.
+// ready for drawing. It draws the root widget tree and then all overlays
+// on top.
 func (w *Window) DrawTo(canvas widget.Canvas) {
 	if w.root == nil || canvas == nil {
 		return
 	}
 
 	w.root.Draw(w.ctx, canvas)
+
+	// Draw overlays on top (bottom to top).
+	w.overlays.Draw(w.ctx, canvas)
 }
 
 // syncCursor forwards the cursor state to the platform provider.
@@ -310,6 +339,50 @@ func (w *Window) updateWindowSize() {
 		w.windowSize = geometry.Sz(defaultWidth, defaultHeight)
 	}
 }
+
+// Overlays returns the window's overlay stack.
+func (w *Window) Overlays() *overlay.Stack {
+	return w.overlays
+}
+
+// windowOverlayManager adapts the Window's overlay.Stack to the
+// widget.OverlayManager interface. This avoids circular imports since
+// the widget package cannot import the overlay package.
+type windowOverlayManager struct {
+	window *Window
+}
+
+// PushOverlay wraps the widget in an overlay.Container and pushes it.
+func (m *windowOverlayManager) PushOverlay(w widget.Widget, onDismiss func()) {
+	container := overlay.NewContainer(w, m.window.windowSize,
+		overlay.WithOnDismiss(func() {
+			if onDismiss != nil {
+				onDismiss()
+			}
+		}),
+	)
+	m.window.overlays.Push(container)
+}
+
+// PopOverlay removes the topmost overlay.
+func (m *windowOverlayManager) PopOverlay() {
+	m.window.overlays.Pop()
+}
+
+// RemoveOverlay finds and removes the overlay containing the given widget.
+func (m *windowOverlayManager) RemoveOverlay(w widget.Widget) {
+	for _, o := range m.window.overlays.List() {
+		if c, ok := o.(*overlay.Container); ok {
+			if c.Content() == w {
+				m.window.overlays.Remove(o)
+				return
+			}
+		}
+	}
+}
+
+// Compile-time check.
+var _ widget.OverlayManager = (*windowOverlayManager)(nil)
 
 // widgetCursorToPlatform converts a widget.CursorType to gpucontext.CursorShape.
 func widgetCursorToPlatform(c widget.CursorType) gpucontext.CursorShape {

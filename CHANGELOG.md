@@ -8,8 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Overlay infrastructure** (`overlay/`) — window-level overlay stack for popups, dropdowns, tooltips, and modals. Stack with push/pop/remove, Container with dismiss-on-click-outside and Escape key, Position helper with viewport clamping and flip logic. 30+ tests
+- **Dropdown/Select widget** (`core/dropdown/`) — full-featured dropdown with trigger, floating menu overlay, keyboard navigation (Up/Down/Enter/Escape/Home/End), mouse hover highlight, mouse wheel scrolling, max visible items with clipping, signal two-way binding, accessibility (role=combobox). 11 functional options, pluggable Painter interface, 55 tests
+- **Material 3 Dropdown painter** (`theme/material3/dropdown.go`) — outlined trigger with chevron indicator, menu with hover/selected highlights, theme-derived colors
+- **ThemeScope widget** (`primitives/themescope.go`) — overrides theme for widget subtree. Nested scoping (inner wins), nil passthrough, context wrapper pattern. 22 tests
 - **TextField widget** (`core/textfield/`) — full-featured text input with cursor, selection, clipboard (Ctrl+A/C/X/V), password masking, validation, signal two-way binding, accessibility (role=textbox). 12 functional options, pluggable Painter interface, 55 tests
 - **Material 3 TextField painter** (`theme/material3/textfield.go`) — outlined variant with theme-derived colors (Primary focus, Outline unfocused, Error invalid)
+- **OverlayManager interface** (`widget/context.go`) — `PushOverlay`, `PopOverlay`, `RemoveOverlay` on Context for widget access to overlay stack
+- **WindowSize on Context** (`widget/context.go`) — `WindowSize()` method for overlay positioning calculations
 
 ### Changed
 - **Multi-layer box shadow** — Material Design elevation now uses 3-4 concentric semi-transparent rounded rects (approximated Gaussian blur) instead of single flat rectangle. Levels 1-5 with progressive elevation

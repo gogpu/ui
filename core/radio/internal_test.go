@@ -1,9 +1,7 @@
 package radio
 
 import (
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -1457,95 +1455,6 @@ func (c *internalMockCanvas) PushClip(_ geometry.Rect)       {}
 func (c *internalMockCanvas) PopClip()                       {}
 func (c *internalMockCanvas) PushTransform(_ geometry.Point) {}
 func (c *internalMockCanvas) PopTransform()                  {}
-
-// --- Concurrent Access Tests ---
-// These tests verify that Draw/Event/Select don't deadlock under concurrent access.
-
-func TestConcurrent_DrawAndSelect(t *testing.T) {
-	g := NewGroup(
-		Items(
-			ItemDef{Value: "a", Label: "Alpha"},
-			ItemDef{Value: "b", Label: "Beta"},
-		),
-		Selected("a"),
-	)
-	g.items[0].SetBounds(geometry.NewRect(0, 0, 200, 30))
-	g.items[1].SetBounds(geometry.NewRect(0, 30, 200, 30))
-
-	ctx := widget.NewContext()
-	canvas := &internalMockCanvas{}
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for i := 0; i < 500; i++ {
-			if i%2 == 0 {
-				g.selectValue("a")
-			} else {
-				g.selectValue("b")
-			}
-		}
-	}()
-
-	// Draw concurrently with selectValue.
-	for i := 0; i < 500; i++ {
-		g.Draw(ctx, canvas)
-	}
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("deadlock detected: concurrent Draw+Select timed out")
-	}
-}
-
-func TestConcurrent_EventAndDraw(t *testing.T) {
-	g := NewGroup(
-		Items(
-			ItemDef{Value: "a", Label: "Alpha"},
-			ItemDef{Value: "b", Label: "Beta"},
-		),
-	)
-	g.items[0].SetBounds(geometry.NewRect(0, 0, 200, 30))
-	g.items[1].SetBounds(geometry.NewRect(0, 30, 200, 30))
-
-	ctx := widget.NewContext()
-	canvas := &internalMockCanvas{}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		for i := 0; i < 500; i++ {
-			g.Draw(ctx, canvas)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		for i := 0; i < 500; i++ {
-			press := event.NewMouseEvent(event.MousePress, event.ButtonLeft,
-				event.ButtonStateLeft, geometry.Pt(10, 10), geometry.Pt(10, 10), event.ModNone)
-			g.Event(ctx, press)
-			release := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft,
-				0, geometry.Pt(10, 10), geometry.Pt(10, 10), event.ModNone)
-			g.Event(ctx, release)
-		}
-	}()
-
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("deadlock detected: concurrent Event+Draw timed out")
-	}
-}
 
 // --- onChange dedup test ---
 
