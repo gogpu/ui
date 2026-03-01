@@ -71,8 +71,16 @@ func main() {
 
 		uiApp.Frame()
 
-		// Surface is transient — draw every frame.
+		// Resize canvas to match window (handles resize inside draw frame).
 		cw, ch := canvas.Size()
+		if cw != w || ch != h {
+			if err := canvas.Resize(w, h); err != nil {
+				log.Printf("resize: %v", err)
+			}
+			cw, ch = w, h
+		}
+
+		// Surface is transient — draw every frame.
 		sv := dc.SurfaceView()
 		sw, sh := dc.SurfaceSize()
 
@@ -93,15 +101,6 @@ func main() {
 		// Flush any remaining GPU shapes to surface.
 		if err := canvas.RenderDirect(sv, sw, sh); err != nil {
 			log.Printf("render: %v", err)
-		}
-	})
-
-	// Handle window resize.
-	gogpuApp.EventSource().OnResize(func(w, h int) {
-		if canvas != nil {
-			if err := canvas.Resize(w, h); err != nil {
-				log.Printf("resize: %v", err)
-			}
 		}
 	})
 
