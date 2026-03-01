@@ -128,7 +128,7 @@ func main() {
 | `theme` | Theme system with Extensions and Registry | 100% |
 | `plugin` | Plugin bundling with dependency resolution | 99.4% |
 
-### Interactive Widgets (Phase 2 — Partial)
+### Interactive Widgets (Phase 2 — Complete)
 
 | Package | Description | Coverage |
 |---------|-------------|----------|
@@ -136,11 +136,14 @@ func main() {
 | `core/button` | Generic button with pluggable Painter, 4 variants, 3 sizes | 96%+ |
 | `core/checkbox` | Toggleable checkbox with checked/unchecked/indeterminate states | 96%+ |
 | `core/radio` | Mutually exclusive radio group with vertical/horizontal layout | 96%+ |
-| `theme/material3` | Material Design 3 — theme (HCT color science) + component painters | 97%+ |
+| `core/textfield` | Text input with cursor, selection, clipboard, validation | 96%+ |
+| `core/dropdown` | Dropdown/select with overlay menu, keyboard navigation | 96%+ |
+| `overlay` | Overlay/popup stack, container, position helper | 95%+ |
+| `theme/material3` | Material Design 3 — theme (HCT color science) + 5 component painters | 97%+ |
 | `focus` | Keyboard focus management with Tab/Shift+Tab navigation | 95.2% |
 | `internal/focus` | Internal focus manager implementation | 15.2% |
 
-**Total: ~48,000+ lines of code | 23 packages | 1,300+ tests | ~97% average coverage**
+**Total: ~55,000+ lines of code | 25 packages | 1,500+ tests | ~97% average coverage**
 
 ---
 
@@ -156,8 +159,10 @@ func main() {
 ├─────────────────────────────────────────────────────────────┤
 │  core/button/      │  docking/       │  animation/          │
 │  core/checkbox/    │  DockingHost    │  Animation, Spring   │
-│  core/radio/       │  (Phase 3+)    │  (Phase 3)           │
-│  focus/  ✅        │                │                      │
+│  core/radio/       │  (Phase 4)      │  (Phase 3)           │
+│  core/textfield/   │                 │                      │
+│  core/dropdown/    │                 │                      │
+│  focus/ overlay/ ✅│                │                      │
 ├──────────────┬──────────────────────────────────────────────┤
 │  cdk/        │  Content[C] polymorphic pattern              │
 │  (Complete ✅)│  Headless behaviors (Phase 3)               │
@@ -320,23 +325,28 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Theme System + Extensions + Registry
 - [x] Plugin System (bundling, dependency resolution)
 
-### Phase 2: Beta (In Progress)
+### Phase 2: Beta ✅
 
 - [x] Button widget (4 variants, 3 sizes, keyboard activation)
 - [x] Checkbox widget (checked/unchecked/indeterminate, pluggable Painter)
 - [x] Radio group widget (vertical/horizontal, arrow key navigation)
-- [x] Material Design 3 theme (HCT color science, light/dark schemes)
+- [x] TextField widget (cursor, selection, clipboard, validation)
+- [x] Dropdown/Select widget (overlay menu, keyboard nav, scroll)
+- [x] Overlay infrastructure (stack, container, position)
+- [x] Material Design 3 theme (HCT color science, 5 painters)
 - [x] Keyboard navigation (focus management, Tab/Shift+Tab, shortcuts)
-- [ ] TextField widget
-- [ ] Container widgets (ScrollView, Panel)
-- [ ] Typography system
+- [x] ThemeScope (theme override for widget subtrees)
+- [x] Event-driven rendering (0% CPU when idle)
 
 ### Phase 3: Release Candidate
 
 - [ ] Virtualized lists and grids
 - [ ] Animation engine (Spring, Tween)
-- [ ] Gesture recognition
-- [ ] Tabs, SplitView, Accordion
+- [ ] Slider, Progress indicators
+- [ ] Dialog/Modal, Popover/Tooltip
+- [ ] ScrollView, TabView, SplitView
+- [ ] Typography and Icon systems
+- [ ] Dirty region tracking, layer compositing
 
 ### Phase 4: Production (v1.0)
 

@@ -19,8 +19,8 @@
 +-------------------+-------------------+----------------------+
 |         Layer 3a: Generic Widgets (behavior)                 |
 | core/button/      |  core/checkbox/   |  primitives/         |
-| core/radio/       |  (future)         |  Box, Text, Image    |
-| Widget, Painter   |  core/textfield/  |                      |
+| core/radio/       |  core/textfield/  |  Box, Text, Image    |
+| core/dropdown/    |  Widget, Painter  |  ThemeScope          |
 +-------------------+-------------------+----------------------+
 |         Layer 2: Component Development Kit                   |
 | cdk/              |                                          |
@@ -42,10 +42,11 @@
 | a11y/            |  registry/        |  plugin/              |
 | Accessible       |  Widget Registry  |  Plugin System        |
 | Node, Tree, Role |  Categories       |  Manager, Assets      |
-+------------------+-------------------+----------------------+
-| render/                   |  app/                            |
-| Public Canvas factory     |  App, Window, EventBridge        |
-+---------------------------+----------------------------------+
++------------------+-------------------+-----------------------+
+| overlay/         |  render/          |  app/                 |
+| Stack, Container |  Canvas factory   |  App, Window,         |
+| Position         |  (wraps internal) |  EventBridge          |
++------------------+-------------------+-----------------------+
 |                 Internal Implementation                      |
 | internal/render  |  internal/layout  |  internal/focus       |
 | Canvas (gg)      |  Flex, Stack,     |  Manager, Ring,       |
@@ -82,18 +83,21 @@
 | `core/button/` | Button widget (behavior + Painter) | `Widget`, `Painter`, `PaintState`, `ButtonColorScheme`, `DefaultPainter` |
 | `core/checkbox/` | Checkbox widget (toggle + Painter) | `Widget`, `Painter`, `PaintState`, `DefaultPainter` |
 | `core/radio/` | Radio group widget (selection + Painter) | `Group`, `Item`, `Painter`, `PaintState`, `DefaultPainter` |
-| `primitives/` | Display-only widgets | `BoxWidget`, `TextWidget`, `ImageWidget` |
+| `core/textfield/` | Text input widget (cursor, selection, clipboard) | `Widget`, `Painter`, selection, validation |
+| `core/dropdown/` | Dropdown/select widget (overlay menu) | `Widget`, `Painter`, keyboard nav, scroll |
+| `primitives/` | Display-only widgets | `BoxWidget`, `TextWidget`, `ImageWidget`, `ThemeScope` |
 
 ### Layer 3b: Design Systems
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `theme/material3/` | M3 design tokens + painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
+| `theme/material3/` | M3 design tokens + painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
 
 ### Infrastructure
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
+| `overlay/` | Overlay/popup infrastructure | `Stack`, `Container`, `Position` |
 | `focus/` | Focus management (public API) | `Manager`, `Shortcut`, `DrawFocusRing` |
 | `layout/` | Layout tree and algorithms | `NodeID`, `NodeLayout`, `Result`, `Algorithm` |
 | `state/` | Reactive state (signals integration) | `Signal`, `ReadonlySignal`, `Computed`, `Effect`, `Binding`, `Scheduler` |
@@ -967,7 +971,7 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics backend for Canvas | v0.28.1 |
+| `github.com/gogpu/gg` | 2D graphics backend for Canvas | v0.32.0 |
 | `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.9.0 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
 | `golang.org/x/image` | Standard Go fonts (goregular, gobold) | v0.36.0 |
@@ -1034,4 +1038,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of February 15, 2026.*
+*This document reflects the actual codebase as of March 1, 2026.*

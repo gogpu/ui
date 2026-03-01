@@ -266,12 +266,13 @@ func (l *List) Items() iter.Seq[Widget]
 // go.mod
 module github.com/gogpu/ui
 
-go 1.25
+go 1.25.0
 
 require (
-    github.com/gogpu/gg v0.13.0
-    github.com/gogpu/gogpu v0.8.0
     github.com/coregx/signals v0.1.0
+    github.com/gogpu/gg v0.32.0
+    github.com/gogpu/gpucontext v0.9.0
+    golang.org/x/image v0.36.0
 )
 ```
 

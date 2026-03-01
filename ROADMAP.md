@@ -1,7 +1,7 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.2.x (Phase 2 In Progress)
-> **Updated:** February 2026
+> **Version:** 0.2.x (Phase 2 Complete)
+> **Updated:** March 2026
 > **Go Version:** 1.25+
 
 ---
@@ -95,9 +95,12 @@ v1.0.0  → Production (when ready)
 │  theme/material3   │  theme/fluent   │  theme/cupertino     │
 │  (Complete ✅)     │   (Phase 4)     │    (Phase 4)         │
 ├─────────────────────────────────────────────────────────────┤
-│  button/  focus/   │  docking/       │  animation/          │
-│  (Complete ✅)     │  DockingHost    │  Animation, Spring  │
-│  TextField (Next)  │  (Phase 4)      │  (Phase 3)           │
+│  core/button/      │  docking/       │  animation/          │
+│  core/checkbox/    │  DockingHost    │  Animation, Spring   │
+│  core/textfield/   │  (Phase 4)      │  (Phase 3)           │
+│  core/dropdown/    │                 │                      │
+│  focus/ overlay/   │                 │                      │
+│  (Complete ✅)     │                 │                      │
 ├─────────────────────────────────────────────────────────────┤
 │  layout/                            │  state/               │
 │  VStack, HStack, Grid, Flexbox      │  coregx/signals       │
@@ -194,64 +197,82 @@ v1.0.0  → Production (when ready)
 
 ---
 
-### Phase 2: Beta (v0.2.0) 🔄 IN PROGRESS
+### Phase 2: Beta (v0.2.0) ✅ COMPLETE
 
-**Goal:** Complete widget library
+**Goal:** Interactive widget library with Material Design 3
 
-**Tasks (10 tasks, ~10K LOC):**
+**Tasks (16 tasks, ~15K LOC):**
 
 | Task | Description | Status | LOC |
 |------|-------------|--------|-----|
 | ~~TASK-UI-011~~ | Button Widget | ✅ Done | ~2,400 |
-| TASK-UI-012 | TextField Widget | 📋 Pending | 1,200 |
+| ~~TASK-UI-012~~ | TextField Widget | ✅ Done | ~1,200 |
 | ~~TASK-UI-013~~ | Checkbox & Radio | ✅ Done | ~2,000 |
-| TASK-UI-014 | Dropdown/Select | 📋 Pending | 900 |
-| TASK-UI-015 | Slider Widget | 📋 Pending | 500 |
-| TASK-UI-016 | Progress Indicators | 📋 Pending | 400 |
+| ~~TASK-UI-014~~ | Dropdown/Select + Overlay | ✅ Done | ~1,500 |
 | ~~TASK-UI-017~~ | Material 3 Theme | ✅ Done | ~1,800 |
-| TASK-UI-018 | Typography System | 📋 Pending | 600 |
-| TASK-UI-019 | Icon System | 📋 Pending | 400 |
 | ~~TASK-UI-020~~ | Keyboard Navigation (Focus) | ✅ Done | ~1,600 |
+| ~~TASK-UI-048~~ | Theme-Aware Painters | ✅ Done | — |
+| ~~TASK-UI-049~~ | ThemeProvider Context | ✅ Done | — |
+| ~~TASK-UI-050~~ | Theme-Aware Primitives | ✅ Done | — |
+| ~~TASK-UI-051~~ | CDK Foundation + ThemeScope | ✅ Done | ~350 |
+| ~~TASK-UI-052~~ | Event-Driven Rendering | ✅ Done | — |
+| ~~TASK-UI-052A~~ | macOS WaitEvents/WakeUp | ✅ Done | — |
+| ~~TASK-UI-052B~~ | Linux WaitEvents/WakeUp | ✅ Done | — |
+| ~~TASK-UI-056~~ | Box Shadow Blur | ✅ Done | — |
+| ~~TASK-UI-047~~ | gg Integration | ✅ Done | — |
+| ~~UI-ARCH-001~~ | Foundation Architecture | ✅ Done | — |
 
 **Implemented Packages:**
-- `core/button/` — Interactive button widget, 4 variants, 3 sizes (96%+ coverage)
-- `core/checkbox/` — Toggleable checkbox with checked/unchecked/indeterminate (96%+ coverage)
-- `core/radio/` — Radio group with vertical/horizontal layout, arrow key navigation (96%+ coverage)
+- `core/button/` — Interactive button, 4 variants, 3 sizes, pluggable Painter (96%+ coverage)
+- `core/checkbox/` — Toggleable checkbox, 3 states (96%+ coverage)
+- `core/radio/` — Radio group, vertical/horizontal, arrow key navigation (96%+ coverage)
+- `core/textfield/` — Text input, cursor, selection, clipboard, validation (96%+ coverage)
+- `core/dropdown/` — Dropdown/select, overlay menu, keyboard nav, scroll (96%+ coverage)
+- `overlay/` — Overlay stack, container, position helper (95%+ coverage)
 - `focus/` — Keyboard focus management with Tab/Shift+Tab (95.2% coverage)
 - `internal/focus/` — Internal focus manager implementation
-- `theme/material3/` — Material Design 3 with HCT color science (97%+ coverage)
-- `widget/focusable.go` — Focusable interface (IsFocusable, SetFocused, IsFocused)
+- `theme/material3/` — M3 theme (HCT color science) + 5 painters (97%+ coverage)
+- `cdk/` — Component Development Kit, Content[C] pattern (100% coverage)
+- `primitives/themescope.go` — Theme override for widget subtrees
 
-**Remaining Deliverables:**
-- TextField, Dropdown, Slider widgets
-- Progress indicators
-- Typography and icon systems
+**Moved to Phase 3 (originally planned for Phase 2):**
+- Slider Widget (TASK-UI-015)
+- Progress Indicators (TASK-UI-016)
+- Typography System (TASK-UI-018)
+- Icon System (TASK-UI-019)
 
 ---
 
 ### Phase 3: RC (v0.3.0)
 
-**Goal:** Enterprise features
+**Goal:** Enterprise features, rendering optimizations, containers
 
-**Tasks (10 tasks, ~10K LOC):**
+**Tasks (~12K LOC):**
 
-| Task | Description | LOC |
-|------|-------------|-----|
-| TASK-UI-021 | VirtualizedList | 1,200 |
-| TASK-UI-022 | VirtualizedGrid | 800 |
-| TASK-UI-023 | Grid Layout Engine | ✅ Done (Phase 0) |
-| TASK-UI-024 | Animation Engine | 1,000 |
-| TASK-UI-025 | Transitions | 600 |
-| TASK-UI-026 | Dialog/Modal | 700 |
-| TASK-UI-027 | Popover/Tooltip | 600 |
-| TASK-UI-028 | ScrollView | 600 |
-| TASK-UI-029 | TabView | 500 |
-| TASK-UI-030 | SplitView | 400 |
+| Task | Description | LOC | Priority |
+|------|-------------|-----|----------|
+| TASK-UI-015 | Slider Widget | ~800 | P1 |
+| TASK-UI-016 | Progress Indicators | ~500 | P2 |
+| TASK-UI-018 | Typography System | ~600 | P1 |
+| TASK-UI-019 | Icon System | ~400 | P2 |
+| TASK-UI-021 | VirtualizedList | ~1,500 | P0 |
+| TASK-UI-022 | VirtualizedGrid | ~800 | P1 |
+| TASK-UI-024 | Animation Engine | ~1,200 | P0 |
+| TASK-UI-025 | Transitions | ~600 | P2 |
+| TASK-UI-026 | Dialog/Modal | ~700 | P1 |
+| TASK-UI-027 | Popover/Tooltip | ~600 | P1 |
+| TASK-UI-028 | ScrollView | ~800 | P1 |
+| TASK-UI-029 | TabView | ~500 | P1 |
+| TASK-UI-030 | SplitView | ~400 | P2 |
+| TASK-UI-053 | Dirty Region Tracking | ~500 | P1 |
+| TASK-UI-054 | Layer Compositing & Caching | ~800 | P2 |
 
 **Deliverables:**
 - Virtualization for large datasets
-- Animation system
-- Complex layouts
+- Animation system (Spring, Tween)
+- Additional widgets (Slider, Progress, Dialog, Tooltip)
+- Containers (ScrollView, TabView, SplitView)
+- Rendering optimizations (dirty regions, layer caching)
 
 ---
 
@@ -290,10 +311,10 @@ v1.0.0  → Production (when ready)
 | Phase 0 (Foundation) | 5 packages | ~10K | ✅ Complete |
 | Phase 1 (MVP) | 10 | ~12K | ✅ Complete |
 | Phase 1.5 (Extensibility) | 6 | ~9K | ✅ Complete |
-| Phase 2 (Beta) | 10 | ~10K | 🔄 In Progress (4/10) |
-| Phase 3 (RC) | 10 | ~8K | Planned |
+| Phase 2 (Beta) | 16 | ~15K | ✅ Complete (16/16) |
+| Phase 3 (RC) | 15 | ~10K | Planned |
 | Phase 4 (v1.0) | 10 | ~24K | Planned |
-| **Total** | **51+** | **~73K LOC** | |
+| **Total** | **62+** | **~80K LOC** | |
 
 ---
 
@@ -301,11 +322,10 @@ v1.0.0  → Production (when ready)
 
 | Dependency | Version | Purpose | Status |
 |------------|---------|---------|--------|
-| gogpu/gg | v0.28.1+ | 2D rendering | ✅ Integrated |
-| gogpu/gogpu | v0.18.1+ | Windowing (event-driven) | ✅ Integrated |
-| gogpu/gpucontext | v0.9.0+ | Shared interfaces | ✅ Integrated |
-| gogpu/wgpu | v0.16.0+ | WebGPU backend | Via gg |
-| coregx/signals | v0.1.0+ | State management | ✅ Integrated |
+| gogpu/gg | v0.32.0 | 2D rendering | ✅ Integrated |
+| gogpu/gpucontext | v0.9.0 | Shared interfaces | ✅ Integrated |
+| coregx/signals | v0.1.0 | State management | ✅ Integrated |
+| golang.org/x/image | v0.36.0 | Standard Go fonts | ✅ Integrated |
 
 ---
 

@@ -597,7 +597,7 @@ import _ "github.com/yourname/ui-extension"
 | gogpu/ui | Extension API |
 |----------|---------------|
 | Phase 1.x | Stable (registry, theme, layout, plugin) |
-| Phase 2.x | Stable + interactive widgets (button, checkbox, radio) + Painter pattern |
+| Phase 2.x | Stable + interactive widgets (button, checkbox, radio, textfield, dropdown) + Painter pattern + overlay |
 
 The extension API is stable and will remain compatible across future releases.
 
