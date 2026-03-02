@@ -18,11 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WindowSize on Context** (`widget/context.go`) — `WindowSize()` method for overlay positioning calculations
 
 ### Changed
-- **Update gg v0.32.0 → v0.32.4** — includes MSL backend fixes for Apple Silicon:
-  vertex `[[stage_in]]` for struct-typed arguments, `metal::discard_fragment()` namespace,
-  plus text rendering fixes (rotated text artifacts, tab character rendering)
+- **Update gg v0.32.0 → v0.32.5** — includes MSL backend fixes for Apple Silicon,
+  text rendering fixes, and Linux/macOS SIGSEGV fix for Vulkan functions with >6 arguments
   ([naga#38](https://github.com/gogpu/naga/pull/38),
-  [ui#23](https://github.com/gogpu/ui/issues/23))
+  [ui#23](https://github.com/gogpu/ui/issues/23),
+  [goffi#19](https://github.com/go-webgpu/goffi/issues/19))
 - **Multi-layer box shadow** — Material Design elevation now uses 3-4 concentric semi-transparent rounded rects (approximated Gaussian blur) instead of single flat rectangle. Levels 1-5 with progressive elevation
 - **GPU direct rendering** — hello example switched from CPU readback (`RenderTo`) to zero-copy GPU surface rendering (`RenderDirect`). Single render pass, no CPU readback
 - **Material Design card layout** — hello example wraps content card in outer container with 24px margin
