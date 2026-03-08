@@ -204,6 +204,22 @@ gg → wgpu → naga                   ← internal to gg
 
 ---
 
+## Examples
+
+| Example | Description |
+|---------|-------------|
+| [`examples/hello`](examples/hello) | Full demo: checkbox, radio, button, event-driven GPU rendering |
+| [`examples/signals`](examples/signals) | Reactive signals: TextSignal, ContentSignal, CheckedSignal, SelectedSignal, DisabledSignal |
+
+Run any example:
+
+```bash
+cd examples/signals
+go run .
+```
+
+---
+
 ## API Examples
 
 ### Primitives
@@ -365,6 +381,7 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Keyboard navigation (focus management, Tab/Shift+Tab, shortcuts)
 - [x] ThemeScope (theme override for widget subtrees)
 - [x] Event-driven rendering (0% CPU when idle)
+- [x] Reactive signal bindings for all widgets (TextSignal, CheckedSignal, SelectedSignal, DisabledSignal, ContentSignal)
 
 ### Phase 3: Release Candidate
 

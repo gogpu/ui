@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Examples)
+- **Signals demo** (`examples/signals/`) — standalone example demonstrating all signal
+  features: TextSignal, ContentSignal, CheckedSignal, SelectedSignal, DisabledSignal.
+  Event-driven rendering (0% CPU when idle), GPU-accelerated via ggcanvas
+
+### Fixed
+- **Disabled button text color** — DefaultPainter now uses solid gray (`RGBA 0.62`)
+  for disabled text instead of near-invisible alpha-blended black (`RGBA 0.12 @ 38%`).
+  Disabled background changed to visible light gray (`RGBA 0.92`)
+
+### Dependencies
+- gg v0.33.3 → v0.33.5 (per-batch GPU text color fix — each DrawText call now
+  renders with its own color instead of all text sharing the first call's color)
+
 ### Added (Signals Integration)
 - **Reactive signal bindings for all core widgets (SIGNALS-001..005)** — push-based
   state management via coregx/signals integration across the entire widget tree:
