@@ -699,17 +699,17 @@ func TestPaintState_ColorScheme(t *testing.T) {
 		FocusRing:        widget.ColorBlue,
 	}
 
-	state := radio.PaintState{
+	ps := radio.PaintState{
 		Label:       "Test",
 		Selected:    true,
 		ColorScheme: scheme,
 		Bounds:      geometry.NewRect(0, 0, 100, 40),
 	}
 
-	if state.ColorScheme.SelectedBg != widget.ColorRed {
+	if ps.ColorScheme.SelectedBg != widget.ColorRed {
 		t.Error("ColorScheme.SelectedBg should be red")
 	}
-	if state.ColorScheme.SelectedFg != widget.ColorWhite {
+	if ps.ColorScheme.SelectedFg != widget.ColorWhite {
 		t.Error("ColorScheme.SelectedFg should be white")
 	}
 }
@@ -907,9 +907,9 @@ type testPainter struct {
 	state  radio.PaintState
 }
 
-func (p *testPainter) PaintRadio(_ widget.Canvas, state radio.PaintState) {
+func (p *testPainter) PaintRadio(_ widget.Canvas, ps radio.PaintState) {
 	p.called = true
-	p.state = state
+	p.state = ps
 }
 
 // --- recordingCanvas records draw calls for verification ---

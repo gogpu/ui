@@ -7,18 +7,18 @@ import (
 
 // config holds the checkbox's configuration, set at construction time via options.
 type config struct {
-	label         string
-	labelFn       func() string
-	labelSignal   state.Signal[string]
-	checked       bool
-	checkedFn     func() bool
-	checkedSignal state.Signal[bool]
-	onToggle      func(checked bool)
-	disabled      bool
-	disabledFn    func() bool
+	label          string
+	labelFn        func() string
+	labelSignal    state.Signal[string]
+	checked        bool
+	checkedFn      func() bool
+	checkedSignal  state.Signal[bool]
+	onToggle       func(checked bool)
+	disabled       bool
+	disabledFn     func() bool
 	disabledSignal state.Signal[bool]
-	indeterminate bool
-	a11yHint      string
+	indeterminate  bool
+	a11yHint       string
 	// styling overrides (nil/zero means use defaults)
 	background *widget.Color
 	painter    Painter

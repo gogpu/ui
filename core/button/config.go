@@ -14,9 +14,9 @@ type config struct {
 	disabled       bool
 	disabledFn     func() bool
 	disabledSignal state.Signal[bool]
-	variant    Variant
-	size       Size
-	a11yHint   string
+	variant        Variant
+	size           Size
+	a11yHint       string
 	// styling overrides (nil/zero means use defaults)
 	background *widget.Color
 	rounded    *float32

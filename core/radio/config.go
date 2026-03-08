@@ -6,16 +6,16 @@ import (
 
 // groupConfig holds the group's configuration, set at construction time via options.
 type groupConfig struct {
-	onChange        func(value string)
-	selected        string
-	selectedSignal  state.Signal[string]
-	direction       Direction
-	disabled        bool
-	disabledFn      func() bool
-	disabledSignal  state.Signal[bool]
-	a11yLabel       string
-	painter         Painter
-	items           []ItemDef
+	onChange       func(value string)
+	selected       string
+	selectedSignal state.Signal[string]
+	direction      Direction
+	disabled       bool
+	disabledFn     func() bool
+	disabledSignal state.Signal[bool]
+	a11yLabel      string
+	painter        Painter
+	items          []ItemDef
 }
 
 // ResolvedSelected returns the current selected value.

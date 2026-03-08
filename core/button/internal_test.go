@@ -1079,9 +1079,9 @@ type testPainter struct {
 	state  PaintState
 }
 
-func (p *testPainter) PaintButton(_ widget.Canvas, state PaintState) {
+func (p *testPainter) PaintButton(_ widget.Canvas, ps PaintState) {
 	p.called = true
-	p.state = state
+	p.state = ps
 }
 
 // --- internalMockCanvas records canvas calls for testing ---

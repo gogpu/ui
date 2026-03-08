@@ -408,17 +408,17 @@ func TestPaintState_ColorScheme(t *testing.T) {
 		FocusRing:       widget.ColorBlue,
 	}
 
-	state := checkbox.PaintState{
+	ps := checkbox.PaintState{
 		Label:       "Test",
 		Checked:     true,
 		ColorScheme: scheme,
 		Bounds:      geometry.NewRect(0, 0, 100, 40),
 	}
 
-	if state.ColorScheme.CheckedBg != widget.ColorRed {
+	if ps.ColorScheme.CheckedBg != widget.ColorRed {
 		t.Error("ColorScheme.CheckedBg should be red")
 	}
-	if state.ColorScheme.CheckedFg != widget.ColorWhite {
+	if ps.ColorScheme.CheckedFg != widget.ColorWhite {
 		t.Error("ColorScheme.CheckedFg should be white")
 	}
 }
@@ -527,9 +527,9 @@ type testPainter struct {
 	state  checkbox.PaintState
 }
 
-func (p *testPainter) PaintCheckbox(_ widget.Canvas, state checkbox.PaintState) {
+func (p *testPainter) PaintCheckbox(_ widget.Canvas, ps checkbox.PaintState) {
 	p.called = true
-	p.state = state
+	p.state = ps
 }
 
 // --- recordingCanvas records draw calls for verification ---

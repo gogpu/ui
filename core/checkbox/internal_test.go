@@ -1005,9 +1005,9 @@ type internalTestPainter struct {
 	state  PaintState
 }
 
-func (p *internalTestPainter) PaintCheckbox(_ widget.Canvas, state PaintState) {
+func (p *internalTestPainter) PaintCheckbox(_ widget.Canvas, ps PaintState) {
 	p.called = true
-	p.state = state
+	p.state = ps
 }
 
 // --- internalMockCanvas records canvas calls for testing ---

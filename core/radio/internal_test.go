@@ -1167,7 +1167,7 @@ func TestPaintWithColorScheme_Selected(t *testing.T) {
 		FocusRing:        widget.ColorBlue,
 	}
 	canvas := &internalMockCanvas{}
-	state := PaintState{
+	ps := PaintState{
 		Label:       "CS",
 		Selected:    true,
 		Bounds:      geometry.NewRect(0, 0, 100, 30),
@@ -1175,7 +1175,7 @@ func TestPaintWithColorScheme_Selected(t *testing.T) {
 	}
 
 	p := DefaultPainter{}
-	p.PaintRadio(canvas, state)
+	p.PaintRadio(canvas, ps)
 
 	if len(canvas.drawCircles) < 2 {
 		t.Fatalf("selected with scheme should draw 2 circles, got %d", len(canvas.drawCircles))
@@ -1208,7 +1208,7 @@ func TestPaintWithColorScheme_Unselected(t *testing.T) {
 		FocusRing:        widget.ColorBlue,
 	}
 	canvas := &internalMockCanvas{}
-	state := PaintState{
+	ps := PaintState{
 		Label:       "CS",
 		Selected:    false,
 		Bounds:      geometry.NewRect(0, 0, 100, 30),
@@ -1216,7 +1216,7 @@ func TestPaintWithColorScheme_Unselected(t *testing.T) {
 	}
 
 	p := DefaultPainter{}
-	p.PaintRadio(canvas, state)
+	p.PaintRadio(canvas, ps)
 
 	if len(canvas.strokeCircles) == 0 {
 		t.Fatal("unselected with scheme should draw border")
@@ -1237,7 +1237,7 @@ func TestPaintWithColorScheme_DisabledSelected(t *testing.T) {
 		FocusRing:        widget.ColorBlue,
 	}
 	canvas := &internalMockCanvas{}
-	state := PaintState{
+	ps := PaintState{
 		Label:       "DS",
 		Selected:    true,
 		Disabled:    true,
@@ -1246,7 +1246,7 @@ func TestPaintWithColorScheme_DisabledSelected(t *testing.T) {
 	}
 
 	p := DefaultPainter{}
-	p.PaintRadio(canvas, state)
+	p.PaintRadio(canvas, ps)
 
 	if len(canvas.drawCircles) < 2 {
 		t.Fatalf("disabled selected should draw 2 circles, got %d", len(canvas.drawCircles))
@@ -1277,7 +1277,7 @@ func TestPaintWithColorScheme_DisabledUnselected(t *testing.T) {
 		FocusRing:        widget.ColorBlue,
 	}
 	canvas := &internalMockCanvas{}
-	state := PaintState{
+	ps := PaintState{
 		Label:       "DU",
 		Selected:    false,
 		Disabled:    true,
@@ -1286,7 +1286,7 @@ func TestPaintWithColorScheme_DisabledUnselected(t *testing.T) {
 	}
 
 	p := DefaultPainter{}
-	p.PaintRadio(canvas, state)
+	p.PaintRadio(canvas, ps)
 
 	if len(canvas.strokeCircles) == 0 {
 		t.Fatal("disabled unselected should draw border")
@@ -1307,7 +1307,7 @@ func TestPaintWithColorScheme_FocusRing(t *testing.T) {
 		FocusRing:        widget.Hex(0x0000FF),
 	}
 	canvas := &internalMockCanvas{}
-	state := PaintState{
+	ps := PaintState{
 		Label:       "FR",
 		Selected:    false,
 		Focused:     true,
@@ -1316,7 +1316,7 @@ func TestPaintWithColorScheme_FocusRing(t *testing.T) {
 	}
 
 	p := DefaultPainter{}
-	p.PaintRadio(canvas, state)
+	p.PaintRadio(canvas, ps)
 
 	// Should have focus ring (StrokeCircle with expanded radius).
 	found := false
@@ -1385,9 +1385,9 @@ type internalTestPainter struct {
 	state  PaintState
 }
 
-func (p *internalTestPainter) PaintRadio(_ widget.Canvas, state PaintState) {
+func (p *internalTestPainter) PaintRadio(_ widget.Canvas, ps PaintState) {
 	p.called = true
-	p.state = state
+	p.state = ps
 }
 
 // --- internalMockCanvas records canvas calls for testing ---

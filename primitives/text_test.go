@@ -357,14 +357,14 @@ func TestTextAccessibilityLabelReactive(t *testing.T) {
 
 func TestTextAccessibilityState(t *testing.T) {
 	tw := primitives.Text("Hello")
-	state := tw.AccessibilityState()
-	if state.Hidden || state.Disabled {
+	accState := tw.AccessibilityState()
+	if accState.Hidden || accState.Disabled {
 		t.Error("default state should be visible and enabled")
 	}
 
 	tw.SetVisible(false)
-	state = tw.AccessibilityState()
-	if !state.Hidden {
+	accState = tw.AccessibilityState()
+	if !accState.Hidden {
 		t.Error("invisible text should report Hidden=true")
 	}
 }
