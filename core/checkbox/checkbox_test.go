@@ -164,13 +164,13 @@ func TestToggle_DoubleClick_TogglesBack(t *testing.T) {
 	ctx := widget.NewContext()
 
 	// First click.
-	simulateClick(cb, ctx, 10, 20)
+	simulateClick(cb, ctx)
 	if toggleCount != 1 {
 		t.Fatalf("toggleCount = %d after first click, want 1", toggleCount)
 	}
 
 	// Second click.
-	simulateClick(cb, ctx, 10, 20)
+	simulateClick(cb, ctx)
 	if toggleCount != 2 {
 		t.Fatalf("toggleCount = %d after second click, want 2", toggleCount)
 	}
@@ -510,13 +510,13 @@ func TestFluent_Padding(t *testing.T) {
 
 // --- Helper functions ---
 
-func simulateClick(cb *checkbox.Widget, ctx widget.Context, x, y float32) {
+func simulateClick(cb *checkbox.Widget, ctx widget.Context) {
 	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
-		geometry.Pt(x, y), geometry.Pt(x, y), event.ModNone)
+		geometry.Pt(10, 20), geometry.Pt(10, 20), event.ModNone)
 	cb.Event(ctx, press)
 
 	release := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
-		geometry.Pt(x, y), geometry.Pt(x, y), event.ModNone)
+		geometry.Pt(10, 20), geometry.Pt(10, 20), event.ModNone)
 	cb.Event(ctx, release)
 }
 
@@ -654,14 +654,14 @@ func TestNew_WithCheckedSignal_TwoWay(t *testing.T) {
 	ctx := widget.NewContext()
 
 	// Click to toggle: false → true.
-	simulateClick(cb, ctx, 10, 20)
+	simulateClick(cb, ctx)
 
 	if !sig.Get() {
 		t.Error("signal should be true after click toggle")
 	}
 
 	// Click again: true → false.
-	simulateClick(cb, ctx, 10, 20)
+	simulateClick(cb, ctx)
 
 	if sig.Get() {
 		t.Error("signal should be false after second click toggle")

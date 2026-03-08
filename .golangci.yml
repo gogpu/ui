@@ -193,6 +193,18 @@ linters:
           - gosec
           - gocritic
 
+
+      # Temporary reproduction scripts (gitignored debug tools)
+      - path: tmp/.*\.go
+        linters:
+          - errcheck
+          - errorlint
+          - gosec
+          - gocritic
+          - revive
+          - funlen
+          - gocyclo
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
