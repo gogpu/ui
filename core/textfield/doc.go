@@ -47,11 +47,11 @@
 //
 // # Signal Binding
 //
-// Use [Value] to bind the text field to a reactive signal for two-way
+// Use [ValueSignal] to bind the text field to a reactive signal for two-way
 // data binding:
 //
 //	email := state.NewSignal("")
-//	field := textfield.New(textfield.Value(email))
+//	field := textfield.New(textfield.ValueSignal(email))
 //	// email.Get() always reflects the current text field value
 //
 // # Focus

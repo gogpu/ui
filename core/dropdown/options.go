@@ -104,13 +104,18 @@ func PainterOpt(p Painter) Option {
 	}
 }
 
-// Signal binds the dropdown's selected index to a reactive signal for
+// SelectedSignal binds the dropdown's selected index to a reactive signal for
 // two-way data binding. When the selection changes, the signal is updated.
 // When the signal is set externally, the dropdown reflects the change.
-func Signal(s state.Signal[int]) Option {
+func SelectedSignal(sig state.Signal[int]) Option {
 	return func(c *config) {
-		c.signal = s
+		c.signal = sig
 	}
+}
+
+// Deprecated: Use SelectedSignal instead.
+func Signal(s state.Signal[int]) Option {
+	return SelectedSignal(s)
 }
 
 // A11yHint sets the accessibility hint text for the dropdown.

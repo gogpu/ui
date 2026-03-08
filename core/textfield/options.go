@@ -19,13 +19,18 @@ func InitialValue(s string) Option {
 	}
 }
 
-// Value binds the text field to a reactive signal for two-way data binding.
+// ValueSignal binds the text field to a reactive signal for two-way data binding.
 // When the user types, the signal is updated. When the signal is set externally,
 // the text field reflects the change.
-func Value(sig state.Signal[string]) Option {
+func ValueSignal(sig state.Signal[string]) Option {
 	return func(c *config) {
 		c.signal = sig
 	}
+}
+
+// Deprecated: Use ValueSignal instead.
+func Value(sig state.Signal[string]) Option {
+	return ValueSignal(sig)
 }
 
 // OnChange sets the callback invoked when the text value changes.

@@ -153,7 +153,7 @@ func TestNew_WithSignal(t *testing.T) {
 	sig := state.NewSignal(1)
 	dd := dropdown.New(
 		dropdown.Items("Red", "Green", "Blue"),
-		dropdown.Signal(sig),
+		dropdown.SelectedSignal(sig),
 	)
 
 	if dd.SelectedIndex() != 1 {
@@ -249,7 +249,7 @@ func TestSetSelectedIndex_UpdatesSignal(t *testing.T) {
 	sig := state.NewSignal(-1)
 	dd := dropdown.New(
 		dropdown.Items("Red", "Green", "Blue"),
-		dropdown.Signal(sig),
+		dropdown.SelectedSignal(sig),
 	)
 
 	dd.SetSelectedIndex(2)

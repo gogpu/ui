@@ -185,7 +185,7 @@ func TestNew_AllOptions(t *testing.T) {
 
 func TestSignal_TwoWayBinding(t *testing.T) {
 	sig := state.NewSignal("")
-	tf := textfield.New(textfield.Value(sig))
+	tf := textfield.New(textfield.ValueSignal(sig))
 	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
 	tf.SetFocused(true)
 	ctx := widget.NewContext()
