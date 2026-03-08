@@ -5,7 +5,7 @@ go 1.25.0
 replace github.com/gogpu/ui => ../..
 
 require (
-	github.com/gogpu/gg v0.33.3
+	github.com/gogpu/gg v0.33.5
 	github.com/gogpu/gogpu v0.22.9
 	github.com/gogpu/ui v0.0.0-00010101000000-000000000000
 )
