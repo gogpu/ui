@@ -56,7 +56,8 @@ v2.0.0  → AVOID (requires /v2 import path)
 v0.0.x  → Phase 0 Foundation ✅ COMPLETE
 v0.1.0  → Phase 1 MVP ✅ COMPLETE
 v0.1.x  → Phase 1.5 Extensibility ✅ COMPLETE
-v0.2.0  → Phase 2 Beta (In Progress)
+v0.2.0  → Phase 2 Beta ✅ COMPLETE
+v0.2.x  → Phase 2.5 Signals Integration ✅ COMPLETE
 v0.3.0  → Phase 3 RC
 v0.9.0  → Pre-1.0 API freeze
 v0.10+  → Stabilization
@@ -243,6 +244,29 @@ v1.0.0  → Production (when ready)
 
 ---
 
+### Phase 2.5: Signals Integration (v0.2.x) ✅ COMPLETE
+
+**Goal:** Push-based reactive state for all widgets
+
+**Tasks (5 tasks):**
+
+| Task | Description | Status |
+|------|-------------|--------|
+| SIGNALS-001 | Button signal bindings (TextSignal, DisabledSignal) | ✅ Done |
+| SIGNALS-002 | Checkbox signal bindings (CheckedSignal, LabelSignal, DisabledSignal) | ✅ Done |
+| SIGNALS-003 | Radio signal bindings (SelectedSignal, GroupDisabledSignal) | ✅ Done |
+| SIGNALS-004 | Primitives TextWidget ContentSignal | ✅ Done |
+| SIGNALS-005 | Naming convention unification (PropertySignal pattern) | ✅ Done |
+
+**Key decisions:**
+- `PropertySignal` naming convention: `TextSignal()`, `CheckedSignal()`, etc.
+- Priority: Signal > Fn > Static
+- Two-way binding for stateful widgets (checkbox, radio, textfield, dropdown)
+- One-way for display widgets (button text, labels, primitives)
+- Deprecated: `textfield.Value()` → `ValueSignal()`, `dropdown.Signal()` → `SelectedSignal()`
+
+---
+
 ### Phase 3: RC (v0.3.0)
 
 **Goal:** Enterprise features, rendering optimizations, containers
@@ -266,6 +290,9 @@ v1.0.0  → Production (when ready)
 | TASK-UI-030 | SplitView | ~400 | P2 |
 | TASK-UI-053 | Dirty Region Tracking | ~500 | P1 |
 | TASK-UI-054 | Layer Compositing & Caching | ~800 | P2 |
+| SIGNALS-006 | Automatic signal binding lifecycle (Mount/Unmount) | ~300 | P2 |
+| SIGNALS-007 | Scheduler integration with render loop | ~150 | P2 |
+| SIGNALS-008 | Computed properties & Effect patterns | ~200 | P3 |
 
 **Deliverables:**
 - Virtualization for large datasets
@@ -312,6 +339,7 @@ v1.0.0  → Production (when ready)
 | Phase 1 (MVP) | 10 | ~12K | ✅ Complete |
 | Phase 1.5 (Extensibility) | 6 | ~9K | ✅ Complete |
 | Phase 2 (Beta) | 16 | ~15K | ✅ Complete (16/16) |
+| Phase 2.5 (Signals) | 5 | ~1.5K | ✅ Complete |
 | Phase 3 (RC) | 15 | ~10K | Planned |
 | Phase 4 (v1.0) | 10 | ~24K | Planned |
 | **Total** | **62+** | **~80K LOC** | |

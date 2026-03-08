@@ -133,11 +133,11 @@ func main() {
 | Package | Description | Coverage |
 |---------|-------------|----------|
 | `cdk` | Component Development Kit — Content[C] polymorphic pattern | 100% |
-| `core/button` | Generic button with pluggable Painter, 4 variants, 3 sizes | 96%+ |
-| `core/checkbox` | Toggleable checkbox with checked/unchecked/indeterminate states | 96%+ |
-| `core/radio` | Mutually exclusive radio group with vertical/horizontal layout | 96%+ |
-| `core/textfield` | Text input with cursor, selection, clipboard, validation | 96%+ |
-| `core/dropdown` | Dropdown/select with overlay menu, keyboard navigation | 96%+ |
+| `core/button` | Generic button with pluggable Painter, 4 variants, 3 sizes, signal bindings | 96%+ |
+| `core/checkbox` | Toggleable checkbox with checked/unchecked/indeterminate states, signal bindings | 96%+ |
+| `core/radio` | Mutually exclusive radio group with vertical/horizontal layout, signal bindings | 96%+ |
+| `core/textfield` | Text input with cursor, selection, clipboard, validation, signal bindings | 96%+ |
+| `core/dropdown` | Dropdown/select with overlay menu, keyboard navigation, signal bindings | 96%+ |
 | `overlay` | Overlay/popup stack, container, position helper | 95%+ |
 | `theme/material3` | Material Design 3 — theme (HCT color science) + 5 component painters | 97%+ |
 | `focus` | Keyboard focus management with Tab/Shift+Tab navigation | 95.2% |
@@ -233,6 +233,10 @@ primitives.TextFn(func() string {
     return fmt.Sprintf("Count: %d", count.Get())
 }).FontSize(18)
 
+// Text — signal binding (auto-updates when signal changes)
+title := state.NewSignal("Hello World")
+primitives.NewText("").ContentSignal(title).FontSize(24)
+
 // Image
 primitives.Image(mySource).
     Size(48, 48).
@@ -262,6 +266,30 @@ scheduler.Batch(func() {
     lastName.Set("Smith")
     age.Set(30)
 })
+```
+
+### Widget Signal Bindings
+
+```go
+// Bind signals directly to widget properties
+label := state.NewSignal("Submit")
+disabled := state.NewSignal(false)
+
+btn := button.New(
+    button.TextSignal(label),
+    button.DisabledSignal(disabled),
+    button.OnClick(func() {
+        label.Set("Processing...")
+        disabled.Set(true)
+    }),
+)
+
+// Two-way binding: checkbox state synced with signal
+agreed := state.NewSignal(false)
+cb := checkbox.New(
+    checkbox.CheckedSignal(agreed),
+    checkbox.LabelOpt("I agree to terms"),
+)
 ```
 
 ### Accessibility

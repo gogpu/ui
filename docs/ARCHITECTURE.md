@@ -699,6 +699,51 @@ sched.Flush() // Calls flush function with deduplicated widget list
 
 Supports explicit batching via `Batch` method. Instance-based (no global state), thread-safe.
 
+### Widget Signal Bindings
+
+All core widgets support reactive signal bindings via the `PropertySignal` naming pattern.
+Signal values take highest priority over dynamic functions (`Fn`) and static values.
+
+**One-way bindings** (widget reads from signal):
+```go
+label := state.NewSignal("Click me")
+btn := button.New(
+    button.TextSignal(label),
+    button.DisabledSignal(state.NewSignal(false)),
+)
+label.Set("Updated!") // Button text updates on next draw
+```
+
+**Two-way bindings** (widget reads and writes back):
+```go
+checked := state.NewSignal(false)
+cb := checkbox.New(
+    checkbox.CheckedSignal(checked),
+    checkbox.OnToggle(func(v bool) {
+        fmt.Println("toggled to", v)
+    }),
+)
+// User clicks checkbox → checked signal updated
+// checked.Set(true) → checkbox updates on next draw
+```
+
+**Available signal options:**
+
+| Widget | Option | Type | Binding |
+|--------|--------|------|---------|
+| `button` | `TextSignal` | `Signal[string]` | one-way |
+| `button` | `DisabledSignal` | `Signal[bool]` | one-way |
+| `checkbox` | `CheckedSignal` | `Signal[bool]` | two-way |
+| `checkbox` | `LabelSignal` | `Signal[string]` | one-way |
+| `checkbox` | `DisabledSignal` | `Signal[bool]` | one-way |
+| `radio` | `SelectedSignal` | `Signal[string]` | two-way |
+| `radio` | `GroupDisabledSignal` | `Signal[bool]` | one-way |
+| `textfield` | `ValueSignal` | `Signal[string]` | two-way |
+| `dropdown` | `SelectedSignal` | `Signal[int]` | two-way |
+| `primitives/text` | `ContentSignal` | `ReadonlySignal[string]` | one-way |
+
+Priority resolution: Signal > Fn > Static.
+
 ---
 
 ## Theme System
