@@ -6,6 +6,7 @@ import (
 	"github.com/gogpu/ui/core/button"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -175,6 +176,110 @@ func TestNew_AllOptions(t *testing.T) {
 
 	if !btn.IsFocusable() {
 		t.Error("should be focusable")
+	}
+}
+
+// --- Signal Binding Tests ---
+
+func TestNew_WithTextSignal(t *testing.T) {
+	sig := state.NewSignal("Signal Text")
+	btn := button.New(button.TextSignal(sig))
+	btn.SetBounds(geometry.NewRect(0, 0, 200, 40))
+	ctx := widget.NewContext()
+	canvas := &recordingCanvas{}
+
+	btn.Draw(ctx, canvas)
+
+	if len(canvas.drawTexts) == 0 {
+		t.Fatal("should have drawn text")
+	}
+	if canvas.drawTexts[0].text != "Signal Text" {
+		t.Errorf("text = %q, want %q", canvas.drawTexts[0].text, "Signal Text")
+	}
+
+	// Update signal and redraw.
+	sig.Set("Updated")
+	canvas = &recordingCanvas{}
+	btn.Draw(ctx, canvas)
+
+	if len(canvas.drawTexts) == 0 {
+		t.Fatal("should have drawn text after signal update")
+	}
+	if canvas.drawTexts[0].text != "Updated" {
+		t.Errorf("text = %q, want %q", canvas.drawTexts[0].text, "Updated")
+	}
+}
+
+func TestNew_WithDisabledSignal(t *testing.T) {
+	sig := state.NewSignal(true)
+	btn := button.New(button.DisabledSignal(sig))
+
+	if btn.IsFocusable() {
+		t.Error("disabled button (via signal) should not be focusable")
+	}
+
+	sig.Set(false)
+	if !btn.IsFocusable() {
+		t.Error("enabled button (via signal) should be focusable")
+	}
+}
+
+func TestNew_SignalPriority(t *testing.T) {
+	t.Run("TextSignal overrides TextFn and TextOpt", func(t *testing.T) {
+		sig := state.NewSignal("signal")
+		btn := button.New(
+			button.Text("static"),
+			button.TextFn(func() string { return "fn" }),
+			button.TextSignal(sig),
+		)
+		btn.SetBounds(geometry.NewRect(0, 0, 200, 40))
+		ctx := widget.NewContext()
+		canvas := &recordingCanvas{}
+
+		btn.Draw(ctx, canvas)
+
+		if len(canvas.drawTexts) == 0 {
+			t.Fatal("should have drawn text")
+		}
+		if canvas.drawTexts[0].text != "signal" {
+			t.Errorf("text = %q, want %q (signal should override fn and static)", canvas.drawTexts[0].text, "signal")
+		}
+	})
+
+	t.Run("DisabledSignal overrides DisabledFn and Disabled", func(t *testing.T) {
+		sig := state.NewSignal(true)
+		btn := button.New(
+			button.Disabled(false),
+			button.DisabledFn(func() bool { return false }),
+			button.DisabledSignal(sig),
+		)
+
+		if btn.IsFocusable() {
+			t.Error("DisabledSignal(true) should override DisabledFn(false) and Disabled(false)")
+		}
+	})
+}
+
+func TestNew_DisabledSignal_IgnoresEvents(t *testing.T) {
+	clicked := false
+	sig := state.NewSignal(true)
+	btn := button.New(
+		button.Text("Click"),
+		button.OnClick(func() { clicked = true }),
+		button.DisabledSignal(sig),
+	)
+	btn.SetBounds(geometry.NewRect(0, 0, 100, 40))
+	ctx := widget.NewContext()
+
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(50, 20), geometry.Pt(50, 20), event.ModNone)
+	consumed := btn.Event(ctx, press)
+
+	if consumed {
+		t.Error("disabled button (via signal) should not consume events")
+	}
+	if clicked {
+		t.Error("disabled button (via signal) should not fire click")
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -914,6 +915,100 @@ func TestDraw_CustomBackground(t *testing.T) {
 	}
 	if canvas.drawRoundRects[0].color != color {
 		t.Errorf("background = %v, want %v", canvas.drawRoundRects[0].color, color)
+	}
+}
+
+// --- Signal Binding Tests ---
+
+func TestConfig_ResolvedText_Signal(t *testing.T) {
+	sig := state.NewSignal("from signal")
+	c := config{text: "static", textFn: func() string { return "from fn" }, textSignal: sig}
+
+	if got := c.ResolvedText(); got != "from signal" {
+		t.Errorf("ResolvedText() = %q, want %q", got, "from signal")
+	}
+
+	sig.Set("updated")
+	if got := c.ResolvedText(); got != "updated" {
+		t.Errorf("ResolvedText() = %q, want %q after Set", got, "updated")
+	}
+}
+
+func TestConfig_ResolvedDisabled_Signal(t *testing.T) {
+	sig := state.NewSignal(true)
+	c := config{disabled: false, disabledFn: func() bool { return false }, disabledSignal: sig}
+
+	if !c.ResolvedDisabled() {
+		t.Error("ResolvedDisabled() should be true (signal value)")
+	}
+
+	sig.Set(false)
+	if c.ResolvedDisabled() {
+		t.Error("ResolvedDisabled() should be false after signal Set(false)")
+	}
+}
+
+func TestConfig_ResolvedText_SignalPriority(t *testing.T) {
+	sig := state.NewSignal("signal")
+
+	t.Run("signal beats fn and static", func(t *testing.T) {
+		c := config{text: "static", textFn: func() string { return "fn" }, textSignal: sig}
+		if got := c.ResolvedText(); got != "signal" {
+			t.Errorf("ResolvedText() = %q, want %q (signal > fn > static)", got, "signal")
+		}
+	})
+
+	t.Run("fn beats static when no signal", func(t *testing.T) {
+		c := config{text: "static", textFn: func() string { return "fn" }}
+		if got := c.ResolvedText(); got != "fn" {
+			t.Errorf("ResolvedText() = %q, want %q (fn > static)", got, "fn")
+		}
+	})
+
+	t.Run("static used when no signal or fn", func(t *testing.T) {
+		c := config{text: "static"}
+		if got := c.ResolvedText(); got != "static" {
+			t.Errorf("ResolvedText() = %q, want %q", got, "static")
+		}
+	})
+}
+
+func TestConfig_ResolvedDisabled_SignalPriority(t *testing.T) {
+	sig := state.NewSignal(true)
+
+	t.Run("signal beats fn and static", func(t *testing.T) {
+		c := config{disabled: false, disabledFn: func() bool { return false }, disabledSignal: sig}
+		if !c.ResolvedDisabled() {
+			t.Error("signal(true) should override fn(false) and static(false)")
+		}
+	})
+
+	t.Run("fn beats static when no signal", func(t *testing.T) {
+		c := config{disabled: false, disabledFn: func() bool { return true }}
+		if !c.ResolvedDisabled() {
+			t.Error("fn(true) should override static(false)")
+		}
+	})
+
+	t.Run("static used when no signal or fn", func(t *testing.T) {
+		c := config{disabled: true}
+		if !c.ResolvedDisabled() {
+			t.Error("static(true) should be returned")
+		}
+	})
+}
+
+func TestIsFocusable_DisabledSignal(t *testing.T) {
+	sig := state.NewSignal(true)
+	w := New(DisabledSignal(sig))
+
+	if w.IsFocusable() {
+		t.Error("should not be focusable when DisabledSignal is true")
+	}
+
+	sig.Set(false)
+	if !w.IsFocusable() {
+		t.Error("should be focusable when DisabledSignal is false")
 	}
 }
 

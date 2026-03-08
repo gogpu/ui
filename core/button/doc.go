@@ -41,6 +41,23 @@
 // activation (Enter or Space when focused). Disabled buttons ignore
 // all interaction and are drawn with a dimmed appearance.
 //
+// # Signal Binding
+//
+// Button properties can be bound to reactive signals from the [state] package.
+// When a signal value changes, the button automatically reflects the new state.
+// Signal values take highest priority over dynamic functions and static values.
+//
+//	label := state.NewSignal("Click me")
+//	disabled := state.NewSignal(false)
+//	btn := button.New(
+//	    button.TextSignal(label),
+//	    button.DisabledSignal(disabled),
+//	    button.OnClick(func() {
+//	        label.Set("Clicked!")
+//	        disabled.Set(true)
+//	    }),
+//	)
+//
 // # Focus
 //
 // Buttons implement [widget.Focusable] and participate in tab navigation.

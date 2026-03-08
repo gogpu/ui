@@ -1,6 +1,9 @@
 package button
 
-import "github.com/gogpu/ui/widget"
+import (
+	"github.com/gogpu/ui/state"
+	"github.com/gogpu/ui/widget"
+)
 
 // Option configures a button during construction.
 type Option func(*config)
@@ -13,10 +16,19 @@ func TextOpt(s string) Option {
 }
 
 // TextFn sets a dynamic text function that is evaluated on each draw.
-// When set, this takes precedence over the static text.
+// When set, this takes precedence over the static text but not over
+// a signal set via [TextSignal].
 func TextFn(fn func() string) Option {
 	return func(c *config) {
 		c.textFn = fn
+	}
+}
+
+// TextSignal binds the button's display text to a reactive signal.
+// When set, the signal value takes precedence over both [TextFn] and [TextOpt].
+func TextSignal(sig state.Signal[string]) Option {
+	return func(c *config) {
+		c.textSignal = sig
 	}
 }
 
@@ -37,10 +49,19 @@ func Disabled(d bool) Option {
 }
 
 // DisabledFn sets a dynamic function that is evaluated to determine whether
-// the button is disabled. When set, this takes precedence over the static value.
+// the button is disabled. When set, this takes precedence over the static value
+// but not over a signal set via [DisabledSignal].
 func DisabledFn(fn func() bool) Option {
 	return func(c *config) {
 		c.disabledFn = fn
+	}
+}
+
+// DisabledSignal binds the button's disabled state to a reactive signal.
+// When set, the signal value takes precedence over both [DisabledFn] and [Disabled].
+func DisabledSignal(sig state.Signal[bool]) Option {
+	return func(c *config) {
+		c.disabledSignal = sig
 	}
 }
 
