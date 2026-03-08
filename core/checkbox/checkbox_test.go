@@ -6,6 +6,7 @@ import (
 	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -616,3 +617,173 @@ func (c *mockCanvas) PushClip(_ geometry.Rect)       {}
 func (c *mockCanvas) PopClip()                       {}
 func (c *mockCanvas) PushTransform(_ geometry.Point) {}
 func (c *mockCanvas) PopTransform()                  {}
+
+// --- Signal Binding Tests ---
+
+func TestNew_WithCheckedSignal(t *testing.T) {
+	sig := state.NewSignal(true)
+	cb := checkbox.New(checkbox.CheckedSignal(sig))
+	cb.SetBounds(geometry.NewRect(0, 0, 100, 40))
+	ctx := widget.NewContext()
+	canvas := &recordingCanvas{}
+
+	cb.Draw(ctx, canvas)
+
+	// Should render as checked (filled box + checkmark).
+	if len(canvas.drawRoundRects) == 0 {
+		t.Error("checked (via signal) checkbox should draw filled box")
+	}
+	if len(canvas.drawLines) == 0 {
+		t.Error("checked (via signal) checkbox should draw checkmark")
+	}
+
+	// Update signal to false and redraw.
+	sig.Set(false)
+	canvas2 := &recordingCanvas{}
+	cb.Draw(ctx, canvas2)
+
+	if len(canvas2.strokeRoundRects) == 0 {
+		t.Error("unchecked (via signal) checkbox should draw border")
+	}
+}
+
+func TestNew_WithCheckedSignal_TwoWay(t *testing.T) {
+	sig := state.NewSignal(false)
+	cb := checkbox.New(checkbox.CheckedSignal(sig))
+	cb.SetBounds(geometry.NewRect(0, 0, 100, 40))
+	ctx := widget.NewContext()
+
+	// Click to toggle: false → true.
+	simulateClick(cb, ctx, 10, 20)
+
+	if !sig.Get() {
+		t.Error("signal should be true after click toggle")
+	}
+
+	// Click again: true → false.
+	simulateClick(cb, ctx, 10, 20)
+
+	if sig.Get() {
+		t.Error("signal should be false after second click toggle")
+	}
+}
+
+func TestNew_WithLabelSignal(t *testing.T) {
+	sig := state.NewSignal("Signal Label")
+	cb := checkbox.New(checkbox.LabelSignal(sig))
+	cb.SetBounds(geometry.NewRect(0, 0, 200, 40))
+	ctx := widget.NewContext()
+	canvas := &recordingCanvas{}
+
+	cb.Draw(ctx, canvas)
+
+	if len(canvas.drawTexts) == 0 {
+		t.Fatal("should have drawn label text")
+	}
+	if canvas.drawTexts[0].text != "Signal Label" {
+		t.Errorf("text = %q, want %q", canvas.drawTexts[0].text, "Signal Label")
+	}
+
+	sig.Set("Updated")
+	canvas2 := &recordingCanvas{}
+	cb.Draw(ctx, canvas2)
+
+	if len(canvas2.drawTexts) == 0 {
+		t.Fatal("should have drawn updated label text")
+	}
+	if canvas2.drawTexts[0].text != "Updated" {
+		t.Errorf("text = %q, want %q", canvas2.drawTexts[0].text, "Updated")
+	}
+}
+
+func TestNew_WithDisabledSignal(t *testing.T) {
+	sig := state.NewSignal(true)
+	cb := checkbox.New(checkbox.DisabledSignal(sig))
+
+	if cb.IsFocusable() {
+		t.Error("disabled (via signal) checkbox should not be focusable")
+	}
+
+	sig.Set(false)
+	if !cb.IsFocusable() {
+		t.Error("enabled (via signal) checkbox should be focusable")
+	}
+}
+
+func TestNew_SignalPriority(t *testing.T) {
+	t.Run("CheckedSignal overrides CheckedFn and Checked", func(t *testing.T) {
+		sig := state.NewSignal(true)
+		cb := checkbox.New(
+			checkbox.Checked(false),
+			checkbox.CheckedFn(func() bool { return false }),
+			checkbox.CheckedSignal(sig),
+		)
+		cb.SetBounds(geometry.NewRect(0, 0, 100, 40))
+		ctx := widget.NewContext()
+		canvas := &recordingCanvas{}
+
+		cb.Draw(ctx, canvas)
+
+		// Should be checked (signal=true overrides fn=false and static=false).
+		if len(canvas.drawRoundRects) == 0 {
+			t.Error("CheckedSignal(true) should override CheckedFn(false) and Checked(false)")
+		}
+	})
+
+	t.Run("LabelSignal overrides LabelFn and Label", func(t *testing.T) {
+		sig := state.NewSignal("signal")
+		cb := checkbox.New(
+			checkbox.Label("static"),
+			checkbox.LabelFn(func() string { return "fn" }),
+			checkbox.LabelSignal(sig),
+		)
+		cb.SetBounds(geometry.NewRect(0, 0, 200, 40))
+		ctx := widget.NewContext()
+		canvas := &recordingCanvas{}
+
+		cb.Draw(ctx, canvas)
+
+		if len(canvas.drawTexts) == 0 {
+			t.Fatal("should have drawn label text")
+		}
+		if canvas.drawTexts[0].text != "signal" {
+			t.Errorf("text = %q, want %q (LabelSignal should override)", canvas.drawTexts[0].text, "signal")
+		}
+	})
+
+	t.Run("DisabledSignal overrides DisabledFn and Disabled", func(t *testing.T) {
+		sig := state.NewSignal(true)
+		cb := checkbox.New(
+			checkbox.Disabled(false),
+			checkbox.DisabledFn(func() bool { return false }),
+			checkbox.DisabledSignal(sig),
+		)
+
+		if cb.IsFocusable() {
+			t.Error("DisabledSignal(true) should override DisabledFn(false) and Disabled(false)")
+		}
+	})
+}
+
+func TestNew_DisabledSignal_IgnoresEvents(t *testing.T) {
+	toggled := false
+	sig := state.NewSignal(true)
+	cb := checkbox.New(
+		checkbox.Label("Test"),
+		checkbox.OnToggle(func(bool) { toggled = true }),
+		checkbox.DisabledSignal(sig),
+	)
+	cb.SetBounds(geometry.NewRect(0, 0, 100, 40))
+	ctx := widget.NewContext()
+
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(10, 20), geometry.Pt(10, 20), event.ModNone)
+	consumed := cb.Event(ctx, press)
+
+	if consumed {
+		t.Error("disabled (via signal) checkbox should not consume events")
+	}
+	if toggled {
+		t.Error("disabled (via signal) checkbox should not toggle")
+	}
+}

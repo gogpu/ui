@@ -103,9 +103,12 @@ func handleActivationKey(w *Widget, e *event.KeyEvent) bool {
 // fireToggle toggles the checked state and calls the configured onToggle handler.
 func fireToggle(w *Widget) {
 	newChecked := !w.cfg.ResolvedChecked()
-	// Update the static checked field so that subsequent reads reflect the toggle,
-	// unless a dynamic CheckedFn is in use (in which case the caller manages state).
-	if w.cfg.checkedFn == nil {
+	// TWO-WAY: if a CheckedSignal is bound, write back the new state.
+	if w.cfg.checkedSignal != nil {
+		w.cfg.checkedSignal.Set(newChecked)
+	} else if w.cfg.checkedFn == nil {
+		// Update the static checked field so that subsequent reads reflect the toggle,
+		// unless a dynamic CheckedFn is in use (in which case the caller manages state).
 		w.cfg.checked = newChecked
 	}
 	// Clear indeterminate on toggle.

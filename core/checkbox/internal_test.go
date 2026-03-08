@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -1073,3 +1074,293 @@ func (c *internalMockCanvas) PushClip(_ geometry.Rect)       {}
 func (c *internalMockCanvas) PopClip()                       {}
 func (c *internalMockCanvas) PushTransform(_ geometry.Point) {}
 func (c *internalMockCanvas) PopTransform()                  {}
+
+// --- Signal Binding Tests ---
+
+func TestConfig_ResolvedChecked_Signal(t *testing.T) {
+	sig := state.NewSignal(true)
+	c := config{checked: false, checkedFn: func() bool { return false }, checkedSignal: sig}
+
+	if !c.ResolvedChecked() {
+		t.Error("ResolvedChecked() should be true (signal value)")
+	}
+
+	sig.Set(false)
+	if c.ResolvedChecked() {
+		t.Error("ResolvedChecked() should be false after signal update")
+	}
+}
+
+func TestConfig_ResolvedLabel_Signal(t *testing.T) {
+	sig := state.NewSignal("from signal")
+	c := config{label: "static", labelFn: func() string { return "from fn" }, labelSignal: sig}
+
+	if got := c.ResolvedLabel(); got != "from signal" {
+		t.Errorf("ResolvedLabel() = %q, want %q", got, "from signal")
+	}
+
+	sig.Set("updated")
+	if got := c.ResolvedLabel(); got != "updated" {
+		t.Errorf("ResolvedLabel() = %q, want %q", got, "updated")
+	}
+}
+
+func TestConfig_ResolvedDisabled_Signal(t *testing.T) {
+	sig := state.NewSignal(true)
+	c := config{disabled: false, disabledFn: func() bool { return false }, disabledSignal: sig}
+
+	if !c.ResolvedDisabled() {
+		t.Error("ResolvedDisabled() should be true (signal value)")
+	}
+
+	sig.Set(false)
+	if c.ResolvedDisabled() {
+		t.Error("ResolvedDisabled() should be false after signal update")
+	}
+}
+
+func TestConfig_ResolvedChecked_SignalPriority(t *testing.T) {
+	sig := state.NewSignal(true)
+
+	t.Run("signal beats fn and static", func(t *testing.T) {
+		c := config{checked: false, checkedFn: func() bool { return false }, checkedSignal: sig}
+		if !c.ResolvedChecked() {
+			t.Error("signal(true) should override fn(false) and static(false)")
+		}
+	})
+
+	t.Run("fn beats static when no signal", func(t *testing.T) {
+		c := config{checked: false, checkedFn: func() bool { return true }}
+		if !c.ResolvedChecked() {
+			t.Error("fn(true) should override static(false)")
+		}
+	})
+
+	t.Run("static used when no signal or fn", func(t *testing.T) {
+		c := config{checked: true}
+		if !c.ResolvedChecked() {
+			t.Error("static(true) should be used when no signal or fn")
+		}
+	})
+}
+
+func TestConfig_ResolvedLabel_SignalPriority(t *testing.T) {
+	sig := state.NewSignal("signal")
+
+	t.Run("signal beats fn and static", func(t *testing.T) {
+		c := config{label: "static", labelFn: func() string { return "fn" }, labelSignal: sig}
+		if got := c.ResolvedLabel(); got != "signal" {
+			t.Errorf("ResolvedLabel() = %q, want %q (signal > fn > static)", got, "signal")
+		}
+	})
+
+	t.Run("fn beats static when no signal", func(t *testing.T) {
+		c := config{label: "static", labelFn: func() string { return "fn" }}
+		if got := c.ResolvedLabel(); got != "fn" {
+			t.Errorf("ResolvedLabel() = %q, want %q", got, "fn")
+		}
+	})
+
+	t.Run("static used when no signal or fn", func(t *testing.T) {
+		c := config{label: "static"}
+		if got := c.ResolvedLabel(); got != "static" {
+			t.Errorf("ResolvedLabel() = %q, want %q", got, "static")
+		}
+	})
+}
+
+func TestConfig_ResolvedDisabled_SignalPriority(t *testing.T) {
+	sig := state.NewSignal(true)
+
+	t.Run("signal beats fn and static", func(t *testing.T) {
+		c := config{disabled: false, disabledFn: func() bool { return false }, disabledSignal: sig}
+		if !c.ResolvedDisabled() {
+			t.Error("signal(true) should override fn(false) and static(false)")
+		}
+	})
+
+	t.Run("fn beats static when no signal", func(t *testing.T) {
+		c := config{disabled: false, disabledFn: func() bool { return true }}
+		if !c.ResolvedDisabled() {
+			t.Error("fn(true) should override static(false)")
+		}
+	})
+
+	t.Run("static used when no signal or fn", func(t *testing.T) {
+		c := config{disabled: true}
+		if !c.ResolvedDisabled() {
+			t.Error("static(true) should be used when no signal or fn")
+		}
+	})
+}
+
+func TestCheckboxCheckedSignal_TwoWay(t *testing.T) {
+	sig := state.NewSignal(false)
+	w := New(CheckedSignal(sig))
+	w.SetBounds(geometry.NewRect(0, 0, 100, 40))
+
+	// Signal → widget: signal is false, widget reads false.
+	if w.cfg.ResolvedChecked() {
+		t.Error("should be unchecked initially (signal=false)")
+	}
+
+	// Signal → widget: update signal to true, widget reads true.
+	sig.Set(true)
+	if !w.cfg.ResolvedChecked() {
+		t.Error("should be checked after signal.Set(true)")
+	}
+
+	// Widget → signal: toggle writes back to signal.
+	fireToggle(w) // toggling from true → false
+	if sig.Get() {
+		t.Error("signal should be false after toggle from checked")
+	}
+	if w.cfg.ResolvedChecked() {
+		t.Error("widget should read false after toggle")
+	}
+
+	// Toggle again: false → true.
+	fireToggle(w)
+	if !sig.Get() {
+		t.Error("signal should be true after toggle from unchecked")
+	}
+}
+
+func TestCheckboxCheckedSignal_TwoWay_MouseClick(t *testing.T) {
+	sig := state.NewSignal(false)
+	w := New(CheckedSignal(sig))
+	w.SetBounds(geometry.NewRect(0, 0, 100, 40))
+	ctx := widget.NewContext()
+
+	// Click to toggle.
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(10, 20), geometry.Pt(10, 20), event.ModNone)
+	handleEvent(w, ctx, press)
+
+	release := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		geometry.Pt(10, 20), geometry.Pt(10, 20), event.ModNone)
+	handleEvent(w, ctx, release)
+
+	if !sig.Get() {
+		t.Error("signal should be true after mouse click toggle")
+	}
+}
+
+func TestCheckboxCheckedSignal_TwoWay_Keyboard(t *testing.T) {
+	sig := state.NewSignal(false)
+	w := New(CheckedSignal(sig))
+	w.SetFocused(true)
+	ctx := widget.NewContext()
+
+	press := event.NewKeyEvent(event.KeyPress, event.KeySpace, 0, event.ModNone)
+	handleEvent(w, ctx, press)
+
+	release := event.NewKeyEvent(event.KeyRelease, event.KeySpace, 0, event.ModNone)
+	handleEvent(w, ctx, release)
+
+	if !sig.Get() {
+		t.Error("signal should be true after keyboard toggle")
+	}
+}
+
+func TestCheckboxLabelSignal(t *testing.T) {
+	sig := state.NewSignal("Signal Label")
+	w := New(LabelSignal(sig))
+	w.SetBounds(geometry.NewRect(0, 0, 200, 40))
+	ctx := widget.NewContext()
+	canvas := &internalMockCanvas{}
+
+	w.Draw(ctx, canvas)
+
+	if len(canvas.drawTexts) == 0 {
+		t.Fatal("should have drawn label text")
+	}
+	if canvas.drawTexts[0].text != "Signal Label" {
+		t.Errorf("text = %q, want %q", canvas.drawTexts[0].text, "Signal Label")
+	}
+
+	// Update signal and redraw.
+	sig.Set("Updated Label")
+	canvas2 := &internalMockCanvas{}
+	w.Draw(ctx, canvas2)
+
+	if len(canvas2.drawTexts) == 0 {
+		t.Fatal("should have drawn label text after update")
+	}
+	if canvas2.drawTexts[0].text != "Updated Label" {
+		t.Errorf("text = %q, want %q", canvas2.drawTexts[0].text, "Updated Label")
+	}
+}
+
+func TestCheckboxDisabledSignal(t *testing.T) {
+	sig := state.NewSignal(true)
+	w := New(DisabledSignal(sig))
+
+	if w.IsFocusable() {
+		t.Error("should not be focusable when DisabledSignal is true")
+	}
+
+	sig.Set(false)
+	if !w.IsFocusable() {
+		t.Error("should be focusable when DisabledSignal is false")
+	}
+}
+
+func TestCheckboxDisabledSignal_IgnoresEvents(t *testing.T) {
+	toggled := false
+	sig := state.NewSignal(true)
+	w := New(
+		LabelOpt("Test"),
+		OnToggle(func(bool) { toggled = true }),
+		DisabledSignal(sig),
+	)
+	w.SetBounds(geometry.NewRect(0, 0, 100, 40))
+	ctx := widget.NewContext()
+
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(10, 20), geometry.Pt(10, 20), event.ModNone)
+	consumed := handleEvent(w, ctx, press)
+
+	if consumed {
+		t.Error("disabled (via signal) checkbox should not consume events")
+	}
+	if toggled {
+		t.Error("disabled (via signal) checkbox should not toggle")
+	}
+
+	// Enable and verify interaction works.
+	sig.Set(false)
+	handleEvent(w, ctx, press)
+	release := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		geometry.Pt(10, 20), geometry.Pt(10, 20), event.ModNone)
+	handleEvent(w, ctx, release)
+
+	if !toggled {
+		t.Error("enabled checkbox should toggle after DisabledSignal set to false")
+	}
+}
+
+func TestCheckboxCheckedSignal_OnToggleStillFires(t *testing.T) {
+	sig := state.NewSignal(false)
+	var receivedState bool
+	callCount := 0
+	w := New(
+		CheckedSignal(sig),
+		OnToggle(func(checked bool) {
+			receivedState = checked
+			callCount++
+		}),
+	)
+
+	fireToggle(w)
+
+	if callCount != 1 {
+		t.Errorf("onToggle called %d times, want 1", callCount)
+	}
+	if !receivedState {
+		t.Error("onToggle should receive true")
+	}
+	if !sig.Get() {
+		t.Error("signal should be true after toggle")
+	}
+}

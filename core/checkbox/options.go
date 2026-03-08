@@ -1,6 +1,9 @@
 package checkbox
 
-import "github.com/gogpu/ui/widget"
+import (
+	"github.com/gogpu/ui/state"
+	"github.com/gogpu/ui/widget"
+)
 
 // Option configures a checkbox during construction.
 type Option func(*config)
@@ -13,10 +16,19 @@ func LabelOpt(s string) Option {
 }
 
 // LabelFn sets a dynamic label function that is evaluated on each draw.
-// When set, this takes precedence over the static label.
+// When set, this takes precedence over the static label but not over
+// a signal set via [LabelSignal].
 func LabelFn(fn func() string) Option {
 	return func(c *config) {
 		c.labelFn = fn
+	}
+}
+
+// LabelSignal binds the checkbox's display label to a reactive signal.
+// When set, the signal value takes precedence over both [LabelFn] and [LabelOpt].
+func LabelSignal(sig state.Signal[string]) Option {
+	return func(c *config) {
+		c.labelSignal = sig
 	}
 }
 
@@ -28,10 +40,21 @@ func Checked(b bool) Option {
 }
 
 // CheckedFn sets a dynamic function that is evaluated to determine whether
-// the checkbox is checked. When set, this takes precedence over the static value.
+// the checkbox is checked. When set, this takes precedence over the static value
+// but not over a signal set via [CheckedSignal].
 func CheckedFn(fn func() bool) Option {
 	return func(c *config) {
 		c.checkedFn = fn
+	}
+}
+
+// CheckedSignal binds the checkbox's checked state to a reactive signal.
+// This is a TWO-WAY binding: the widget reads the checked state from the signal,
+// and when the user toggles the checkbox, the new state is written back to the signal.
+// When set, the signal value takes precedence over both [CheckedFn] and [Checked].
+func CheckedSignal(sig state.Signal[bool]) Option {
+	return func(c *config) {
+		c.checkedSignal = sig
 	}
 }
 
@@ -52,10 +75,19 @@ func Disabled(d bool) Option {
 }
 
 // DisabledFn sets a dynamic function that is evaluated to determine whether
-// the checkbox is disabled. When set, this takes precedence over the static value.
+// the checkbox is disabled. When set, this takes precedence over the static value
+// but not over a signal set via [DisabledSignal].
 func DisabledFn(fn func() bool) Option {
 	return func(c *config) {
 		c.disabledFn = fn
+	}
+}
+
+// DisabledSignal binds the checkbox's disabled state to a reactive signal.
+// When set, the signal value takes precedence over both [DisabledFn] and [Disabled].
+func DisabledSignal(sig state.Signal[bool]) Option {
+	return func(c *config) {
+		c.disabledSignal = sig
 	}
 }
 
