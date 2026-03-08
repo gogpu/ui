@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Signals Integration)
+- **Reactive signal bindings for all core widgets (SIGNALS-001..005)** — push-based
+  state management via coregx/signals integration across the entire widget tree:
+  - button: TextSignal(Signal[string]), DisabledSignal(Signal[bool])
+  - checkbox: CheckedSignal(Signal[bool]) (two-way), LabelSignal(Signal[string]),
+    DisabledSignal(Signal[bool])
+  - radio: SelectedSignal(Signal[string]) (two-way),
+    GroupDisabledSignal(Signal[bool])
+  - primitives/text: ContentSignal(ReadonlySignal[string])
+  - Priority resolution: Signal > Fn > Static (backward compatible)
+  - Unified PropertySignal naming convention across all widgets
+
+### Deprecated
+- textfield.Value() — use textfield.ValueSignal() instead
+- dropdown.Signal() — use dropdown.SelectedSignal() instead
+
 ### Added
 - **Overlay infrastructure** (`overlay/`) — window-level overlay stack for popups, dropdowns, tooltips, and modals. Stack with push/pop/remove, Container with dismiss-on-click-outside and Escape key, Position helper with viewport clamping and flip logic. 30+ tests
 - **Dropdown/Select widget** (`core/dropdown/`) — full-featured dropdown with trigger, floating menu overlay, keyboard navigation (Up/Down/Enter/Escape/Home/End), mouse hover highlight, mouse wheel scrolling, max visible items with clipping, signal two-way binding, accessibility (role=combobox). 11 functional options, pluggable Painter interface, 55 tests
