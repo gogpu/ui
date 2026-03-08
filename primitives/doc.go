@@ -35,7 +35,8 @@
 // # Text
 //
 // Text displays static or reactive text content. Static text is created with
-// [Text], and reactive text (backed by a signal) is created with [TextFn].
+// [Text], reactive text via a function with [TextFn], and signal-bound text
+// with [TextWidget.ContentSignal].
 //
 //	label := primitives.Text("Hello").FontSize(16).Bold()
 //
@@ -43,6 +44,9 @@
 //	dynamic := primitives.TextFn(func() string {
 //	    return fmt.Sprintf("Count: %d", counter.Get())
 //	}).FontSize(14)
+//
+//	name := state.NewSignal("Alice")
+//	bound := primitives.Text("").ContentSignal(name).FontSize(14)
 //
 // # Image
 //

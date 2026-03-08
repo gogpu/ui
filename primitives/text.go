@@ -4,6 +4,7 @@ import (
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -48,6 +49,7 @@ type TextWidget struct {
 	style         TextStyle
 	content       string
 	fn            func() string
+	contentSignal state.ReadonlySignal[string]
 	colorExplicit bool // true when Color() was called explicitly
 }
 
@@ -89,6 +91,20 @@ func TextFn(fn func() string) *TextWidget {
 	}
 	t.SetVisible(true)
 	t.SetEnabled(true)
+	return t
+}
+
+// ContentSignal binds the text content to a read-only reactive signal.
+// When set, the signal value takes precedence over both [TextFn] and static
+// content set via [Text].
+//
+// Because TextWidget is display-only, only [state.ReadonlySignal] is accepted
+// (no write-back capability is needed).
+//
+//	name := state.NewSignal("Alice")
+//	label := primitives.Text("").ContentSignal(name).FontSize(14)
+func (t *TextWidget) ContentSignal(sig state.ReadonlySignal[string]) *TextWidget {
+	t.contentSignal = sig
 	return t
 }
 
@@ -153,18 +169,20 @@ func (t *TextWidget) Style() TextStyle {
 
 // Content returns the current text content.
 //
-// If the widget was created with [TextFn], this calls the function to obtain
-// the latest value.
+// Resolution priority: [ContentSignal] > [TextFn] > static [Text].
 func (t *TextWidget) Content() string {
+	if t.contentSignal != nil {
+		return t.contentSignal.Get()
+	}
 	if t.fn != nil {
 		return t.fn()
 	}
 	return t.content
 }
 
-// IsReactive returns true if the widget uses a function for its content.
+// IsReactive returns true if the widget uses a function or signal for its content.
 func (t *TextWidget) IsReactive() bool {
-	return t.fn != nil
+	return t.contentSignal != nil || t.fn != nil
 }
 
 // --- widget.Widget interface ---

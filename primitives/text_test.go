@@ -8,6 +8,7 @@ import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -513,6 +514,88 @@ func TestTextReactiveFn_UsesThemeColor(t *testing.T) {
 		t.Errorf("text color = %+v, want theme OnSurface %+v",
 			canvas.lastTextColor, onSurface)
 	}
+}
+
+// --- Signal Binding Tests ---
+
+func TestTextContentSignal(t *testing.T) {
+	sig := state.NewSignal("Signal Text")
+	tw := primitives.Text("").ContentSignal(sig).FontSize(14)
+
+	if tw.Content() != "Signal Text" {
+		t.Errorf("content = %q, want %q", tw.Content(), "Signal Text")
+	}
+	if !tw.IsReactive() {
+		t.Error("signal-bound text should be reactive")
+	}
+}
+
+func TestTextContentSignalUpdate(t *testing.T) {
+	sig := state.NewSignal("Initial")
+	tw := primitives.Text("").ContentSignal(sig).FontSize(14)
+
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	// First draw with initial value.
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawTextCount == 0 {
+		t.Fatal("expected DrawText call")
+	}
+	if canvas.lastText != "Initial" {
+		t.Errorf("text = %q, want %q", canvas.lastText, "Initial")
+	}
+
+	// Update signal and redraw.
+	sig.Set("Updated")
+	canvas = &mockCanvas{}
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawTextCount == 0 {
+		t.Fatal("expected DrawText call after signal update")
+	}
+	if canvas.lastText != "Updated" {
+		t.Errorf("text = %q, want %q", canvas.lastText, "Updated")
+	}
+}
+
+func TestTextContentSignalPriority(t *testing.T) {
+	t.Run("Signal overrides Fn", func(t *testing.T) {
+		sig := state.NewSignal("signal")
+		tw := primitives.TextFn(func() string { return "fn" }).ContentSignal(sig)
+
+		if tw.Content() != "signal" {
+			t.Errorf("content = %q, want %q (signal should override fn)", tw.Content(), "signal")
+		}
+	})
+
+	t.Run("Signal overrides static", func(t *testing.T) {
+		sig := state.NewSignal("signal")
+		tw := primitives.Text("static").ContentSignal(sig)
+
+		if tw.Content() != "signal" {
+			t.Errorf("content = %q, want %q (signal should override static)", tw.Content(), "signal")
+		}
+	})
+
+	t.Run("Fn used when no signal", func(t *testing.T) {
+		tw := primitives.TextFn(func() string { return "fn" })
+
+		if tw.Content() != "fn" {
+			t.Errorf("content = %q, want %q", tw.Content(), "fn")
+		}
+	})
+
+	t.Run("Static used when no signal and no fn", func(t *testing.T) {
+		tw := primitives.Text("static")
+
+		if tw.Content() != "static" {
+			t.Errorf("content = %q, want %q", tw.Content(), "static")
+		}
+	})
 }
 
 // testThemeProvider is a minimal ThemeProvider for testing theme-aware primitives.

@@ -550,6 +550,7 @@ type mockCanvas struct {
 	pushTransformCount   int
 	popTransformCount    int
 	lastTextColor        widget.Color
+	lastText             string
 }
 
 func (c *mockCanvas) Clear(_ widget.Color)                                  {}
@@ -566,9 +567,10 @@ func (c *mockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _
 	c.strokeCircleCount++
 }
 func (c *mockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) { c.drawLineCount++ }
-func (c *mockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, color widget.Color, _ bool, _ float32) {
+func (c *mockCanvas) DrawText(text string, _ geometry.Rect, _ float32, color widget.Color, _ bool, _ float32) {
 	c.drawTextCount++
 	c.lastTextColor = color
+	c.lastText = text
 }
 func (c *mockCanvas) PushClip(_ geometry.Rect)       { c.pushClipCount++ }
 func (c *mockCanvas) PopClip()                       { c.popClipCount++ }
