@@ -107,6 +107,6 @@ func (p DefaultPainter) PaintButton(canvas widget.Canvas, state PaintState) {
 var (
 	defaultBg         = widget.RGBA(0.85, 0.85, 0.85, 1.0)
 	defaultFg         = widget.RGBA(0.1, 0.1, 0.1, 1.0)
-	defaultDisabledBg = widget.RGBA(0.12, 0.12, 0.13, 0.12)
-	defaultDisabledFg = widget.RGBA(0.12, 0.12, 0.13, 0.38)
+	defaultDisabledBg = widget.RGBA(0.92, 0.92, 0.92, 1.0)
+	defaultDisabledFg = widget.RGBA(0.62, 0.62, 0.62, 1.0)
 )
