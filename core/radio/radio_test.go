@@ -6,6 +6,7 @@ import (
 	"github.com/gogpu/ui/core/radio"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -995,3 +996,127 @@ func (c *mockCanvas) PushClip(_ geometry.Rect)       {}
 func (c *mockCanvas) PopClip()                       {}
 func (c *mockCanvas) PushTransform(_ geometry.Point) {}
 func (c *mockCanvas) PopTransform()                  {}
+
+// --- Signal Binding Tests (public API) ---
+
+func TestRadioSelectedSignal(t *testing.T) {
+	sig := state.NewSignal("b")
+	rg := radio.NewGroup(
+		radio.Items(
+			radio.ItemDef{Value: "a", Label: "Alpha"},
+			radio.ItemDef{Value: "b", Label: "Beta"},
+			radio.ItemDef{Value: "c", Label: "Gamma"},
+		),
+		radio.SelectedSignal(sig),
+	)
+
+	// Signal provides initial selection.
+	if rg.Selected() != "b" {
+		t.Errorf("Selected() = %q, want %q (from signal)", rg.Selected(), "b")
+	}
+
+	// External signal update is reflected.
+	sig.Set("c")
+	if rg.Selected() != "c" {
+		t.Errorf("Selected() = %q, want %q (after signal update)", rg.Selected(), "c")
+	}
+
+	// User click writes back to signal (two-way).
+	rg.SetBounds(geometry.NewRect(0, 0, 200, 100))
+	rg.ItemAt(0).SetBounds(geometry.NewRect(0, 0, 200, 30))
+	rg.ItemAt(1).SetBounds(geometry.NewRect(0, 30, 200, 30))
+	rg.ItemAt(2).SetBounds(geometry.NewRect(0, 60, 200, 30))
+	ctx := widget.NewContext()
+
+	simulateClick(rg.ItemAt(0), ctx, 10)
+
+	if sig.Get() != "a" {
+		t.Errorf("signal = %q, want %q (two-way write-back)", sig.Get(), "a")
+	}
+	if rg.Selected() != "a" {
+		t.Errorf("Selected() = %q, want %q", rg.Selected(), "a")
+	}
+}
+
+func TestRadioGroupDisabledSignal(t *testing.T) {
+	sig := state.NewSignal(true)
+	rg := radio.NewGroup(
+		radio.Items(radio.ItemDef{Value: "a", Label: "Alpha"}),
+		radio.GroupDisabledSignal(sig),
+	)
+
+	if rg.ItemAt(0).IsFocusable() {
+		t.Error("items should not be focusable when disabled via signal")
+	}
+
+	sig.Set(false)
+
+	if !rg.ItemAt(0).IsFocusable() {
+		t.Error("items should be focusable when enabled via signal")
+	}
+}
+
+func TestRadioSignalPriority(t *testing.T) {
+	t.Run("SelectedSignal overrides Selected", func(t *testing.T) {
+		sig := state.NewSignal("b")
+		rg := radio.NewGroup(
+			radio.Items(
+				radio.ItemDef{Value: "a", Label: "Alpha"},
+				radio.ItemDef{Value: "b", Label: "Beta"},
+			),
+			radio.Selected("a"),
+			radio.SelectedSignal(sig),
+		)
+
+		if rg.Selected() != "b" {
+			t.Errorf("Selected() = %q, want %q (signal > static)", rg.Selected(), "b")
+		}
+	})
+
+	t.Run("GroupDisabledSignal overrides GroupDisabledFn and GroupDisabled", func(t *testing.T) {
+		sig := state.NewSignal(true)
+		rg := radio.NewGroup(
+			radio.Items(radio.ItemDef{Value: "a", Label: "Alpha"}),
+			radio.GroupDisabled(false),
+			radio.GroupDisabledFn(func() bool { return false }),
+			radio.GroupDisabledSignal(sig),
+		)
+
+		if rg.ItemAt(0).IsFocusable() {
+			t.Error("signal(true) should override fn(false) and static(false)")
+		}
+	})
+}
+
+func TestRadioSelectedSignal_WithOnChange(t *testing.T) {
+	sig := state.NewSignal("")
+	var lastValue string
+	callCount := 0
+	rg := radio.NewGroup(
+		radio.Items(
+			radio.ItemDef{Value: "a", Label: "Alpha"},
+			radio.ItemDef{Value: "b", Label: "Beta"},
+		),
+		radio.SelectedSignal(sig),
+		radio.OnChange(func(v string) {
+			callCount++
+			lastValue = v
+		}),
+	)
+	rg.SetBounds(geometry.NewRect(0, 0, 200, 100))
+	rg.ItemAt(0).SetBounds(geometry.NewRect(0, 0, 200, 30))
+	rg.ItemAt(1).SetBounds(geometry.NewRect(0, 30, 200, 30))
+	ctx := widget.NewContext()
+
+	simulateClick(rg.ItemAt(0), ctx, 10)
+
+	if callCount != 1 {
+		t.Errorf("onChange called %d times, want 1", callCount)
+	}
+	if lastValue != "a" {
+		t.Errorf("lastValue = %q, want %q", lastValue, "a")
+	}
+	if sig.Get() != "a" {
+		t.Errorf("signal = %q, want %q", sig.Get(), "a")
+	}
+}

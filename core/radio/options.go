@@ -1,5 +1,9 @@
 package radio
 
+import (
+	"github.com/gogpu/ui/state"
+)
+
 // GroupOption configures a radio group during construction.
 type GroupOption func(*groupConfig)
 
@@ -16,6 +20,16 @@ func OnChange(fn func(value string)) GroupOption {
 func Selected(value string) GroupOption {
 	return func(c *groupConfig) {
 		c.selected = value
+	}
+}
+
+// SelectedSignal binds the group's selected value to a reactive signal.
+// This is a TWO-WAY binding: the widget reads the selected value from the signal,
+// and when the user selects an item, the new value is written back to the signal.
+// When set, the signal value takes precedence over [Selected].
+func SelectedSignal(sig state.Signal[string]) GroupOption {
+	return func(c *groupConfig) {
+		c.selectedSignal = sig
 	}
 }
 
@@ -36,10 +50,18 @@ func GroupDisabled(d bool) GroupOption {
 
 // GroupDisabledFn sets a dynamic function that is evaluated to determine
 // whether the group is disabled. When set, this takes precedence over the
-// static value.
+// static value but not over a signal set via [GroupDisabledSignal].
 func GroupDisabledFn(fn func() bool) GroupOption {
 	return func(c *groupConfig) {
 		c.disabledFn = fn
+	}
+}
+
+// GroupDisabledSignal binds the group's disabled state to a reactive signal.
+// When set, the signal value takes precedence over both [GroupDisabledFn] and [GroupDisabled].
+func GroupDisabledSignal(sig state.Signal[bool]) GroupOption {
+	return func(c *groupConfig) {
+		c.disabledSignal = sig
 	}
 }
 

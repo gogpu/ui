@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -1469,5 +1470,284 @@ func TestSelectValue_SameValue_NoOnChange(t *testing.T) {
 	g.selectValue("a") // re-select same value
 	if callCount != 0 {
 		t.Errorf("onChange should not fire on re-selecting same value, called %d times", callCount)
+	}
+}
+
+// --- Signal Binding Tests ---
+
+func TestConfig_ResolvedSelected_Signal(t *testing.T) {
+	sig := state.NewSignal("b")
+	c := groupConfig{selected: "a", selectedSignal: sig}
+
+	if got := c.ResolvedSelected(); got != "b" {
+		t.Errorf("ResolvedSelected() = %q, want %q (signal value)", got, "b")
+	}
+}
+
+func TestConfig_ResolvedSelected_NoSignal(t *testing.T) {
+	c := groupConfig{selected: "a"}
+
+	if got := c.ResolvedSelected(); got != "a" {
+		t.Errorf("ResolvedSelected() = %q, want %q (static value)", got, "a")
+	}
+}
+
+func TestConfig_ResolvedDisabled_Signal(t *testing.T) {
+	sig := state.NewSignal(true)
+	c := groupConfig{disabled: false, disabledFn: func() bool { return false }, disabledSignal: sig}
+
+	if !c.ResolvedDisabled() {
+		t.Error("ResolvedDisabled() should be true (signal value)")
+	}
+}
+
+func TestConfig_ResolvedDisabled_SignalPriority(t *testing.T) {
+	sig := state.NewSignal(true)
+
+	t.Run("signal beats fn and static", func(t *testing.T) {
+		c := groupConfig{disabled: false, disabledFn: func() bool { return false }, disabledSignal: sig}
+		if !c.ResolvedDisabled() {
+			t.Error("signal(true) should override fn(false) and static(false)")
+		}
+	})
+
+	t.Run("fn beats static when no signal", func(t *testing.T) {
+		c := groupConfig{disabled: false, disabledFn: func() bool { return true }}
+		if !c.ResolvedDisabled() {
+			t.Error("fn(true) should override static(false)")
+		}
+	})
+
+	t.Run("static used when no signal and no fn", func(t *testing.T) {
+		c := groupConfig{disabled: true}
+		if !c.ResolvedDisabled() {
+			t.Error("static(true) should be used")
+		}
+	})
+}
+
+func TestConfig_ResolvedSelected_SignalPriority(t *testing.T) {
+	sig := state.NewSignal("signal-val")
+
+	t.Run("signal beats static", func(t *testing.T) {
+		c := groupConfig{selected: "static-val", selectedSignal: sig}
+		if got := c.ResolvedSelected(); got != "signal-val" {
+			t.Errorf("ResolvedSelected() = %q, want %q (signal > static)", got, "signal-val")
+		}
+	})
+
+	t.Run("static used when no signal", func(t *testing.T) {
+		c := groupConfig{selected: "static-val"}
+		if got := c.ResolvedSelected(); got != "static-val" {
+			t.Errorf("ResolvedSelected() = %q, want %q", got, "static-val")
+		}
+	})
+}
+
+func TestRadioSelectedSignal_TwoWay(t *testing.T) {
+	sig := state.NewSignal("a")
+	g := NewGroup(
+		Items(
+			ItemDef{Value: "a", Label: "Alpha"},
+			ItemDef{Value: "b", Label: "Beta"},
+		),
+		SelectedSignal(sig),
+	)
+	g.SetBounds(geometry.NewRect(0, 0, 200, 100))
+	g.items[0].SetBounds(geometry.NewRect(0, 0, 200, 30))
+	g.items[1].SetBounds(geometry.NewRect(0, 30, 200, 30))
+
+	// Signal → widget: initial value should be "a".
+	if g.Selected() != "a" {
+		t.Errorf("Selected() = %q, want %q (from signal)", g.Selected(), "a")
+	}
+
+	// Widget → signal: simulate click on item B.
+	ctx := widget.NewContext()
+	pressEvt := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(10, 45), geometry.Pt(10, 45), event.ModNone)
+	handleItemEvent(g.items[1], ctx, pressEvt)
+
+	releaseEvt := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		geometry.Pt(10, 45), geometry.Pt(10, 45), event.ModNone)
+	handleItemEvent(g.items[1], ctx, releaseEvt)
+
+	// Signal should be updated.
+	if sig.Get() != "b" {
+		t.Errorf("signal value = %q, want %q (two-way write-back)", sig.Get(), "b")
+	}
+
+	// Widget reads from signal.
+	if g.Selected() != "b" {
+		t.Errorf("Selected() = %q, want %q", g.Selected(), "b")
+	}
+}
+
+func TestRadioSelectedSignal_TwoWay_Keyboard(t *testing.T) {
+	sig := state.NewSignal("")
+	g := NewGroup(
+		Items(
+			ItemDef{Value: "a", Label: "Alpha"},
+			ItemDef{Value: "b", Label: "Beta"},
+		),
+		SelectedSignal(sig),
+	)
+	g.items[0].SetFocused(true)
+	g.items[0].SetBounds(geometry.NewRect(0, 0, 200, 30))
+	ctx := widget.NewContext()
+
+	press := event.NewKeyEvent(event.KeyPress, event.KeySpace, 0, event.ModNone)
+	handleItemEvent(g.items[0], ctx, press)
+
+	release := event.NewKeyEvent(event.KeyRelease, event.KeySpace, 0, event.ModNone)
+	handleItemEvent(g.items[0], ctx, release)
+
+	if sig.Get() != "a" {
+		t.Errorf("signal value = %q, want %q (keyboard activation)", sig.Get(), "a")
+	}
+}
+
+func TestRadioSelectedSignal_ExternalUpdate(t *testing.T) {
+	sig := state.NewSignal("a")
+	g := NewGroup(
+		Items(
+			ItemDef{Value: "a", Label: "Alpha"},
+			ItemDef{Value: "b", Label: "Beta"},
+		),
+		SelectedSignal(sig),
+	)
+
+	// External code updates signal.
+	sig.Set("b")
+
+	// Widget should reflect the new signal value.
+	if g.Selected() != "b" {
+		t.Errorf("Selected() = %q, want %q (external signal update)", g.Selected(), "b")
+	}
+	if !g.isSelected("b") {
+		t.Error("isSelected('b') should be true after external signal update")
+	}
+	if g.isSelected("a") {
+		t.Error("isSelected('a') should be false after external signal update")
+	}
+}
+
+func TestRadioGroupDisabledSignal(t *testing.T) {
+	sig := state.NewSignal(true)
+	g := NewGroup(
+		Items(ItemDef{Value: "a", Label: "Alpha"}),
+		GroupDisabledSignal(sig),
+	)
+
+	if !g.cfg.ResolvedDisabled() {
+		t.Error("should be disabled when signal is true")
+	}
+	if g.items[0].IsFocusable() {
+		t.Error("items should not be focusable when disabled via signal")
+	}
+
+	sig.Set(false)
+
+	if g.cfg.ResolvedDisabled() {
+		t.Error("should be enabled when signal is false")
+	}
+	if !g.items[0].IsFocusable() {
+		t.Error("items should be focusable when enabled via signal")
+	}
+}
+
+func TestRadioGroupDisabledSignal_IgnoresEvents(t *testing.T) {
+	selected := false
+	sig := state.NewSignal(true)
+	g := NewGroup(
+		Items(ItemDef{Value: "a", Label: "Alpha"}),
+		OnChange(func(string) { selected = true }),
+		GroupDisabledSignal(sig),
+	)
+	g.SetBounds(geometry.NewRect(0, 0, 200, 40))
+	g.items[0].SetBounds(geometry.NewRect(0, 0, 200, 30))
+	ctx := widget.NewContext()
+
+	pressEvt := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(10, 10), geometry.Pt(10, 10), event.ModNone)
+	consumed := handleItemEvent(g.items[0], ctx, pressEvt)
+
+	if consumed {
+		t.Error("disabled (via signal) item should not consume events")
+	}
+	if selected {
+		t.Error("disabled (via signal) item should not fire onChange")
+	}
+
+	// Enable via signal.
+	sig.Set(false)
+
+	consumed = handleItemEvent(g.items[0], ctx, pressEvt)
+	if !consumed {
+		t.Error("enabled item should consume events")
+	}
+}
+
+func TestRadioSelectedSignal_OnChangeStillFires(t *testing.T) {
+	sig := state.NewSignal("")
+	var lastValue string
+	callCount := 0
+	g := NewGroup(
+		Items(
+			ItemDef{Value: "a", Label: "Alpha"},
+			ItemDef{Value: "b", Label: "Beta"},
+		),
+		SelectedSignal(sig),
+		OnChange(func(v string) {
+			callCount++
+			lastValue = v
+		}),
+	)
+	g.SetBounds(geometry.NewRect(0, 0, 200, 100))
+	g.items[0].SetBounds(geometry.NewRect(0, 0, 200, 30))
+	g.items[1].SetBounds(geometry.NewRect(0, 30, 200, 30))
+	ctx := widget.NewContext()
+
+	// Click item A.
+	pressEvt := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(10, 10), geometry.Pt(10, 10), event.ModNone)
+	handleItemEvent(g.items[0], ctx, pressEvt)
+
+	releaseEvt := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		geometry.Pt(10, 10), geometry.Pt(10, 10), event.ModNone)
+	handleItemEvent(g.items[0], ctx, releaseEvt)
+
+	if callCount != 1 {
+		t.Errorf("onChange called %d times, want 1", callCount)
+	}
+	if lastValue != "a" {
+		t.Errorf("lastValue = %q, want %q", lastValue, "a")
+	}
+	if sig.Get() != "a" {
+		t.Errorf("signal = %q, want %q", sig.Get(), "a")
+	}
+}
+
+func TestOptions_SelectedSignal(t *testing.T) {
+	var c groupConfig
+	sig := state.NewSignal("x")
+	SelectedSignal(sig)(&c)
+	if c.selectedSignal == nil {
+		t.Error("selectedSignal should not be nil")
+	}
+	if c.selectedSignal.Get() != "x" {
+		t.Errorf("selectedSignal.Get() = %q, want %q", c.selectedSignal.Get(), "x")
+	}
+}
+
+func TestOptions_GroupDisabledSignal(t *testing.T) {
+	var c groupConfig
+	sig := state.NewSignal(true)
+	GroupDisabledSignal(sig)(&c)
+	if c.disabledSignal == nil {
+		t.Error("disabledSignal should not be nil")
+	}
+	if !c.disabledSignal.Get() {
+		t.Error("disabledSignal.Get() should be true")
 	}
 }

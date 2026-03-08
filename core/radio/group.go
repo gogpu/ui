@@ -57,9 +57,11 @@ func NewGroup(opts ...GroupOption) *Group {
 	}
 
 	// Apply initial selection.
-	if g.cfg.selected != "" {
+	// Use ResolvedSelected to support signal-based initial values.
+	initialSelected := g.cfg.ResolvedSelected()
+	if initialSelected != "" {
 		for i, it := range g.items {
-			if it.value == g.cfg.selected {
+			if it.value == initialSelected {
 				g.selected = i
 				break
 			}
@@ -70,10 +72,14 @@ func NewGroup(opts ...GroupOption) *Group {
 }
 
 // Selected returns the value of the currently selected item.
+// When a [SelectedSignal] is bound, the signal value is returned directly.
 // Returns an empty string if no item is selected.
 func (g *Group) Selected() string {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
+	if g.cfg.selectedSignal != nil {
+		return g.cfg.selectedSignal.Get()
+	}
 	if g.selected < 0 || g.selected >= len(g.items) {
 		return ""
 	}
@@ -106,9 +112,19 @@ func (g *Group) selectValue(value string) {
 	g.setSelectedLocked(value)
 	changed := g.selected != prev
 	onChange := g.cfg.onChange
+	selectedSignal := g.cfg.selectedSignal
 	g.mu.Unlock()
 
-	if onChange != nil && changed {
+	if !changed {
+		return
+	}
+
+	// TWO-WAY: if a SelectedSignal is bound, write back the new value.
+	if selectedSignal != nil {
+		selectedSignal.Set(value)
+	}
+
+	if onChange != nil {
 		onChange(value)
 	}
 }
@@ -117,6 +133,9 @@ func (g *Group) selectValue(value string) {
 func (g *Group) isSelected(value string) bool {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
+	if g.cfg.selectedSignal != nil {
+		return g.cfg.selectedSignal.Get() == value
+	}
 	if g.selected < 0 || g.selected >= len(g.items) {
 		return false
 	}

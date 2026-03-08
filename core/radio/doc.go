@@ -37,6 +37,28 @@
 //
 // Space or Enter on a focused item selects it.
 //
+// # Signal Binding
+//
+// Radio group supports reactive signal bindings for the selected value
+// and disabled state:
+//
+//	sel := state.New("m")
+//	rg := radio.NewGroup(
+//	    radio.Items(
+//	        radio.ItemDef{Value: "s", Label: "Small"},
+//	        radio.ItemDef{Value: "m", Label: "Medium"},
+//	        radio.ItemDef{Value: "l", Label: "Large"},
+//	    ),
+//	    radio.SelectedSignal(sel),
+//	)
+//
+// [SelectedSignal] provides TWO-WAY binding: reading uses the signal value,
+// and user selection writes back to the signal. [GroupDisabledSignal] is
+// one-way (read-only from signal).
+//
+// Priority for selected: Signal > Static.
+// Priority for disabled: Signal > Fn > Static.
+//
 // # Interaction
 //
 // Clicking a radio item selects it and deselects the previously selected

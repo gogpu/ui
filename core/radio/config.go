@@ -1,20 +1,38 @@
 package radio
 
+import (
+	"github.com/gogpu/ui/state"
+)
+
 // groupConfig holds the group's configuration, set at construction time via options.
 type groupConfig struct {
-	onChange   func(value string)
-	selected   string
-	direction  Direction
-	disabled   bool
-	disabledFn func() bool
-	a11yLabel  string
-	painter    Painter
-	items      []ItemDef
+	onChange        func(value string)
+	selected        string
+	selectedSignal  state.Signal[string]
+	direction       Direction
+	disabled        bool
+	disabledFn      func() bool
+	disabledSignal  state.Signal[bool]
+	a11yLabel       string
+	painter         Painter
+	items           []ItemDef
 }
 
-// ResolvedDisabled returns the current disabled state, preferring the
-// dynamic function over the static bool.
+// ResolvedSelected returns the current selected value.
+// Priority: Signal > Static.
+func (c *groupConfig) ResolvedSelected() string {
+	if c.selectedSignal != nil {
+		return c.selectedSignal.Get()
+	}
+	return c.selected
+}
+
+// ResolvedDisabled returns the current disabled state.
+// Priority: Signal > Fn > Static.
 func (c *groupConfig) ResolvedDisabled() bool {
+	if c.disabledSignal != nil {
+		return c.disabledSignal.Get()
+	}
 	if c.disabledFn != nil {
 		return c.disabledFn()
 	}
