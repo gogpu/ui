@@ -41,7 +41,6 @@ type Canvas struct {
 // The gg.Context should already be created with matching dimensions.
 //
 func NewCanvas(dc *gg.Context, width, height int) *Canvas {
-	dc.SetTextMode(gg.TextModeVector)
 	return &Canvas{
 		dc:            dc,
 		width:          width,
