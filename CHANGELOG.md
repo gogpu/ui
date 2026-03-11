@@ -7,15 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (Text Quality — TASK-UI-056)
-- **TextModeVector for UI text** — `internal/render/Canvas` now sets
-  `gg.TextModeVector` on the gg.Context, providing per-pixel coverage AA
-  for all widget labels. Eliminates MSDF stroke thickness inconsistencies
-  at 12-16px. GlyphCache (gg v0.35.1) ensures no performance regression.
+### Added (Professional Font — Inter)
+- **Inter font for UI text** — replaced Go fonts (goregular/gobold) with
+  Inter Regular (400) and Bold (700). Inter is designed specifically for
+  computer screens and UI, used by GitHub, Figma, and VSCode. Embedded via
+  `go:embed` (+136KB, latin subset). SIL OFL / Apache 2.0 license.
+
+### Changed (Render Package)
+- **Renamed `ctx` to `dc`** in render package — follows gg ecosystem convention
+  where `*gg.Context` is called `dc` (drawing context), not `ctx` (`context.Context`)
 
 ### Changed (Dependencies)
-- **gg** v0.34.0 → v0.35.1 (scene.TextRenderer GlyphCache integration)
-- **gogpu** v0.23.0 → v0.23.1 (macOS Retina CAMetalLayer fix) — examples only
+- **gg** v0.34.0 → **v0.35.3** (GlyphCache, stem darkening, MSDF FontID collision fix)
+- **gogpu** v0.23.0 → **v0.23.2** (Retina contentsScale fix) — examples only
 
 ### Added (Retained-Mode Rendering — TASK-UI-057 Sub-Phase 1)
 - **Draw tree traversal with statistics** — `widget.DrawTree()` draws the root widget
