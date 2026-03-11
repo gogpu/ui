@@ -7,9 +7,8 @@ import (
 	"github.com/gogpu/gg"
 	"github.com/gogpu/gg/text"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/internal/render/fonts"
 	"github.com/gogpu/ui/widget"
-	"golang.org/x/image/font/gofont/gobold"
-	"golang.org/x/image/font/gofont/goregular"
 )
 
 // Canvas implements [widget.Canvas] using gogpu/gg as the 2D drawing backend.
@@ -335,8 +334,8 @@ var (
 
 func ensureDefaultFonts() {
 	defaultFontsOnce.Do(func() {
-		defaultRegular, _ = text.NewFontSource(goregular.TTF)
-		defaultBold, _ = text.NewFontSource(gobold.TTF)
+		defaultRegular, _ = text.NewFontSource(fonts.InterRegular)
+		defaultBold, _ = text.NewFontSource(fonts.InterBold)
 	})
 }
 
