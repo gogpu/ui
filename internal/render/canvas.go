@@ -39,7 +39,13 @@ type Canvas struct {
 //
 // The width and height specify the canvas dimensions in logical pixels.
 // The gg.Context should already be created with matching dimensions.
+//
+// The canvas sets TextModeVector on the gg.Context for quality-first UI text
+// rendering. Vector text provides per-pixel coverage AA at all sizes, which is
+// critical for UI labels at 12-16px. GlyphCache (gg v0.35.1+) ensures no
+// performance regression.
 func NewCanvas(ctx *gg.Context, width, height int) *Canvas {
+	ctx.SetTextMode(gg.TextModeVector)
 	return &Canvas{
 		ctx:            ctx,
 		width:          width,

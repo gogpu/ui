@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Text Quality — TASK-UI-056)
+- **TextModeVector for UI text** — `internal/render/Canvas` now sets
+  `gg.TextModeVector` on the gg.Context, providing per-pixel coverage AA
+  for all widget labels. Eliminates MSDF stroke thickness inconsistencies
+  at 12-16px. GlyphCache (gg v0.35.1) ensures no performance regression.
+
 ### Changed (Dependencies)
 - **gg** v0.34.0 → v0.35.1 (scene.TextRenderer GlyphCache integration)
 - **gogpu** v0.23.0 → v0.23.1 (macOS Retina CAMetalLayer fix) — examples only
