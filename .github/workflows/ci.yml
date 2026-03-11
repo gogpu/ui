@@ -98,8 +98,23 @@ jobs:
           # with racedetector's AST instrumentation (it copies .go files to a temp
           # dir but not embedded assets). Run those with plain go test.
           # See: https://github.com/kolkov/racedetector/issues/TBD
+          # Packages with //go:embed (TTF fonts) run with plain go test.
+          # racedetector copies .go to temp dir without embedded assets.
           EMBED_PKGS="./internal/render/... ./render/..."
-          NON_EMBED=$(go list ./... | grep -v -E 'internal/render|^github.com/gogpu/ui/render$' | tr '\n' ' ')
+
+          # Convert full module paths to ./relative for racedetector
+          MODULE=$(go list -m)
+          NON_EMBED=$(go list ./... \
+            | grep -v 'internal/render' \
+            | grep -v "${MODULE}/render$" \
+            | while IFS= read -r pkg; do
+                if [ "$pkg" = "$MODULE" ]; then
+                  echo "."
+                else
+                  echo "./${pkg#"$MODULE/"}"
+                fi
+              done \
+            | tr '\n' ' ')
 
           echo "=== Running plain go test for embed packages ==="
           go test -v -coverprofile=coverage-embed.txt -covermode=atomic $EMBED_PKGS
