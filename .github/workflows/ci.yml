@@ -94,7 +94,23 @@ jobs:
       run: |
         # Check if there are any test files
         if find . -name "*_test.go" -type f | grep -q .; then
-          racedetector test -v -coverprofile=coverage.txt -covermode=atomic ./...
+          # Packages that transitively use //go:embed (TTF fonts) are incompatible
+          # with racedetector's AST instrumentation (it copies .go files to a temp
+          # dir but not embedded assets). Run those with plain go test.
+          # See: https://github.com/kolkov/racedetector/issues/TBD
+          EMBED_PKGS="./internal/render/... ./render/..."
+          NON_EMBED=$(go list ./... | grep -v -E 'internal/render|^github.com/gogpu/ui/render$' | tr '\n' ' ')
+
+          echo "=== Running plain go test for embed packages ==="
+          go test -v -coverprofile=coverage-embed.txt -covermode=atomic $EMBED_PKGS
+
+          echo "=== Running racedetector test for remaining packages ==="
+          racedetector test -v -coverprofile=coverage-race.txt -covermode=atomic $NON_EMBED
+
+          # Merge coverage files
+          echo "mode: atomic" > coverage.txt
+          tail -n +2 coverage-embed.txt >> coverage.txt 2>/dev/null || true
+          tail -n +2 coverage-race.txt >> coverage.txt 2>/dev/null || true
         else
           echo "No test files yet, skipping tests"
           echo "mode: atomic" > coverage.txt
