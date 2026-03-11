@@ -9,8 +9,8 @@ import (
 )
 
 func newTestCanvas(width, height int) *Canvas {
-	ctx := gg.NewContext(width, height)
-	return NewCanvas(ctx, width, height)
+	dc := gg.NewContext(width, height)
+	return NewCanvas(dc, width, height)
 }
 
 func TestNewCanvas(t *testing.T) {

@@ -53,12 +53,12 @@ func TestRenderer_ResizeSameSize(t *testing.T) {
 	r := NewRenderer(800, 600)
 	defer func() { _ = r.Close() }()
 
-	oldCtx := r.Context()
+	oldDC := r.Context()
 
 	// Resize to same dimensions should be no-op
 	r.Resize(800, 600)
 
-	if r.Context() != oldCtx {
+	if r.Context() != oldDC {
 		t.Error("Resize to same size should not recreate context")
 	}
 }
@@ -85,16 +85,16 @@ func TestRenderer_BeginEndFrame(t *testing.T) {
 	}
 
 	// End frame
-	ctx := r.EndFrame()
+	dc := r.EndFrame()
 
 	if r.InFrame() {
 		t.Error("InFrame() should be false after EndFrame")
 	}
-	if ctx == nil {
-		t.Error("EndFrame should return non-nil context")
+	if dc == nil {
+		t.Error("EndFrame should return non-nil dc")
 	}
-	if ctx != r.Context() {
-		t.Error("EndFrame should return the renderer's context")
+	if dc != r.Context() {
+		t.Error("EndFrame should return the renderer's dc")
 	}
 }
 
@@ -135,10 +135,10 @@ func TestRenderer_DrawingWorkflow(t *testing.T) {
 	canvas.DrawCircle(geometry.Pt(50, 50), 20, widget.ColorBlue)
 	canvas.DrawLine(geometry.Pt(0, 0), geometry.Pt(100, 100), widget.ColorBlack, 1.0)
 
-	ctx := r.EndFrame()
+	dc := r.EndFrame()
 
-	// Verify context has valid image
-	img := ctx.Image()
+	// Verify dc has valid image
+	img := dc.Image()
 	if img == nil {
 		t.Error("Context.Image() should not be nil")
 	}

@@ -18,8 +18,8 @@ type Renderer struct {
 	width  int
 	height int
 
-	// gg context for software rendering
-	ctx *gg.Context
+	// gg drawing context for software rendering
+	dc *gg.Context
 
 	// Canvas wrapper
 	canvas *Canvas
@@ -32,12 +32,12 @@ type Renderer struct {
 //
 // The dimensions specify the render target size in logical pixels.
 func NewRenderer(width, height int) *Renderer {
-	ctx := gg.NewContext(width, height)
+	dc := gg.NewContext(width, height)
 	return &Renderer{
 		width:  width,
 		height: height,
-		ctx:    ctx,
-		canvas: NewCanvas(ctx, width, height),
+		dc:     dc,
+		canvas: NewCanvas(dc, width, height),
 	}
 }
 
@@ -64,15 +64,15 @@ func (r *Renderer) Resize(width, height int) {
 	r.inFrame = false
 
 	// Close old context
-	if r.ctx != nil {
-		_ = r.ctx.Close() // Ignore error, just cleanup
+	if r.dc != nil {
+		_ = r.dc.Close() // Ignore error, just cleanup
 	}
 
 	// Create new context and canvas
 	r.width = width
 	r.height = height
-	r.ctx = gg.NewContext(width, height)
-	r.canvas = NewCanvas(r.ctx, width, height)
+	r.dc = gg.NewContext(width, height)
+	r.canvas = NewCanvas(r.dc, width, height)
 }
 
 // BeginFrame starts a new render frame.
@@ -100,7 +100,7 @@ func (r *Renderer) BeginFrame(background widget.Color) *Canvas {
 // It returns the gg.Context which can be used to extract the rendered image.
 func (r *Renderer) EndFrame() *gg.Context {
 	r.inFrame = false
-	return r.ctx
+	return r.dc
 }
 
 // Canvas returns the current Canvas.
@@ -115,7 +115,7 @@ func (r *Renderer) Canvas() *Canvas {
 //
 // This is provided for advanced use cases where direct access is needed.
 func (r *Renderer) Context() *gg.Context {
-	return r.ctx
+	return r.dc
 }
 
 // InFrame returns true if currently between BeginFrame and EndFrame.
@@ -128,8 +128,8 @@ func (r *Renderer) InFrame() bool {
 // After Close, the Renderer should not be used.
 func (r *Renderer) Close() error {
 	r.inFrame = false
-	if r.ctx != nil {
-		return r.ctx.Close()
+	if r.dc != nil {
+		return r.dc.Close()
 	}
 	return nil
 }

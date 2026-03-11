@@ -20,7 +20,7 @@ import (
 // Canvas is NOT thread-safe. All drawing operations must occur on the main/UI
 // thread during the Draw phase.
 type Canvas struct {
-	ctx    *gg.Context
+	dc    *gg.Context
 	width  int
 	height int
 
@@ -40,14 +40,10 @@ type Canvas struct {
 // The width and height specify the canvas dimensions in logical pixels.
 // The gg.Context should already be created with matching dimensions.
 //
-// The canvas sets TextModeVector on the gg.Context for quality-first UI text
-// rendering. Vector text provides per-pixel coverage AA at all sizes, which is
-// critical for UI labels at 12-16px. GlyphCache (gg v0.35.1+) ensures no
-// performance regression.
-func NewCanvas(ctx *gg.Context, width, height int) *Canvas {
-	ctx.SetTextMode(gg.TextModeVector)
+func NewCanvas(dc *gg.Context, width, height int) *Canvas {
+	dc.SetTextMode(gg.TextModeVector)
 	return &Canvas{
-		ctx:            ctx,
+		dc:            dc,
 		width:          width,
 		height:         height,
 		clipStack:      make([]geometry.Rect, 0, 8),
@@ -72,12 +68,12 @@ func (c *Canvas) Height() int {
 // This is provided for advanced use cases where direct access to gg
 // functionality is needed. Use with caution as it bypasses Canvas state.
 func (c *Canvas) Context() *gg.Context {
-	return c.ctx
+	return c.dc
 }
 
 // Clear fills the entire canvas with the given color.
 func (c *Canvas) Clear(color widget.Color) {
-	c.ctx.ClearWithColor(ToGGColor(color))
+	c.dc.ClearWithColor(ToGGColor(color))
 }
 
 // DrawRect fills a rectangle with the given color.
@@ -90,15 +86,15 @@ func (c *Canvas) DrawRect(r geometry.Rect, color widget.Color) {
 		return
 	}
 
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
-	c.ctx.DrawRectangle(
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.DrawRectangle(
 		float64(r.Min.X),
 		float64(r.Min.Y),
 		float64(r.Width()),
 		float64(r.Height()),
 	)
-	c.ctx.Fill()
-	c.ctx.ClearPath()
+	c.dc.Fill()
+	c.dc.ClearPath()
 }
 
 // StrokeRect draws the outline of a rectangle.
@@ -112,16 +108,16 @@ func (c *Canvas) StrokeRect(r geometry.Rect, color widget.Color, strokeWidth flo
 		return
 	}
 
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
-	c.ctx.SetLineWidth(float64(strokeWidth))
-	c.ctx.DrawRectangle(
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.SetLineWidth(float64(strokeWidth))
+	c.dc.DrawRectangle(
 		float64(r.Min.X),
 		float64(r.Min.Y),
 		float64(r.Width()),
 		float64(r.Height()),
 	)
-	c.ctx.Stroke()
-	c.ctx.ClearPath()
+	c.dc.Stroke()
+	c.dc.ClearPath()
 }
 
 // DrawRoundRect fills a rounded rectangle with the given color.
@@ -134,16 +130,16 @@ func (c *Canvas) DrawRoundRect(r geometry.Rect, color widget.Color, radius float
 		return
 	}
 
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
-	c.ctx.DrawRoundedRectangle(
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.DrawRoundedRectangle(
 		float64(r.Min.X),
 		float64(r.Min.Y),
 		float64(r.Width()),
 		float64(r.Height()),
 		float64(radius),
 	)
-	c.ctx.Fill()
-	c.ctx.ClearPath()
+	c.dc.Fill()
+	c.dc.ClearPath()
 }
 
 // StrokeRoundRect draws the outline of a rounded rectangle.
@@ -157,17 +153,17 @@ func (c *Canvas) StrokeRoundRect(r geometry.Rect, color widget.Color, radius flo
 		return
 	}
 
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
-	c.ctx.SetLineWidth(float64(strokeWidth))
-	c.ctx.DrawRoundedRectangle(
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.SetLineWidth(float64(strokeWidth))
+	c.dc.DrawRoundedRectangle(
 		float64(r.Min.X),
 		float64(r.Min.Y),
 		float64(r.Width()),
 		float64(r.Height()),
 		float64(radius),
 	)
-	c.ctx.Stroke()
-	c.ctx.ClearPath()
+	c.dc.Stroke()
+	c.dc.ClearPath()
 }
 
 // DrawCircle fills a circle with the given color.
@@ -186,10 +182,10 @@ func (c *Canvas) DrawCircle(center geometry.Point, radius float32, color widget.
 		return
 	}
 
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
-	c.ctx.DrawCircle(float64(center.X), float64(center.Y), float64(radius))
-	c.ctx.Fill()
-	c.ctx.ClearPath()
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.DrawCircle(float64(center.X), float64(center.Y), float64(radius))
+	c.dc.Fill()
+	c.dc.ClearPath()
 }
 
 // StrokeCircle draws the outline of a circle.
@@ -208,11 +204,11 @@ func (c *Canvas) StrokeCircle(center geometry.Point, radius float32, color widge
 		return
 	}
 
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
-	c.ctx.SetLineWidth(float64(strokeWidth))
-	c.ctx.DrawCircle(float64(center.X), float64(center.Y), float64(radius))
-	c.ctx.Stroke()
-	c.ctx.ClearPath()
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.SetLineWidth(float64(strokeWidth))
+	c.dc.DrawCircle(float64(center.X), float64(center.Y), float64(radius))
+	c.dc.Stroke()
+	c.dc.ClearPath()
 }
 
 // DrawLine draws a line between two points.
@@ -227,11 +223,11 @@ func (c *Canvas) DrawLine(from, to geometry.Point, color widget.Color, strokeWid
 		return
 	}
 
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
-	c.ctx.SetLineWidth(float64(strokeWidth))
-	c.ctx.DrawLine(float64(from.X), float64(from.Y), float64(to.X), float64(to.Y))
-	c.ctx.Stroke()
-	c.ctx.ClearPath()
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.SetLineWidth(float64(strokeWidth))
+	c.dc.DrawLine(float64(from.X), float64(from.Y), float64(to.X), float64(to.Y))
+	c.dc.Stroke()
+	c.dc.ClearPath()
 }
 
 // PushClip pushes a clipping rectangle onto the clip stack.
@@ -249,7 +245,7 @@ func (c *Canvas) PushClip(r geometry.Rect) {
 	c.currentClip = c.currentClip.Intersection(r)
 
 	// Apply clip to gg context using Push/Pop state
-	c.ctx.Push()
+	c.dc.Push()
 
 	// Draw clip rectangle path and apply as clip
 	// Note: gg doesn't have a direct Clip() method, so we work around it
@@ -270,7 +266,7 @@ func (c *Canvas) PopClip() {
 	c.clipStack = c.clipStack[:lastIdx]
 
 	// Restore gg context state
-	c.ctx.Pop()
+	c.dc.Pop()
 }
 
 // PushTransform pushes a translation transform onto the transform stack.
@@ -367,8 +363,8 @@ func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, colo
 	}
 
 	face := source.Face(float64(fontSize))
-	c.ctx.SetFont(face)
-	c.ctx.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.SetFont(face)
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
 
 	// Calculate baseline Y by centering text vertically within bounds.
 	// Round to pixel grid for crisp text rendering.
@@ -378,7 +374,7 @@ func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, colo
 
 	// Calculate x position based on alignment.
 	// Round to pixel grid.
-	w, _ := c.ctx.MeasureString(s)
+	w, _ := c.dc.MeasureString(s)
 	available := float64(bounds.Width())
 	x := float64(bounds.Min.X)
 	if w < available {
@@ -386,7 +382,7 @@ func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, colo
 	}
 	x = math.Round(x)
 
-	c.ctx.DrawString(s, x, baselineY)
+	c.dc.DrawString(s, x, baselineY)
 }
 
 // snapF rounds a float32 to the nearest integer for pixel-perfect rendering.

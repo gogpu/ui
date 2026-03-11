@@ -20,6 +20,6 @@ import (
 //
 // The width and height specify the canvas dimensions in logical pixels.
 // The gg.Context should already be created with matching dimensions.
-func NewCanvas(ctx *gg.Context, width, height int) widget.Canvas {
-	return render.NewCanvas(ctx, width, height)
+func NewCanvas(dc *gg.Context, width, height int) widget.Canvas {
+	return render.NewCanvas(dc, width, height)
 }
