@@ -19,7 +19,7 @@ import (
 // Canvas is NOT thread-safe. All drawing operations must occur on the main/UI
 // thread during the Draw phase.
 type Canvas struct {
-	dc    *gg.Context
+	dc     *gg.Context
 	width  int
 	height int
 
@@ -38,10 +38,9 @@ type Canvas struct {
 //
 // The width and height specify the canvas dimensions in logical pixels.
 // The gg.Context should already be created with matching dimensions.
-//
 func NewCanvas(dc *gg.Context, width, height int) *Canvas {
 	return &Canvas{
-		dc:            dc,
+		dc:             dc,
 		width:          width,
 		height:         height,
 		clipStack:      make([]geometry.Rect, 0, 8),
