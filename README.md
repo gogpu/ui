@@ -198,12 +198,13 @@ func main() {
 | `core/scrollview` | Scrollable container: vertical/horizontal/both, wheel+keyboard+drag, PushClip/PushTransform, signal bindings | 96.5% |
 | `core/tabview` | Tabbed navigation: lazy content switching, closeable tabs, keyboard nav, Top/Bottom position, signal bindings | 92.1% |
 | `core/listview` | Virtualized list: fixed-height items, recycling, single/multi selection, keyboard nav, M3 painter | 96%+ |
+| `core/gridview` | Virtualized 2D grid: fixed cell size, auto-fit columns, cell recycling, selection, keyboard nav | 92.1% |
 | `core/linechart` | Real-time line chart: multiple series, rolling window, grid, Y-axis labels, thread-safe PushValue | 98.8% |
 | `core/progressbar` | Linear progress bar: 0-100%, rounded corners, label, signal binding, PushClipRoundRect | 99.3% |
 | `core/collapsible` | Expandable section: animated expand/collapse, keyboard focus, arrow indicator, Tween animation | 98.2% |
 | `primitives` | Box (HBox/VBox direction), Text, Image, ThemeScope, RepaintBoundary | 94%+ |
 
-**Total: ~90,000+ lines of code | 34 packages | 2,500+ tests | ~97% average coverage**
+**Total: ~94,000+ lines of code | 35 packages | 2,600+ tests | ~97% average coverage**
 
 ---
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (GridView Widget — TASK-UI-022)
+- **GridView widget** (`core/gridview/`) — virtualized 2D grid for large datasets.
+  Fixed cell size with auto-fit columns, cell recycling (only visible rows rendered),
+  single selection, keyboard navigation (arrows/Home/End/PgUp/PgDn), hover highlight.
+  Content[C] (CDK) architecture, BuildCell convenience API, Painter pattern,
+  4-level signal bindings. 90 tests, 92.1% coverage.
+
 ### Added (ListView Widget — TASK-UI-021)
 - **ListView widget** (`core/listview/`) — virtualized scrollable list for large
   datasets. Fixed item height with efficient recycling: only visible items are
