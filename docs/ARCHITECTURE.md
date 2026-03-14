@@ -22,7 +22,11 @@
 | core/radio/       |  core/textfield/  |  Box, Text, Image    |
 | core/dropdown/    |  core/slider/     |  ThemeScope          |
 | core/dialog/      |  core/scrollview/ |  RepaintBoundary     |
-| core/tabview/     |  Widget, Painter  |                      |
+| core/tabview/     |  core/listview/   |                      |
+| core/gridview/    |  core/linechart/  |                      |
+| core/progressbar/ |  core/progress/   |                      |
+| core/collapsible/ |  core/popover/    |                      |
+| core/splitview/   |  Widget, Painter  |                      |
 +-------------------+-------------------+----------------------+
 |         Layer 2: Component Development Kit                   |
 | cdk/              |                                          |
@@ -45,6 +49,16 @@
 | Accessible       |  Widget Registry  |  Plugin System        |
 | Node, Tree, Role |  Categories       |  Manager, Assets      |
 +------------------+-------------------+-----------------------+
+| animation/       |  transition/      |  icon/                |
+| Tween, Spring,   |  Fade, Slide,     |  Vector paths,        |
+| M3 Presets,      |  Scale, Show/Hide |  IconWidget,          |
+| Orchestration    |  Enter/Exit       |  10 built-in icons    |
++------------------+-------------------+-----------------------+
+| dnd/             |  theme/font/      |                       |
+| DragSource,      |  Font Registry,   |                       |
+| DropTarget,      |  CSS weight match |                       |
+| Manager          |  Family/Face      |                       |
++------------------+-------------------+-----------------------+
 | overlay/         |  render/          |  app/                 |
 | Stack, Container |  Canvas factory   |  App, Window,         |
 | Position         |  (wraps internal) |  EventBridge          |
@@ -52,7 +66,11 @@
 |                 Internal Implementation                      |
 | internal/render  |  internal/layout  |  internal/focus       |
 | Canvas (gg)      |  Flex, Stack,     |  Manager, Ring,       |
-| Renderer         |  Grid, Engine     |  Traversal, Shortcut  |
+| SceneCanvas      |  Grid, Engine     |  Traversal, Shortcut  |
++------------------+-------------------+-----------------------+
+| internal/dirty   |                   |                       |
+| Region Tracker,  |  Merge algorithm, |  Partial repaints     |
+| Collector        |  Full repaint FB  |                       |
 +------------------+-------------------+-----------------------+
 |                 External Dependencies                        |
 | gogpu/gg         |  gogpu/gpucontext |  coregx/signals       |

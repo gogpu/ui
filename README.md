@@ -190,7 +190,7 @@ func main() {
 | `focus` | Keyboard focus management with Tab/Shift+Tab navigation | 95.2% |
 | `internal/focus` | Internal focus manager implementation | 15.2% |
 
-### Phase 3 (In Progress)
+### Phase 3 (Complete)
 
 | Package | Description | Coverage |
 |---------|-------------|----------|
@@ -205,7 +205,18 @@ func main() {
 | `core/collapsible` | Expandable section: animated expand/collapse, keyboard focus, arrow indicator, Tween animation | 98.2% |
 | `primitives` | Box (HBox/VBox direction), Text, Image, ThemeScope, RepaintBoundary | 94%+ |
 
-**Total: ~97,000+ lines of code | 36 packages | 2,700+ tests | ~97% average coverage**
+### Phase 4 (In Progress)
+
+| Package | Description | Coverage |
+|---------|-------------|----------|
+| `core/progress` | Circular progress: determinate arc + indeterminate spinner, polyline approximation | 97.4% |
+| `core/popover` | Popover (click) + Tooltip (hover): 12 placements, auto-flip, overlay integration | 97.1% |
+| `core/splitview` | Resizable split panels: draggable divider, min constraints, collapse, handle dots | 96.8% |
+| `theme/font` | Font Registry: CSS weight matching (W3C spec), Weight 100-900, Style, Family/Face | 97.7% |
+| `icon` | Vector path icons: 10 built-in Material icons, De Casteljau cubic Bezier, IconWidget | 97.6% |
+| `dnd` | Drag and drop: DragSource/DropTarget interfaces, Manager, 5px threshold, Escape cancel | 99.3% |
+
+**Total: ~110,000+ lines of code | 42 packages | 3,000+ tests | ~97% average coverage**
 
 ---
 
