@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Dirty Region Tracking — TASK-UI-053)
+- **Dirty region tracker** (`internal/dirty/`) — collects dirty widget bounds,
+  merges overlapping/nearby regions, enables partial repaints. Collector walks
+  widget tree via NeedsRedraw(), Tracker optimizes regions with configurable
+  merge gap. Full repaint fallback when >16 regions. 43 tests, 100% coverage.
+
 ### Added (Transitions — TASK-UI-025)
 - **Transition wrapper** (`transition/`) — widget enter/exit animations via wrapper
   pattern. Effects: FadeIn/Out, SlideIn/Out (4 directions), ScaleIn/Out. Show()/Hide()
