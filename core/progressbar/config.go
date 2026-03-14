@@ -20,7 +20,7 @@ type config struct {
 	disabledFn             func() bool
 	disabledSignal         state.Signal[bool]
 	readonlyDisabledSignal state.ReadonlySignal[bool]
-	colorScheme            ColorScheme
+	colorScheme            ProgressBarColorScheme
 	painter                Painter
 }
 
@@ -54,9 +54,9 @@ func (c *config) ResolvedDisabled() bool {
 	return c.disabled
 }
 
-// ColorScheme provides theme-derived colors for progress bar painting.
+// ProgressBarColorScheme provides theme-derived colors for progress bar painting.
 // Zero value means the painter should use its built-in defaults.
-type ColorScheme struct {
+type ProgressBarColorScheme struct {
 	Bar           widget.Color // filled portion color
 	Track         widget.Color // background track color
 	Label         widget.Color // label text color

@@ -23,7 +23,7 @@ type PaintState struct {
 	ShowLabel   bool          // whether to show percentage label
 	Label       string        // pre-formatted label text (empty if ShowLabel is false)
 	Disabled    bool          // widget is disabled
-	ColorScheme ColorScheme   // theme-derived colors (zero = use defaults)
+	ProgressBarColorScheme ProgressBarColorScheme   // theme-derived colors (zero = use defaults)
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.
@@ -32,13 +32,13 @@ type DefaultPainter struct{}
 
 // PaintProgressBar renders a minimal progress bar with a gray track,
 // blue fill, and optional centered label.
-// If state.ColorScheme is non-zero, its colors are used instead of built-in defaults.
+// If state.ProgressBarColorScheme is non-zero, its colors are used instead of built-in defaults.
 func (p DefaultPainter) PaintProgressBar(canvas widget.Canvas, ps PaintState) {
 	if ps.Bounds.IsEmpty() {
 		return
 	}
 
-	hasScheme := ps.ColorScheme != (ColorScheme{})
+	hasScheme := ps.ProgressBarColorScheme != (ProgressBarColorScheme{})
 	bounds := ps.Bounds
 
 	// Calculate bar rect centered vertically in bounds.
@@ -82,12 +82,12 @@ func (p DefaultPainter) PaintProgressBar(canvas widget.Canvas, ps PaintState) {
 func resolveTrackColor(ps PaintState, hasScheme bool) widget.Color {
 	if ps.Disabled {
 		if hasScheme {
-			return ps.ColorScheme.DisabledTrack
+			return ps.ProgressBarColorScheme.DisabledTrack
 		}
 		return defaultDisabledTrack
 	}
 	if hasScheme {
-		return ps.ColorScheme.Track
+		return ps.ProgressBarColorScheme.Track
 	}
 	return defaultTrackColor
 }
@@ -95,19 +95,19 @@ func resolveTrackColor(ps PaintState, hasScheme bool) widget.Color {
 func resolveBarColor(ps PaintState, hasScheme bool) widget.Color {
 	if ps.Disabled {
 		if hasScheme {
-			return ps.ColorScheme.DisabledBar
+			return ps.ProgressBarColorScheme.DisabledBar
 		}
 		return defaultDisabledBar
 	}
 	if hasScheme {
-		return ps.ColorScheme.Bar
+		return ps.ProgressBarColorScheme.Bar
 	}
 	return defaultBarColor
 }
 
 func resolveLabelColor(ps PaintState, hasScheme bool) widget.Color {
 	if hasScheme {
-		return ps.ColorScheme.Label
+		return ps.ProgressBarColorScheme.Label
 	}
 	return defaultLabelColor
 }

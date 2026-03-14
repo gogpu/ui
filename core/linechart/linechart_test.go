@@ -553,7 +553,7 @@ func TestPadding_Chaining(t *testing.T) {
 func TestDefaultPainter_EmptyBounds(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &recordingCanvas{}
-	p.DrawChart(canvas, geometry.Rect{}, ChartState{})
+	p.PaintChart(canvas, geometry.Rect{}, PaintState{})
 
 	if canvas.drawCount > 0 {
 		t.Error("should not draw with empty bounds")
@@ -563,7 +563,7 @@ func TestDefaultPainter_EmptyBounds(t *testing.T) {
 func TestDefaultPainter_ZeroYRange(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &recordingCanvas{}
-	cs := ChartState{
+	cs := PaintState{
 		YMin:      50,
 		YMax:      50,
 		MaxPoints: 60,
@@ -573,7 +573,7 @@ func TestDefaultPainter_ZeroYRange(t *testing.T) {
 		Background: defaultBackground,
 	}
 	bounds := geometry.NewRect(0, 0, 400, 200)
-	p.DrawChart(canvas, bounds, cs)
+	p.PaintChart(canvas, bounds, cs)
 
 	// Should draw background but no lines (zero range).
 	if canvas.lineCount > 0 {
@@ -584,7 +584,7 @@ func TestDefaultPainter_ZeroYRange(t *testing.T) {
 func TestDefaultPainter_ClampValues(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &recordingCanvas{}
-	cs := ChartState{
+	cs := PaintState{
 		YMin:       0,
 		YMax:       100,
 		MaxPoints:  60,
@@ -597,7 +597,7 @@ func TestDefaultPainter_ClampValues(t *testing.T) {
 		},
 	}
 	bounds := geometry.NewRect(0, 0, 400, 200)
-	p.DrawChart(canvas, bounds, cs)
+	p.PaintChart(canvas, bounds, cs)
 
 	// Should draw 1 line segment, clamped to bounds.
 	if canvas.lineCount != 1 {
@@ -749,7 +749,7 @@ type mockPainter struct {
 	called bool
 }
 
-func (p *mockPainter) DrawChart(_ widget.Canvas, _ geometry.Rect, _ ChartState) {
+func (p *mockPainter) PaintChart(_ widget.Canvas, _ geometry.Rect, _ PaintState) {
 	p.called = true
 }
 

@@ -5,8 +5,8 @@ import (
 	"github.com/gogpu/ui/widget"
 )
 
-// ChartState holds the read-only snapshot passed to the painter.
-type ChartState struct {
+// PaintState holds the read-only snapshot passed to the painter.
+type PaintState struct {
 	Series     []Series
 	MaxPoints  int
 	YMin       float64
@@ -23,16 +23,16 @@ type ChartState struct {
 //
 // If no Painter is set, [DefaultPainter] is used.
 type Painter interface {
-	DrawChart(canvas widget.Canvas, bounds geometry.Rect, state ChartState)
+	PaintChart(canvas widget.Canvas, bounds geometry.Rect, state PaintState)
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.
 // It draws background, grid lines, Y-axis labels, and line segments for each series.
 type DefaultPainter struct{}
 
-// DrawChart renders the chart with background, optional grid, optional labels,
+// PaintChart renders the chart with background, optional grid, optional labels,
 // and line segments for each data series.
-func (p DefaultPainter) DrawChart(canvas widget.Canvas, bounds geometry.Rect, cs ChartState) {
+func (p DefaultPainter) PaintChart(canvas widget.Canvas, bounds geometry.Rect, cs PaintState) {
 	if bounds.IsEmpty() {
 		return
 	}
@@ -82,7 +82,7 @@ func computePlotArea(bounds geometry.Rect, showLabels bool) geometry.Rect {
 }
 
 // drawGrid draws horizontal grid lines across the plot area.
-func drawGrid(canvas widget.Canvas, plotArea geometry.Rect, cs ChartState) {
+func drawGrid(canvas widget.Canvas, plotArea geometry.Rect, cs PaintState) {
 	for i := 0; i <= gridDivisions; i++ {
 		t := float32(i) / float32(gridDivisions)
 		y := plotArea.Max.Y - t*plotArea.Height()
@@ -94,7 +94,7 @@ func drawGrid(canvas widget.Canvas, plotArea geometry.Rect, cs ChartState) {
 }
 
 // drawLabels draws Y-axis labels along the left edge.
-func drawLabels(canvas widget.Canvas, bounds geometry.Rect, plotArea geometry.Rect, cs ChartState) {
+func drawLabels(canvas widget.Canvas, bounds geometry.Rect, plotArea geometry.Rect, cs PaintState) {
 	yRange := cs.YMax - cs.YMin
 	for i := 0; i <= gridDivisions; i++ {
 		t := float64(i) / float64(gridDivisions)
@@ -113,7 +113,7 @@ func drawLabels(canvas widget.Canvas, bounds geometry.Rect, plotArea geometry.Re
 }
 
 // drawSeriesLine draws connected line segments for a single data series.
-func drawSeriesLine(canvas widget.Canvas, plotArea geometry.Rect, s Series, cs ChartState) {
+func drawSeriesLine(canvas widget.Canvas, plotArea geometry.Rect, s Series, cs PaintState) {
 	pointCount := len(s.Points)
 	if pointCount < 2 {
 		return

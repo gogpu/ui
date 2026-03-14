@@ -122,7 +122,7 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		ShowLabel:   w.cfg.showLabel,
 		Label:       label,
 		Disabled:    w.cfg.ResolvedDisabled(),
-		ColorScheme: w.cfg.colorScheme,
+		ProgressBarColorScheme: w.cfg.colorScheme,
 	})
 }
 

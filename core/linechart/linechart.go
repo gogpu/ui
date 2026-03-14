@@ -344,14 +344,14 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		return
 	}
 
-	// Build ChartState from current data.
-	chartState := w.buildChartState()
-	w.painter.DrawChart(canvas, bounds, chartState)
+	// Build PaintState from current data.
+	chartState := w.buildPaintState()
+	w.painter.PaintChart(canvas, bounds, chartState)
 }
 
-// buildChartState creates a read-only snapshot for the painter.
-func (w *Widget) buildChartState() ChartState {
-	cs := ChartState{
+// buildPaintState creates a read-only snapshot for the painter.
+func (w *Widget) buildPaintState() PaintState {
+	cs := PaintState{
 		MaxPoints:  w.cfg.maxPoints,
 		YMin:       w.cfg.yMin,
 		YMax:       w.cfg.yMax,

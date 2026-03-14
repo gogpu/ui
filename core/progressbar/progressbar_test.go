@@ -339,8 +339,8 @@ func TestDraw_DisabledState(t *testing.T) {
 	}
 }
 
-func TestDraw_ColorScheme(t *testing.T) {
-	cs := progressbar.ColorScheme{
+func TestDraw_ProgressBarColorScheme(t *testing.T) {
+	cs := progressbar.ProgressBarColorScheme{
 		Bar:   widget.ColorRed,
 		Track: widget.ColorGreen,
 		Label: widget.ColorBlue,
@@ -659,8 +659,8 @@ func TestUnmount_NoOp(t *testing.T) {
 
 // --- Disabled color resolution ---
 
-func TestDraw_DisabledWithColorScheme(t *testing.T) {
-	cs := progressbar.ColorScheme{
+func TestDraw_DisabledWithProgressBarColorScheme(t *testing.T) {
+	cs := progressbar.ProgressBarColorScheme{
 		Bar:           widget.ColorRed,
 		Track:         widget.ColorGreen,
 		DisabledBar:   widget.ColorGray,

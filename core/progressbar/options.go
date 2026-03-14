@@ -78,7 +78,7 @@ func FormatLabelFn(fn func(float64) string) Option {
 
 // ColorSchemeOpt sets the color scheme for painting.
 // This overrides the painter's built-in defaults.
-func ColorSchemeOpt(cs ColorScheme) Option {
+func ColorSchemeOpt(cs ProgressBarColorScheme) Option {
 	return func(c *config) {
 		c.colorScheme = cs
 	}

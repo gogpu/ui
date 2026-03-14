@@ -236,7 +236,7 @@ func buildMemorySection(sim *simState) *collapsible.Widget {
 		progressbar.FormatLabelFn(func(v float64) string {
 			return fmt.Sprintf("%.1f / %.1f GB (%.0f%%)", v*sim.memTotalGB, sim.memTotalGB, v*100)
 		}),
-		progressbar.ColorSchemeOpt(progressbar.ColorScheme{
+		progressbar.ColorSchemeOpt(progressbar.ProgressBarColorScheme{
 			Bar:   colorMemory,
 			Track: colorTrackDark,
 			Label: colorTextPrimary,
