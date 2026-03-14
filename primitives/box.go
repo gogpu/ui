@@ -4,6 +4,7 @@ import (
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -25,24 +26,28 @@ type BoxStyle struct {
 	MaxHeight      float32
 }
 
-// BoxWidget is a container that lays out children in a vertical stack with
-// optional padding, background, border, rounded corners, shadow, and gap.
+// BoxWidget is a container that lays out children vertically or horizontally
+// with optional padding, background, border, rounded corners, shadow, and gap.
 //
-// BoxWidget implements [widget.Widget] and [a11y.Accessible].
+// BoxWidget implements [widget.Widget], [a11y.Accessible], and [widget.Lifecycle].
 //
-// Create a BoxWidget with the [Box] constructor.
+// Create a BoxWidget with the [Box] constructor. Use [HBox] or [VBox] for
+// convenience constructors with a pre-set direction.
 type BoxWidget struct {
 	widget.WidgetBase
 
 	style              BoxStyle
+	direction          Direction
+	directionSignal    state.ReadonlySignal[Direction]
 	children           []widget.Widget
 	accessibilityLabel string
 }
 
 // Box creates a new container widget with the given children.
 //
-// Children are laid out vertically from top to bottom. Use the fluent
-// methods to add styling.
+// Children are laid out vertically from top to bottom by default. Use
+// [BoxWidget.SetDirection] to switch to horizontal layout, or use the
+// [HBox] and [VBox] convenience constructors.
 //
 //	card := primitives.Box(
 //	    primitives.Text("Title").Bold(),
@@ -55,6 +60,28 @@ func Box(children ...widget.Widget) *BoxWidget {
 	b.SetVisible(true)
 	b.SetEnabled(true)
 	return b
+}
+
+// HBox creates a new container that lays out children horizontally (left to right).
+//
+// This is a convenience constructor equivalent to Box(children...).SetDirection(DirectionHorizontal).
+//
+//	row := primitives.HBox(icon, label, spacer).Gap(8)
+func HBox(children ...widget.Widget) *BoxWidget {
+	b := Box(children...)
+	b.direction = DirectionHorizontal
+	return b
+}
+
+// VBox creates a new container that lays out children vertically (top to bottom).
+//
+// This is a convenience constructor equivalent to Box(children...).SetDirection(DirectionVertical).
+// Since vertical is the default direction, VBox is primarily useful for readability
+// when paired with [HBox] in the same codebase.
+//
+//	column := primitives.VBox(title, subtitle, body).Gap(4)
+func VBox(children ...widget.Widget) *BoxWidget {
+	return Box(children...)
 }
 
 // --- Fluent style methods ---
@@ -125,10 +152,45 @@ func (b *BoxWidget) ShadowLevel(level int) *BoxWidget {
 	return b
 }
 
-// Gap sets the vertical spacing between children.
+// Gap sets the spacing between children. The gap is applied in the layout
+// direction: vertically for [DirectionVertical], horizontally for [DirectionHorizontal].
 func (b *BoxWidget) Gap(v float32) *BoxWidget {
 	b.style.Gap = v
 	return b
+}
+
+// SetDirection sets the layout direction for child widgets.
+//
+//	primitives.Box(a, b, c).SetDirection(primitives.DirectionHorizontal)
+func (b *BoxWidget) SetDirection(d Direction) *BoxWidget {
+	if b.direction != d {
+		b.direction = d
+		b.SetNeedsRedraw(true)
+	}
+	return b
+}
+
+// DirectionSignal binds the layout direction to a read-only reactive signal.
+// When set, the signal value takes precedence over the static direction set
+// via [BoxWidget.SetDirection].
+//
+// Because BoxWidget is a container (not user-editable), only
+// [state.ReadonlySignal] is accepted (no write-back capability is needed).
+//
+//	dir := state.NewSignal(primitives.DirectionHorizontal)
+//	box := primitives.Box(a, b).DirectionSignal(dir)
+func (b *BoxWidget) DirectionSignal(sig state.ReadonlySignal[Direction]) *BoxWidget {
+	b.directionSignal = sig
+	return b
+}
+
+// ResolvedDirection returns the effective layout direction.
+// Priority: ReadonlySignal > Static.
+func (b *BoxWidget) ResolvedDirection() Direction {
+	if b.directionSignal != nil {
+		return b.directionSignal.Get()
+	}
+	return b.direction
 }
 
 // Width sets an explicit width.
@@ -180,9 +242,18 @@ func (b *BoxWidget) Style() BoxStyle {
 
 // --- widget.Widget interface ---
 
-// Layout calculates the box size by laying out children vertically with
-// padding and gap, then constraining the result.
+// Layout calculates the box size by laying out children in the resolved
+// direction (vertical or horizontal) with padding and gap, then constraining
+// the result.
 func (b *BoxWidget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
+	if b.ResolvedDirection() == DirectionHorizontal {
+		return b.layoutHorizontal(ctx, constraints)
+	}
+	return b.layoutVertical(ctx, constraints)
+}
+
+// layoutVertical lays out children top-to-bottom (the original behavior).
+func (b *BoxWidget) layoutVertical(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
 	constraints = b.applyExplicitConstraints(constraints)
 
 	pad := b.style.Padding
@@ -227,6 +298,58 @@ func (b *BoxWidget) Layout(ctx widget.Context, constraints geometry.Constraints)
 
 	contentWidth := maxChildWidth + pad.Horizontal()
 	contentHeight := totalHeight + pad.Vertical()
+
+	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
+	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
+	return resultSize
+}
+
+// layoutHorizontal lays out children left-to-right.
+func (b *BoxWidget) layoutHorizontal(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
+	constraints = b.applyExplicitConstraints(constraints)
+
+	pad := b.style.Padding
+	childConstraints := constraints.Deflate(pad)
+	if childConstraints.MaxWidth < 0 {
+		childConstraints.MaxWidth = 0
+	}
+	if childConstraints.MaxHeight < 0 {
+		childConstraints.MaxHeight = 0
+	}
+
+	var totalWidth float32
+	var maxChildHeight float32
+	childCount := len(b.children)
+
+	for i, child := range b.children {
+		remaining := childConstraints
+		if childConstraints.HasBoundedWidth() {
+			remaining.MaxWidth = childConstraints.MaxWidth - totalWidth
+			if remaining.MaxWidth < 0 {
+				remaining.MaxWidth = 0
+			}
+		}
+		remaining.MinWidth = 0
+
+		size := child.Layout(ctx, remaining)
+
+		childX := pad.Left + totalWidth
+		childY := pad.Top
+		child.(interface{ SetBounds(geometry.Rect) }).SetBounds(
+			geometry.FromPointSize(geometry.Pt(childX, childY), size),
+		)
+
+		totalWidth += size.Width
+		if i < childCount-1 {
+			totalWidth += b.style.Gap
+		}
+		if size.Height > maxChildHeight {
+			maxChildHeight = size.Height
+		}
+	}
+
+	contentWidth := totalWidth + pad.Horizontal()
+	contentHeight := maxChildHeight + pad.Vertical()
 
 	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
 	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
@@ -446,8 +569,28 @@ func (b *BoxWidget) applyExplicitConstraints(c geometry.Constraints) geometry.Co
 	return c
 }
 
+// Mount creates signal bindings for push-based invalidation.
+// Implements [widget.Lifecycle].
+func (b *BoxWidget) Mount(ctx widget.Context) {
+	sched := ctx.Scheduler()
+	if sched == nil {
+		return
+	}
+	if b.directionSignal != nil {
+		binding := state.BindToScheduler(b.directionSignal, b, sched)
+		b.AddBinding(binding)
+	}
+}
+
+// Unmount is called when the box widget is removed from the widget tree.
+// Implements [widget.Lifecycle].
+func (b *BoxWidget) Unmount() {
+	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
 // Compile-time interface checks.
 var (
-	_ widget.Widget   = (*BoxWidget)(nil)
-	_ a11y.Accessible = (*BoxWidget)(nil)
+	_ widget.Widget    = (*BoxWidget)(nil)
+	_ a11y.Accessible  = (*BoxWidget)(nil)
+	_ widget.Lifecycle = (*BoxWidget)(nil)
 )

@@ -204,6 +204,32 @@ var shadowPresets = [maxShadowLevel][]shadowLayer{
 	},
 }
 
+// Direction specifies the layout direction for child widgets within a container.
+type Direction uint8
+
+// Direction constants.
+const (
+	// DirectionVertical lays out children from top to bottom (default).
+	DirectionVertical Direction = iota
+
+	// DirectionHorizontal lays out children from left to right.
+	DirectionHorizontal
+)
+
+// directionNames maps each Direction to its human-readable name.
+var directionNames = [...]string{
+	DirectionVertical:   "Vertical",
+	DirectionHorizontal: "Horizontal",
+}
+
+// String returns a human-readable name for the layout direction.
+func (d Direction) String() string {
+	if int(d) < len(directionNames) {
+		return directionNames[d]
+	}
+	return unknownStr
+}
+
 // ImageSource provides the natural dimensions of an image.
 //
 // Concrete implementations are provided by the rendering backend. The

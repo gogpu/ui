@@ -8,6 +8,7 @@ import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -452,20 +453,20 @@ func TestBoxAccessibilityLabelCustom(t *testing.T) {
 
 func TestBoxAccessibilityState(t *testing.T) {
 	b := primitives.Box()
-	state := b.AccessibilityState()
-	if state.Disabled || state.Hidden {
+	a11yState := b.AccessibilityState()
+	if a11yState.Disabled || a11yState.Hidden {
 		t.Error("default state should be enabled and visible")
 	}
 
 	b.SetEnabled(false)
-	state = b.AccessibilityState()
-	if !state.Disabled {
+	a11yState = b.AccessibilityState()
+	if !a11yState.Disabled {
 		t.Error("disabled box should report Disabled=true")
 	}
 
 	b.SetVisible(false)
-	state = b.AccessibilityState()
-	if !state.Hidden {
+	a11yState = b.AccessibilityState()
+	if !a11yState.Hidden {
 		t.Error("invisible box should report Hidden=true")
 	}
 }
@@ -531,6 +532,365 @@ func TestBoxFluentChaining(t *testing.T) {
 	}
 	if b.AccessibilityLabel() != "Card" {
 		t.Error("label not chained")
+	}
+}
+
+// --- Direction ---
+
+func TestBoxDefaultDirectionIsVertical(t *testing.T) {
+	b := primitives.Box()
+	if b.ResolvedDirection() != primitives.DirectionVertical {
+		t.Errorf("expected DirectionVertical, got %s", b.ResolvedDirection())
+	}
+}
+
+func TestBoxSetDirection(t *testing.T) {
+	b := primitives.Box().SetDirection(primitives.DirectionHorizontal)
+	if b.ResolvedDirection() != primitives.DirectionHorizontal {
+		t.Errorf("expected DirectionHorizontal, got %s", b.ResolvedDirection())
+	}
+}
+
+func TestBoxSetDirectionSetsNeedsRedraw(t *testing.T) {
+	b := primitives.Box()
+	b.SetNeedsRedraw(false)
+	b.SetDirection(primitives.DirectionHorizontal)
+	if !b.NeedsRedraw() {
+		t.Error("SetDirection should mark widget as needing redraw")
+	}
+}
+
+func TestBoxSetDirectionNoopSameValue(t *testing.T) {
+	b := primitives.Box()
+	b.SetNeedsRedraw(false)
+	// Default is Vertical, setting Vertical again should not dirty.
+	b.SetDirection(primitives.DirectionVertical)
+	if b.NeedsRedraw() {
+		t.Error("SetDirection to same value should not mark redraw")
+	}
+}
+
+func TestDirectionString(t *testing.T) {
+	tests := []struct {
+		d    primitives.Direction
+		want string
+	}{
+		{primitives.DirectionVertical, "Vertical"},
+		{primitives.DirectionHorizontal, "Horizontal"},
+		{primitives.Direction(99), "Unknown"},
+	}
+	for _, tt := range tests {
+		if got := tt.d.String(); got != tt.want {
+			t.Errorf("Direction(%d).String() = %q, want %q", tt.d, got, tt.want)
+		}
+	}
+}
+
+// --- HBox / VBox convenience constructors ---
+
+func TestHBoxSetsHorizontalDirection(t *testing.T) {
+	b := primitives.HBox(primitives.Text("A"), primitives.Text("B"))
+	if b.ResolvedDirection() != primitives.DirectionHorizontal {
+		t.Errorf("HBox should be horizontal, got %s", b.ResolvedDirection())
+	}
+	if len(b.Children()) != 2 {
+		t.Errorf("expected 2 children, got %d", len(b.Children()))
+	}
+}
+
+func TestVBoxSetsVerticalDirection(t *testing.T) {
+	b := primitives.VBox(primitives.Text("A"), primitives.Text("B"))
+	if b.ResolvedDirection() != primitives.DirectionVertical {
+		t.Errorf("VBox should be vertical, got %s", b.ResolvedDirection())
+	}
+}
+
+func TestHBoxFluentChaining(t *testing.T) {
+	b := primitives.HBox(primitives.Text("A")).Gap(8).Padding(4)
+	if b.ResolvedDirection() != primitives.DirectionHorizontal {
+		t.Error("HBox should remain horizontal after chaining")
+	}
+	if b.Style().Gap != 8 {
+		t.Errorf("expected gap 8, got %f", b.Style().Gap)
+	}
+}
+
+// --- Horizontal layout ---
+
+func TestHBoxLayoutChildrenSideBySide(t *testing.T) {
+	c1 := primitives.Box().Width(50).Height(30)
+	c2 := primitives.Box().Width(70).Height(30)
+	b := primitives.HBox(c1, c2)
+	ctx := widget.NewContext()
+	size := b.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+
+	// Total width = 50 + 70 = 120, height = max(30, 30) = 30.
+	if size.Width != 120 {
+		t.Errorf("expected width 120, got %f", size.Width)
+	}
+	if size.Height != 30 {
+		t.Errorf("expected height 30, got %f", size.Height)
+	}
+}
+
+func TestHBoxLayoutWithGap(t *testing.T) {
+	c1 := primitives.Box().Width(50).Height(30)
+	c2 := primitives.Box().Width(70).Height(30)
+	b := primitives.HBox(c1, c2).Gap(10)
+	ctx := widget.NewContext()
+	size := b.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+
+	// Total width = 50 + 10 + 70 = 130.
+	if size.Width != 130 {
+		t.Errorf("expected width 130, got %f", size.Width)
+	}
+}
+
+func TestHBoxLayoutWithPadding(t *testing.T) {
+	c1 := primitives.Box().Width(40).Height(20)
+	c2 := primitives.Box().Width(60).Height(20)
+	b := primitives.HBox(c1, c2).Padding(10)
+	ctx := widget.NewContext()
+	size := b.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+
+	// Content width = 40 + 60 = 100, + padding 20 = 120.
+	// Content height = 20, + padding 20 = 40.
+	if size.Width != 120 {
+		t.Errorf("expected width 120, got %f", size.Width)
+	}
+	if size.Height != 40 {
+		t.Errorf("expected height 40, got %f", size.Height)
+	}
+}
+
+func TestHBoxLayoutChildPositions(t *testing.T) {
+	c1 := primitives.Box().Width(50).Height(30)
+	c2 := primitives.Box().Width(70).Height(40)
+	b := primitives.HBox(c1, c2).Gap(10).Padding(5)
+	ctx := widget.NewContext()
+	_ = b.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+
+	// c1 should be at (5, 5) — the padding offset.
+	b1 := c1.Bounds()
+	if b1.Min.X != 5 || b1.Min.Y != 5 {
+		t.Errorf("c1 position expected (5,5), got (%f,%f)", b1.Min.X, b1.Min.Y)
+	}
+
+	// c2 should be at (5+50+10, 5) = (65, 5).
+	b2 := c2.Bounds()
+	if b2.Min.X != 65 || b2.Min.Y != 5 {
+		t.Errorf("c2 position expected (65,5), got (%f,%f)", b2.Min.X, b2.Min.Y)
+	}
+}
+
+func TestHBoxLayoutMaxChildHeight(t *testing.T) {
+	c1 := primitives.Box().Width(50).Height(20)
+	c2 := primitives.Box().Width(50).Height(60)
+	b := primitives.HBox(c1, c2)
+	ctx := widget.NewContext()
+	size := b.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+
+	// Height should be the maximum child height.
+	if size.Height != 60 {
+		t.Errorf("expected height 60, got %f", size.Height)
+	}
+}
+
+func TestHBoxLayoutEmpty(t *testing.T) {
+	b := primitives.HBox()
+	ctx := widget.NewContext()
+	size := b.Layout(ctx, geometry.Loose(geometry.Sz(300, 300)))
+	if size.Width != 0 || size.Height != 0 {
+		t.Errorf("expected 0x0, got %s", size)
+	}
+}
+
+func TestHBoxLayoutSingleChild(t *testing.T) {
+	c1 := primitives.Box().Width(80).Height(40)
+	b := primitives.HBox(c1).Gap(10)
+	ctx := widget.NewContext()
+	size := b.Layout(ctx, geometry.Loose(geometry.Sz(300, 300)))
+
+	// Gap should not be added for a single child.
+	if size.Width != 80 {
+		t.Errorf("expected width 80, got %f", size.Width)
+	}
+}
+
+func TestHBoxLayoutConstrainedWidth(t *testing.T) {
+	c1 := primitives.Box().Width(100).Height(30)
+	c2 := primitives.Box().Width(100).Height(30)
+	b := primitives.HBox(c1, c2)
+	ctx := widget.NewContext()
+	size := b.Layout(ctx, geometry.Loose(geometry.Sz(150, 300)))
+
+	// Constrained: max 150, children want 200. The second child should
+	// get remaining space (max 50).
+	if size.Width != 150 {
+		t.Errorf("expected constrained width 150, got %f", size.Width)
+	}
+}
+
+// --- Nested horizontal/vertical ---
+
+func TestNestedHBoxInVBox(t *testing.T) {
+	row1 := primitives.HBox(
+		primitives.Box().Width(50).Height(20),
+		primitives.Box().Width(50).Height(20),
+	).Gap(5)
+	row2 := primitives.HBox(
+		primitives.Box().Width(30).Height(20),
+		primitives.Box().Width(30).Height(20),
+	).Gap(5)
+
+	outer := primitives.VBox(row1, row2).Gap(10)
+	ctx := widget.NewContext()
+	size := outer.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+
+	// Row 1: 50 + 5 + 50 = 105 wide, 20 high.
+	// Row 2: 30 + 5 + 30 = 65 wide, 20 high.
+	// Outer: max(105, 65) = 105 wide, 20 + 10 + 20 = 50 high.
+	if size.Width != 105 {
+		t.Errorf("expected nested width 105, got %f", size.Width)
+	}
+	if size.Height != 50 {
+		t.Errorf("expected nested height 50, got %f", size.Height)
+	}
+}
+
+// --- Draw with horizontal layout ---
+
+func TestHBoxDrawChildrenWithTransform(t *testing.T) {
+	child := primitives.Box().Width(50).Height(30).Background(widget.ColorWhite)
+	b := primitives.HBox(child).Padding(10)
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+	_ = b.Layout(ctx, geometry.Loose(geometry.Sz(200, 200)))
+	b.Draw(ctx, canvas)
+
+	if canvas.pushTransformCount == 0 || canvas.popTransformCount == 0 {
+		t.Error("expected PushTransform/PopTransform for children")
+	}
+}
+
+// --- Event dispatch in horizontal layout ---
+
+func TestHBoxEventDispatchesToChildren(t *testing.T) {
+	consumed := false
+	child := &eventConsumer{consume: true, called: &consumed}
+
+	b := primitives.HBox(child)
+	ctx := widget.NewContext()
+	e := &event.Base{}
+
+	result := b.Event(ctx, e)
+	if !result || !consumed {
+		t.Error("event should be dispatched to and consumed by child in HBox")
+	}
+}
+
+// --- DirectionSignal ---
+
+func TestBoxDirectionSignal(t *testing.T) {
+	sig := state.NewSignal(primitives.DirectionHorizontal)
+	b := primitives.Box(primitives.Text("A")).DirectionSignal(sig)
+
+	if b.ResolvedDirection() != primitives.DirectionHorizontal {
+		t.Errorf("expected DirectionHorizontal from signal, got %s", b.ResolvedDirection())
+	}
+
+	sig.Set(primitives.DirectionVertical)
+	if b.ResolvedDirection() != primitives.DirectionVertical {
+		t.Errorf("expected DirectionVertical after signal update, got %s", b.ResolvedDirection())
+	}
+}
+
+func TestBoxDirectionSignalTakesPrecedenceOverStatic(t *testing.T) {
+	sig := state.NewSignal(primitives.DirectionHorizontal)
+	b := primitives.Box().SetDirection(primitives.DirectionVertical).DirectionSignal(sig)
+
+	// Signal should win over static.
+	if b.ResolvedDirection() != primitives.DirectionHorizontal {
+		t.Errorf("signal should take precedence over static, got %s", b.ResolvedDirection())
+	}
+}
+
+func TestBoxDirectionSignalMount(t *testing.T) {
+	sig := state.NewSignal(primitives.DirectionVertical)
+	b := primitives.Box(primitives.Text("A")).DirectionSignal(sig)
+
+	var flushed []widget.Widget
+	sched := state.NewScheduler(func(dirty []widget.Widget) {
+		flushed = append(flushed, dirty...)
+	})
+
+	ctx := widget.NewContext()
+	ctx.SetScheduler(sched)
+
+	// Mount should create the binding.
+	b.Mount(ctx)
+
+	sig.Set(primitives.DirectionHorizontal)
+	sched.Flush()
+
+	if len(flushed) != 1 {
+		t.Fatalf("expected 1 flushed widget, got %d", len(flushed))
+	}
+}
+
+func TestBoxMountWithoutSignalNoBinding(t *testing.T) {
+	b := primitives.Box()
+
+	var flushed []widget.Widget
+	sched := state.NewScheduler(func(dirty []widget.Widget) {
+		flushed = append(flushed, dirty...)
+	})
+
+	ctx := widget.NewContext()
+	ctx.SetScheduler(sched)
+	b.Mount(ctx)
+
+	sched.Flush()
+	if len(flushed) != 0 {
+		t.Error("no signal means no bindings should be created")
+	}
+}
+
+func TestBoxMountWithoutScheduler(t *testing.T) {
+	sig := state.NewSignal(primitives.DirectionVertical)
+	b := primitives.Box().DirectionSignal(sig)
+
+	ctx := widget.NewContext()
+	// No scheduler set — Mount should not panic.
+	b.Mount(ctx)
+}
+
+func TestBoxDirectionSignalLayoutChange(t *testing.T) {
+	sig := state.NewSignal(primitives.DirectionVertical)
+	c1 := primitives.Box().Width(50).Height(30)
+	c2 := primitives.Box().Width(70).Height(40)
+	b := primitives.Box(c1, c2).DirectionSignal(sig)
+	ctx := widget.NewContext()
+
+	// Vertical layout.
+	sizeV := b.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+	// Width = max(50, 70) = 70, Height = 30 + 40 = 70.
+	if sizeV.Width != 70 {
+		t.Errorf("vertical: expected width 70, got %f", sizeV.Width)
+	}
+	if sizeV.Height != 70 {
+		t.Errorf("vertical: expected height 70, got %f", sizeV.Height)
+	}
+
+	// Switch to horizontal.
+	sig.Set(primitives.DirectionHorizontal)
+	sizeH := b.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+	// Width = 50 + 70 = 120, Height = max(30, 40) = 40.
+	if sizeH.Width != 120 {
+		t.Errorf("horizontal: expected width 120, got %f", sizeH.Width)
+	}
+	if sizeH.Height != 40 {
+		t.Errorf("horizontal: expected height 40, got %f", sizeH.Height)
 	}
 }
 
