@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Transitions — TASK-UI-025)
+- **Transition wrapper** (`transition/`) — widget enter/exit animations via wrapper
+  pattern. Effects: FadeIn/Out, SlideIn/Out (4 directions), ScaleIn/Out. Show()/Hide()
+  trigger animated transitions with time-based progress. OpacityPusher graceful
+  degradation, retained-mode integration. 38 tests, 98.7% coverage.
+
 ### Added (Animation Presets — TASK-UI-024A)
 - **M3 motion presets** (`animation/presets.go`) — Material 3 duration tokens
   (Short1..ExtraLong4), easing aliases (Standard, Emphasized, Decelerate, Accelerate),

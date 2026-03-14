@@ -194,7 +194,8 @@ func main() {
 
 | Package | Description | Coverage |
 |---------|-------------|----------|
-| `animation` | Animation engine: tween, spring physics, CubicBezier, M3 motion tokens, Tween[T], Sequence/Parallel | 90.3% |
+| `animation` | Animation engine: tween, spring, M3 presets, orchestration (Stagger/Chain/Repeat/Reverse) | 92.3% |
+| `transition` | Widget enter/exit animations: Fade, Slide, Scale effects, Show/Hide wrapper | 98.7% |
 | `core/scrollview` | Scrollable container: vertical/horizontal/both, wheel+keyboard+drag, PushClip/PushTransform, signal bindings | 96.5% |
 | `core/tabview` | Tabbed navigation: lazy content switching, closeable tabs, keyboard nav, Top/Bottom position, signal bindings | 92.1% |
 | `core/listview` | Virtualized list: fixed-height items, recycling, single/multi selection, keyboard nav, M3 painter | 96%+ |
@@ -204,7 +205,7 @@ func main() {
 | `core/collapsible` | Expandable section: animated expand/collapse, keyboard focus, arrow indicator, Tween animation | 98.2% |
 | `primitives` | Box (HBox/VBox direction), Text, Image, ThemeScope, RepaintBoundary | 94%+ |
 
-**Total: ~94,000+ lines of code | 35 packages | 2,600+ tests | ~97% average coverage**
+**Total: ~97,000+ lines of code | 36 packages | 2,700+ tests | ~97% average coverage**
 
 ---
 
