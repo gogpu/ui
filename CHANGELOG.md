@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 4 Widgets)
+- **Circular Progress** (`core/progress/`) — determinate arc + indeterminate spinner,
+  polyline arc approximation, time-based animation, Painter pattern. 48 tests, 97.4%
+- **Popover/Tooltip** (`core/popover/`) — click-triggered popover + hover-triggered tooltip,
+  12 placements with auto-flip, viewport clamping, overlay integration, dismiss-on-click-outside
+- **SplitView** (`core/splitview/`) — resizable split panels (H/V), draggable divider,
+  min constraints, double-click collapse, handle dots, cursor change. 37 tests, 96.8%
+
 ### Added (Performance Benchmarks)
 - **Benchmarks** across 5 packages: layout (flex/stack/grid/cache), signals (get/set/computed/effect/chain),
   widget tree (walk/bounds), ListView virtualization (layout/scroll/selection), animation (tween/spring/sequence).
