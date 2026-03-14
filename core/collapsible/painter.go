@@ -126,7 +126,7 @@ func titleTextBounds(headerBounds geometry.Rect) geometry.Rect {
 // Painting constants.
 const (
 	defaultFontSize      float32 = 14
-	textAlignLeft        float32 = 0
+	textAlignLeft                = widget.TextAlignLeft
 	arrowPadding         float32 = 8
 	arrowSizeRatio       float32 = 0.35
 	arrowStrokeWidth     float32 = 2

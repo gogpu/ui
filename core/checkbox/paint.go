@@ -134,7 +134,7 @@ const (
 	labelGap          float32 = 8
 	borderStrokeWidth float32 = 2
 	defaultFontSize   float32 = 14
-	textAlignLeft     float32 = 0
+	textAlignLeft             = widget.TextAlignLeft
 
 	focusRingOffset      float32 = 2
 	focusRingStrokeWidth float32 = 2

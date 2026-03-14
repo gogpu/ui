@@ -59,7 +59,7 @@ func (c *mockCanvas) DrawCircle(_ geometry.Point, _ float32, _ widget.Color) {}
 func (c *mockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _ float32) {
 }
 func (c *mockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) {}
-func (c *mockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *mockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
 func (c *mockCanvas) DrawImage(_ image.Image, _ geometry.Point)    {}
 func (c *mockCanvas) PushClip(_ geometry.Rect)                     { c.clips++ }

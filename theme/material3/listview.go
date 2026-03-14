@@ -101,7 +101,7 @@ var m3DefaultListColors = listview.ListColorScheme{
 // M3 list painting constants.
 const (
 	m3EmptyStateFontSize float32 = 14
-	m3EmptyStateAlign    float32 = 0.5
+	m3EmptyStateAlign            = widget.TextAlignCenter
 	m3EmptyStateText             = "No items"
 )
 

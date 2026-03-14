@@ -248,7 +248,7 @@ func (c *recordingCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Col
 	c.drawCount++
 }
 func (c *recordingCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) { c.drawCount++ }
-func (c *recordingCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *recordingCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 	c.drawCount++
 }
 func (c *recordingCanvas) DrawImage(_ image.Image, _ geometry.Point)    { c.drawCount++ }

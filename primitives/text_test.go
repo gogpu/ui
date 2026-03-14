@@ -397,9 +397,9 @@ func TestTextAlignString(t *testing.T) {
 		align primitives.TextAlign
 		want  string
 	}{
-		{primitives.TextAlignStart, "Start"},
+		{primitives.TextAlignStart, "Left"},
 		{primitives.TextAlignCenter, "Center"},
-		{primitives.TextAlignEnd, "End"},
+		{primitives.TextAlignEnd, "Right"},
 		{primitives.TextAlign(99), "Unknown"},
 	}
 	for _, tt := range tests {

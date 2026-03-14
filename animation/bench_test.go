@@ -10,8 +10,8 @@ type benchSignal struct {
 	value float32
 }
 
-func (s *benchSignal) Get() float32    { return s.value }
-func (s *benchSignal) Set(v float32)   { s.value = v }
+func (s *benchSignal) Get() float32  { return s.value }
+func (s *benchSignal) Set(v float32) { s.value = v }
 
 func BenchmarkTweenTick(b *testing.B) {
 	sig := &benchSignal{value: 0}

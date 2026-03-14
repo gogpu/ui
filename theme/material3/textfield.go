@@ -210,7 +210,7 @@ const (
 	m3TFContentPaddingV    float32 = 12
 	m3TFFontSize           float32 = 16
 	m3TFCharWidthRatio     float32 = 0.55
-	m3TFTextAlignLeft      float32 = 0
+	m3TFTextAlignLeft              = widget.TextAlignLeft
 	m3TFCursorWidth        float32 = 2
 	m3TFCursorPadding      float32 = 2
 	m3TFErrorFontSize      float32 = 12

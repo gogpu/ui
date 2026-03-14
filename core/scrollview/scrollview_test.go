@@ -52,7 +52,7 @@ func (c *stubCanvas) StrokeRoundRect(_ geometry.Rect, _ widget.Color, _ float32,
 func (c *stubCanvas) DrawCircle(_ geometry.Point, _ float32, _ widget.Color)                {}
 func (c *stubCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _ float32)   {}
 func (c *stubCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)               {}
-func (c *stubCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *stubCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
 func (c *stubCanvas) DrawImage(_ image.Image, _ geometry.Point) {}
 

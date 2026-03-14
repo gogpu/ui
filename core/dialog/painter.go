@@ -127,8 +127,8 @@ const (
 	actionCharWidth      float32 = 8
 	actionPaddingX       float32 = 12
 	actionSpacing        float32 = 8
-	textAlignLeft        float32 = 0
-	textAlignCenter      float32 = 0.5
+	textAlignLeft                = widget.TextAlignLeft
+	textAlignCenter              = widget.TextAlignCenter
 	focusRingOffset      float32 = 2
 	focusRingStrokeWidth float32 = 2
 )

@@ -928,7 +928,7 @@ func (c *mockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _
 	c.strokeCircleCount++
 }
 func (c *mockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) { c.drawLineCount++ }
-func (c *mockCanvas) DrawText(text string, _ geometry.Rect, _ float32, color widget.Color, _ bool, _ float32) {
+func (c *mockCanvas) DrawText(text string, _ geometry.Rect, _ float32, color widget.Color, _ bool, _ widget.TextAlign) {
 	c.drawTextCount++
 	c.lastTextColor = color
 	c.lastText = text

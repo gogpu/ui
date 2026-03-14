@@ -290,20 +290,20 @@ func TestDrawStats_ZeroValue(t *testing.T) {
 // noopCanvas is a minimal Canvas implementation for testing.
 type noopCanvas struct{}
 
-func (c *noopCanvas) Clear(Color)                                                   {}
-func (c *noopCanvas) DrawRect(geometry.Rect, Color)                                 {}
-func (c *noopCanvas) StrokeRect(geometry.Rect, Color, float32)                      {}
-func (c *noopCanvas) DrawRoundRect(geometry.Rect, Color, float32)                   {}
-func (c *noopCanvas) StrokeRoundRect(geometry.Rect, Color, float32, float32)        {}
-func (c *noopCanvas) DrawCircle(geometry.Point, float32, Color)                     {}
-func (c *noopCanvas) StrokeCircle(geometry.Point, float32, Color, float32)          {}
-func (c *noopCanvas) DrawLine(geometry.Point, geometry.Point, Color, float32)       {}
-func (c *noopCanvas) DrawText(string, geometry.Rect, float32, Color, bool, float32) {}
-func (c *noopCanvas) DrawImage(image.Image, geometry.Point)                         {}
-func (c *noopCanvas) PushClip(geometry.Rect)                                        {}
-func (c *noopCanvas) PushClipRoundRect(_ geometry.Rect, _ float32)                  {}
-func (c *noopCanvas) PopClip()                                                      {}
-func (c *noopCanvas) PushTransform(geometry.Point)                                  {}
-func (c *noopCanvas) PopTransform()                                                 {}
+func (c *noopCanvas) Clear(Color)                                                     {}
+func (c *noopCanvas) DrawRect(geometry.Rect, Color)                                   {}
+func (c *noopCanvas) StrokeRect(geometry.Rect, Color, float32)                        {}
+func (c *noopCanvas) DrawRoundRect(geometry.Rect, Color, float32)                     {}
+func (c *noopCanvas) StrokeRoundRect(geometry.Rect, Color, float32, float32)          {}
+func (c *noopCanvas) DrawCircle(geometry.Point, float32, Color)                       {}
+func (c *noopCanvas) StrokeCircle(geometry.Point, float32, Color, float32)            {}
+func (c *noopCanvas) DrawLine(geometry.Point, geometry.Point, Color, float32)         {}
+func (c *noopCanvas) DrawText(string, geometry.Rect, float32, Color, bool, TextAlign) {}
+func (c *noopCanvas) DrawImage(image.Image, geometry.Point)                           {}
+func (c *noopCanvas) PushClip(geometry.Rect)                                          {}
+func (c *noopCanvas) PushClipRoundRect(_ geometry.Rect, _ float32)                    {}
+func (c *noopCanvas) PopClip()                                                        {}
+func (c *noopCanvas) PushTransform(geometry.Point)                                    {}
+func (c *noopCanvas) PopTransform()                                                   {}
 
 var _ Canvas = (*noopCanvas)(nil)

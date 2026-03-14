@@ -242,8 +242,8 @@ func TestTracker_Optimize_ChainMerge(t *testing.T) {
 	// A, B, C where A merges with B, and the resulting AB merges with C.
 	tr := NewTrackerWithOptions(WithMergeGap(15))
 	tr.MarkDirty(geometry.NewRect(0, 0, 50, 50))
-	tr.MarkDirty(geometry.NewRect(60, 0, 50, 50))   // 10px from A, within gap
-	tr.MarkDirty(geometry.NewRect(120, 0, 50, 50))  // 10px from B, within gap
+	tr.MarkDirty(geometry.NewRect(60, 0, 50, 50))  // 10px from A, within gap
+	tr.MarkDirty(geometry.NewRect(120, 0, 50, 50)) // 10px from B, within gap
 	tr.Optimize()
 
 	if tr.RegionCount() != 1 {

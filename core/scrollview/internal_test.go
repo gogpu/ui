@@ -1960,7 +1960,7 @@ func (c *internalMockCanvas) StrokeRoundRect(_ geometry.Rect, _ widget.Color, _ 
 func (c *internalMockCanvas) DrawCircle(_ geometry.Point, _ float32, _ widget.Color)              {}
 func (c *internalMockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _ float32) {}
 func (c *internalMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)             {}
-func (c *internalMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *internalMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
 func (c *internalMockCanvas) DrawImage(_ image.Image, _ geometry.Point) {}
 

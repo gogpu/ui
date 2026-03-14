@@ -1818,7 +1818,7 @@ type internalDrawTextCall struct {
 	fontSize float32
 	color    widget.Color
 	bold     bool
-	align    float32
+	align    widget.TextAlign
 }
 
 type internalDrawLineCall struct {
@@ -1851,7 +1851,7 @@ func (c *internalMockCanvas) DrawLine(from, to geometry.Point, color widget.Colo
 	c.drawLines = append(c.drawLines, internalDrawLineCall{from: from, to: to, color: color, strokeWidth: strokeWidth})
 }
 
-func (c *internalMockCanvas) DrawText(text string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align float32) {
+func (c *internalMockCanvas) DrawText(text string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align widget.TextAlign) {
 	c.drawTexts = append(c.drawTexts, internalDrawTextCall{text: text, bounds: bounds, fontSize: fontSize, color: color, bold: bold, align: align})
 }
 

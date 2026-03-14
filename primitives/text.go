@@ -220,16 +220,8 @@ func (t *TextWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 
-	var align float32
-	switch t.style.Align {
-	case TextAlignCenter:
-		align = 0.5
-	case TextAlignEnd:
-		align = 1.0
-	}
-
 	color := t.resolveColor(ctx)
-	canvas.DrawText(text, bounds, t.style.FontSize, color, t.style.Bold, align)
+	canvas.DrawText(text, bounds, t.style.FontSize, color, t.style.Bold, t.style.Align)
 }
 
 // resolveColor returns the text color using the priority chain:

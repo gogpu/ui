@@ -5,35 +5,20 @@ import "github.com/gogpu/ui/widget"
 // unknownStr is the string representation for unknown/unrecognized values.
 const unknownStr = "Unknown"
 
-// TextAlign specifies horizontal text alignment within its bounding box.
-type TextAlign uint8
+// TextAlign is an alias for widget.TextAlign for backward compatibility.
+type TextAlign = widget.TextAlign
 
-// TextAlign constants.
+// TextAlign constants mapped to widget.TextAlign values.
 const (
 	// TextAlignStart aligns text to the start edge (left in LTR, right in RTL).
-	TextAlignStart TextAlign = iota
+	TextAlignStart = widget.TextAlignLeft
 
 	// TextAlignCenter centers text horizontally.
-	TextAlignCenter
+	TextAlignCenter = widget.TextAlignCenter
 
 	// TextAlignEnd aligns text to the end edge (right in LTR, left in RTL).
-	TextAlignEnd
+	TextAlignEnd = widget.TextAlignRight
 )
-
-// textAlignNames maps each TextAlign to its human-readable name.
-var textAlignNames = [...]string{
-	TextAlignStart:  "Start",
-	TextAlignCenter: "Center",
-	TextAlignEnd:    "End",
-}
-
-// String returns a human-readable name for the text alignment.
-func (a TextAlign) String() string {
-	if int(a) < len(textAlignNames) {
-		return textAlignNames[a]
-	}
-	return unknownStr
-}
 
 // TextOverflow specifies how text behaves when it exceeds its container.
 type TextOverflow uint8

@@ -673,7 +673,7 @@ func (c *internalMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ flo
 	c.drawLineCount++
 }
 
-func (c *internalMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *internalMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 	c.drawTextCount++
 }
 

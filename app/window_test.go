@@ -432,21 +432,21 @@ func (w *cursorSettingOnLayoutWidget) Event(_ widget.Context, _ event.Event) boo
 // mockCanvas implements widget.Canvas for testing.
 type mockCanvas struct{}
 
-func (m *mockCanvas) Clear(widget.Color)                                                   {}
-func (m *mockCanvas) DrawRect(geometry.Rect, widget.Color)                                 {}
-func (m *mockCanvas) StrokeRect(geometry.Rect, widget.Color, float32)                      {}
-func (m *mockCanvas) DrawRoundRect(geometry.Rect, widget.Color, float32)                   {}
-func (m *mockCanvas) StrokeRoundRect(geometry.Rect, widget.Color, float32, float32)        {}
-func (m *mockCanvas) DrawCircle(geometry.Point, float32, widget.Color)                     {}
-func (m *mockCanvas) StrokeCircle(geometry.Point, float32, widget.Color, float32)          {}
-func (m *mockCanvas) DrawLine(geometry.Point, geometry.Point, widget.Color, float32)       {}
-func (m *mockCanvas) DrawText(string, geometry.Rect, float32, widget.Color, bool, float32) {}
-func (m *mockCanvas) DrawImage(image.Image, geometry.Point)                                {}
-func (m *mockCanvas) PushClip(geometry.Rect)                                               {}
-func (m *mockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32)                         {}
-func (m *mockCanvas) PopClip()                                                             {}
-func (m *mockCanvas) PushTransform(geometry.Point)                                         {}
-func (m *mockCanvas) PopTransform()                                                        {}
+func (m *mockCanvas) Clear(widget.Color)                                                            {}
+func (m *mockCanvas) DrawRect(geometry.Rect, widget.Color)                                          {}
+func (m *mockCanvas) StrokeRect(geometry.Rect, widget.Color, float32)                               {}
+func (m *mockCanvas) DrawRoundRect(geometry.Rect, widget.Color, float32)                            {}
+func (m *mockCanvas) StrokeRoundRect(geometry.Rect, widget.Color, float32, float32)                 {}
+func (m *mockCanvas) DrawCircle(geometry.Point, float32, widget.Color)                              {}
+func (m *mockCanvas) StrokeCircle(geometry.Point, float32, widget.Color, float32)                   {}
+func (m *mockCanvas) DrawLine(geometry.Point, geometry.Point, widget.Color, float32)                {}
+func (m *mockCanvas) DrawText(string, geometry.Rect, float32, widget.Color, bool, widget.TextAlign) {}
+func (m *mockCanvas) DrawImage(image.Image, geometry.Point)                                         {}
+func (m *mockCanvas) PushClip(geometry.Rect)                                                        {}
+func (m *mockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32)                                  {}
+func (m *mockCanvas) PopClip()                                                                      {}
+func (m *mockCanvas) PushTransform(geometry.Point)                                                  {}
+func (m *mockCanvas) PopTransform()                                                                 {}
 
 // --- Retained-mode rendering tests ---
 

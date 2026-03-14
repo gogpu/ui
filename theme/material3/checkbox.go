@@ -187,7 +187,7 @@ const (
 	m3CheckboxLabelGap             float32 = 8
 	m3CheckboxBorderWidth          float32 = 2
 	m3CheckboxFontSize             float32 = 14
-	m3CheckboxTextAlignLeft        float32 = 0
+	m3CheckboxTextAlignLeft                = widget.TextAlignLeft
 	m3CheckboxFocusRingOffset      float32 = 2
 	m3CheckboxFocusRingStrokeWidth float32 = 2
 	m3CheckboxHoverLightenFactor   float32 = 0.1

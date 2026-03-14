@@ -203,7 +203,7 @@ const (
 	contentPaddingH         float32 = 12
 	contentPaddingV         float32 = 8
 	charWidthRatio          float32 = 0.55
-	textAlignLeft           float32 = 0
+	textAlignLeft                   = widget.TextAlignLeft
 	cursorWidth             float32 = 1.5
 	cursorTopPadding        float32 = 2
 	cursorBottomPadding     float32 = 2

@@ -74,7 +74,7 @@ func (b *MyButton) Draw(ctx widget.Context, canvas widget.Canvas) {
     canvas.DrawRoundRect(bounds, widget.Hex(0x2196F3), 8)
 
     // Draw label (centered)
-    canvas.DrawText(b.label, bounds, 14, widget.ColorWhite, false, 0.5)
+    canvas.DrawText(b.label, bounds, 14, widget.ColorWhite, false, widget.TextAlignCenter)
 }
 
 // Event processes user input.

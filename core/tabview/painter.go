@@ -215,6 +215,6 @@ var (
 
 // Painting constants.
 const (
-	defaultTextAlign       float32 = 0.5
+	defaultTextAlign               = widget.TextAlignCenter
 	defaultFocusRingStroke float32 = 2
 )

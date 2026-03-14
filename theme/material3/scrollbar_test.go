@@ -163,7 +163,7 @@ func (c *scrollbarMockCanvas) StrokeRoundRect(_ geometry.Rect, _ widget.Color, _
 func (c *scrollbarMockCanvas) DrawCircle(_ geometry.Point, _ float32, _ widget.Color)              {}
 func (c *scrollbarMockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _ float32) {}
 func (c *scrollbarMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)             {}
-func (c *scrollbarMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *scrollbarMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
 func (c *scrollbarMockCanvas) DrawImage(_ image.Image, _ geometry.Point)    {}
 func (c *scrollbarMockCanvas) PushClip(_ geometry.Rect)                     {}

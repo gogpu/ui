@@ -117,7 +117,7 @@ const (
 	focusBorderWidth float32 = 2
 
 	emptyStateFontSize float32 = 14
-	emptyStateAlign    float32 = 0.5 // centered
+	emptyStateAlign            = widget.TextAlignCenter
 	emptyStateText             = "No items"
 )
 

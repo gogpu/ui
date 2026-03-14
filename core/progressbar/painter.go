@@ -16,14 +16,14 @@ type Painter interface {
 
 // PaintState provides the current progress bar state to the painter.
 type PaintState struct {
-	Value       float64       // current value clamped to [0, 1]
-	Bounds      geometry.Rect // total widget bounds
-	BarHeight   float32       // height of the bar in logical pixels
-	Radius      float32       // corner radius for rounded ends
-	ShowLabel   bool          // whether to show percentage label
-	Label       string        // pre-formatted label text (empty if ShowLabel is false)
-	Disabled    bool          // widget is disabled
-	ProgressBarColorScheme ProgressBarColorScheme   // theme-derived colors (zero = use defaults)
+	Value                  float64                // current value clamped to [0, 1]
+	Bounds                 geometry.Rect          // total widget bounds
+	BarHeight              float32                // height of the bar in logical pixels
+	Radius                 float32                // corner radius for rounded ends
+	ShowLabel              bool                   // whether to show percentage label
+	Label                  string                 // pre-formatted label text (empty if ShowLabel is false)
+	Disabled               bool                   // widget is disabled
+	ProgressBarColorScheme ProgressBarColorScheme // theme-derived colors (zero = use defaults)
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.
@@ -113,7 +113,7 @@ func resolveLabelColor(ps PaintState, hasScheme bool) widget.Color {
 }
 
 // Label alignment constant.
-const labelAlignCenter float32 = 0.5
+var labelAlignCenter = widget.TextAlignCenter
 
 // Default colors for DefaultPainter.
 var (

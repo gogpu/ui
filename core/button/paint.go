@@ -29,7 +29,7 @@ const (
 	outlineStrokeWidth   float32 = 1.5
 	focusRingOffset      float32 = 2
 	focusRingStrokeWidth float32 = 2
-	textAlignCenter      float32 = 0.5
+	textAlignCenter              = widget.TextAlignCenter
 	hoverLightenFactor   float32 = 0.1
 	pressedDarkenFactor  float32 = 0.15
 )

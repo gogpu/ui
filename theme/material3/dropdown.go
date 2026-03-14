@@ -247,7 +247,7 @@ const (
 	m3DDFocusBorderWidth float32 = 2
 	m3DDContentPaddingH  float32 = 16
 	m3DDFontSize         float32 = 16
-	m3DDTextAlignLeft    float32 = 0
+	m3DDTextAlignLeft            = widget.TextAlignLeft
 	m3DDChevronWidth     float32 = 24
 	m3DDChevronSize      float32 = 5
 	m3DDChevronStroke    float32 = 1.5

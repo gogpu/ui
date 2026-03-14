@@ -359,7 +359,7 @@ func ensureDefaultFonts() {
 }
 
 // DrawText draws text within the given bounding rectangle.
-func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align float32) {
+func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align widget.TextAlign) {
 	if s == "" {
 		return
 	}
@@ -395,7 +395,7 @@ func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, colo
 	available := float64(bounds.Width())
 	x := float64(bounds.Min.X)
 	if w < available {
-		x += (available - w) * float64(align)
+		x += (available - w) * align.Float64()
 	}
 	x = math.Round(x)
 

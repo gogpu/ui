@@ -591,8 +591,8 @@ func TestDefaultPainter_ClampValues(t *testing.T) {
 		Background: defaultBackground,
 		Series: []Series{
 			{Label: "CPU", Color: widget.ColorRed, Points: []DataPoint{
-				{Value: -50},  // below min
-				{Value: 200},  // above max
+				{Value: -50}, // below min
+				{Value: 200}, // above max
 			}},
 		},
 	}
@@ -732,7 +732,7 @@ func (c *recordingCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float3
 	c.drawCount++
 	c.lineCount++
 }
-func (c *recordingCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *recordingCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 	c.drawCount++
 	c.textCount++
 }
@@ -741,7 +741,7 @@ func (c *recordingCanvas) PushClip(_ geometry.Rect)                  { c.clipCou
 func (c *recordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {
 	c.clipCount++
 }
-func (c *recordingCanvas) PopClip()                    { c.clipCount++ }
+func (c *recordingCanvas) PopClip()                       { c.clipCount++ }
 func (c *recordingCanvas) PushTransform(_ geometry.Point) {}
 func (c *recordingCanvas) PopTransform()                  {}
 

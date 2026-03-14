@@ -235,7 +235,7 @@ type Canvas interface {
     DrawCircle(center geometry.Point, radius float32, color Color)
     StrokeCircle(center geometry.Point, radius float32, color Color, strokeWidth float32)
     DrawLine(from, to geometry.Point, color Color, strokeWidth float32)
-    DrawText(text string, bounds geometry.Rect, fontSize float32, color Color, bold bool, align float32)
+    DrawText(text string, bounds geometry.Rect, fontSize float32, color Color, bold bool, align TextAlign)
     PushClip(r geometry.Rect)
     PopClip()
     PushTransform(offset geometry.Point)
@@ -244,7 +244,7 @@ type Canvas interface {
 ```
 
 Key design decisions:
-- `DrawText` takes bounds, fontSize, color, bold flag, and alignment (0=left, 0.5=center, 1=right)
+- `DrawText` takes bounds, fontSize, color, bold flag, and alignment (`TextAlignLeft`, `TextAlignCenter`, `TextAlignRight`)
 - Clip and transform use push/pop stacks (not Save/Restore)
 - PushTransform applies a translation offset (not a full matrix)
 

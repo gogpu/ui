@@ -102,8 +102,8 @@ const (
 	m3DialogActionCharWidth float32 = 8
 	m3DialogActionPaddingX  float32 = 12
 	m3DialogActionSpacing   float32 = 8
-	m3DialogTextAlignLeft   float32 = 0
-	m3DialogTextAlignCenter float32 = 0.5
+	m3DialogTextAlignLeft           = widget.TextAlignLeft
+	m3DialogTextAlignCenter         = widget.TextAlignCenter
 	m3DialogScrimAlpha      float32 = 0.32
 	m3DialogShadowAlpha     float32 = 0.15
 	m3DialogFocusRingOffset float32 = 2

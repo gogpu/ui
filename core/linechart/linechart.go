@@ -60,24 +60,24 @@ func (c *config) resolvedSeries() []Series {
 
 // Default configuration values.
 const (
-	defaultMaxPoints             = 60
-	defaultYMin      float64     = 0
-	defaultYMax      float64     = 100
-	defaultWidth     float32     = 300
-	defaultHeight    float32     = 150
-	defaultPadding   float32     = 4
-	labelAreaWidth   float32     = 40
-	gridDivisions    int         = 4
-	lineWidth        float32     = 1.5
-	gridLineWidth    float32     = 0.5
-	labelFontSize    float32     = 10
-	labelAlign       float32     = 1.0 // right-aligned
-	labelPadding     float32     = 4
-	percentMax       float64     = 100
-	percentScale     float64     = 100
-	percentFmt                   = "%.0f%%"
-	valueFmt                     = "%.1f"
-	zeroThreshold    float64     = 0.0001
+	defaultMaxPoints         = 60
+	defaultYMin      float64 = 0
+	defaultYMax      float64 = 100
+	defaultWidth     float32 = 300
+	defaultHeight    float32 = 150
+	defaultPadding   float32 = 4
+	labelAreaWidth   float32 = 40
+	gridDivisions    int     = 4
+	lineWidth        float32 = 1.5
+	gridLineWidth    float32 = 0.5
+	labelFontSize    float32 = 10
+	labelAlign               = widget.TextAlignRight
+	labelPadding     float32 = 4
+	percentMax       float64 = 100
+	percentScale     float64 = 100
+	percentFmt               = "%.0f%%"
+	valueFmt                 = "%.1f"
+	zeroThreshold    float64 = 0.0001
 )
 
 // Default colors for DefaultPainter.

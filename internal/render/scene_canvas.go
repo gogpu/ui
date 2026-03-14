@@ -207,7 +207,7 @@ func (c *SceneCanvas) DrawLine(from, to geometry.Point, color widget.Color, stro
 // DrawText draws text within the given bounding rectangle.
 // Text is rendered via gg.Context (MSDF pipeline) and captured as an image
 // to preserve high-quality text rendering.
-func (c *SceneCanvas) DrawText(s string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align float32) {
+func (c *SceneCanvas) DrawText(s string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align widget.TextAlign) {
 	if s == "" {
 		return
 	}
@@ -253,7 +253,7 @@ func (c *SceneCanvas) DrawText(s string, bounds geometry.Rect, fontSize float32,
 	tw, _ := c.textDC.MeasureString(s)
 	x := 0.0
 	if tw < float64(w) {
-		x = (float64(w) - tw) * float64(align)
+		x = (float64(w) - tw) * align.Float64()
 	}
 	x = math.Round(x)
 

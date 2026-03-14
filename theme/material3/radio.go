@@ -151,7 +151,7 @@ const (
 	m3RadioLabelGap             float32 = 8
 	m3RadioBorderWidth          float32 = 2
 	m3RadioFontSize             float32 = 14
-	m3RadioTextAlignLeft        float32 = 0
+	m3RadioTextAlignLeft                = widget.TextAlignLeft
 	m3RadioFocusRingOffset      float32 = 2
 	m3RadioFocusRingStrokeWidth float32 = 2
 	m3RadioHoverLightenFactor   float32 = 0.1

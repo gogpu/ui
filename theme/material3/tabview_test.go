@@ -245,7 +245,7 @@ func (c *tabMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)
 	c.drawLineCount++
 }
 
-func (c *tabMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ float32) {
+func (c *tabMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
 
 func (c *tabMockCanvas) DrawImage(_ image.Image, _ geometry.Point)    {}

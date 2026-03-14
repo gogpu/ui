@@ -188,7 +188,7 @@ const (
 	m3OutlineStrokeWidth   float32 = 1.5
 	m3FocusRingOffset      float32 = 2
 	m3FocusRingStrokeWidth float32 = 2
-	m3TextAlignCenter      float32 = 0.5
+	m3TextAlignCenter              = widget.TextAlignCenter
 	m3HoverLightenFactor   float32 = 0.1
 	m3PressedDarkenFactor  float32 = 0.15
 )

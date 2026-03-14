@@ -453,7 +453,7 @@ type drawTextCall struct {
 	fontSize float32
 	color    widget.Color
 	bold     bool
-	align    float32
+	align    widget.TextAlign
 }
 
 func (c *recordingCanvas) Clear(_ widget.Color) {}
@@ -476,7 +476,7 @@ func (c *recordingCanvas) DrawCircle(_ geometry.Point, _ float32, _ widget.Color
 func (c *recordingCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _ float32) {}
 func (c *recordingCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)             {}
 
-func (c *recordingCanvas) DrawText(text string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align float32) {
+func (c *recordingCanvas) DrawText(text string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align widget.TextAlign) {
 	c.drawTexts = append(c.drawTexts, drawTextCall{text: text, bounds: bounds, fontSize: fontSize, color: color, bold: bold, align: align})
 }
 

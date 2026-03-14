@@ -159,7 +159,7 @@ var m3DefaultTabColors = tabview.TabColorScheme{
 // M3 tab bar drawing constants.
 const (
 	m3TabFontSize        float32 = 14
-	m3TabTextAlign       float32 = 0.5
+	m3TabTextAlign               = widget.TextAlignCenter
 	m3TabIndicatorHeight float32 = 3
 	m3TabIndicatorRadius float32 = 1.5
 	m3TabHoverAlpha      float32 = 0.08

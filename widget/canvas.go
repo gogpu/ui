@@ -6,6 +6,48 @@ import (
 	"github.com/gogpu/ui/geometry"
 )
 
+// TextAlign specifies horizontal text alignment within bounds.
+type TextAlign uint8
+
+const (
+	// TextAlignLeft aligns text to the left edge (default).
+	TextAlignLeft TextAlign = iota
+
+	// TextAlignCenter centers text horizontally.
+	TextAlignCenter
+
+	// TextAlignRight aligns text to the right edge.
+	TextAlignRight
+)
+
+// textAlignNames maps each TextAlign to its human-readable name.
+var textAlignNames = [...]string{
+	TextAlignLeft:   "Left",
+	TextAlignCenter: "Center",
+	TextAlignRight:  "Right",
+}
+
+// String returns a human-readable name for the text alignment.
+func (a TextAlign) String() string {
+	if int(a) < len(textAlignNames) {
+		return textAlignNames[a]
+	}
+	return "Unknown"
+}
+
+// Float64 returns the alignment as a float64 value for rendering backends.
+// Left=0, Center=0.5, Right=1.
+func (a TextAlign) Float64() float64 {
+	switch a {
+	case TextAlignCenter:
+		return 0.5
+	case TextAlignRight:
+		return 1.0
+	default:
+		return 0.0
+	}
+}
+
 // Canvas provides drawing operations for widgets.
 //
 // Canvas is passed to widgets during the Draw phase. It provides methods
@@ -65,8 +107,8 @@ type Canvas interface {
 	// DrawText draws text within the given bounding rectangle.
 	//
 	// The fontSize is in logical pixels. The bold flag selects bold weight.
-	// The align parameter controls horizontal alignment: 0 = left, 0.5 = center, 1 = right.
-	DrawText(text string, bounds geometry.Rect, fontSize float32, color Color, bold bool, align float32)
+	// The align parameter controls horizontal alignment.
+	DrawText(text string, bounds geometry.Rect, fontSize float32, color Color, bold bool, align TextAlign)
 
 	// DrawImage draws an image at the specified position.
 	//

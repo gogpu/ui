@@ -154,7 +154,7 @@ func TestSceneCanvas_DrawText(t *testing.T) {
 	defer c.Close()
 
 	v0 := sc.Version()
-	c.DrawText("Hello", geometry.NewRect(10, 5, 200, 30), 14, widget.ColorBlack, false, 0)
+	c.DrawText("Hello", geometry.NewRect(10, 5, 200, 30), 14, widget.ColorBlack, false, widget.TextAlignLeft)
 	v1 := sc.Version()
 
 	if v1 <= v0 {
@@ -168,7 +168,7 @@ func TestSceneCanvas_DrawText_Empty(t *testing.T) {
 	defer c.Close()
 
 	v0 := sc.Version()
-	c.DrawText("", geometry.NewRect(10, 5, 100, 30), 14, widget.ColorBlack, false, 0)
+	c.DrawText("", geometry.NewRect(10, 5, 100, 30), 14, widget.ColorBlack, false, widget.TextAlignLeft)
 	v1 := sc.Version()
 
 	if v1 != v0 {
@@ -182,7 +182,7 @@ func TestSceneCanvas_DrawText_Bold(t *testing.T) {
 	defer c.Close()
 
 	v0 := sc.Version()
-	c.DrawText("Bold", geometry.NewRect(10, 5, 200, 30), 14, widget.ColorBlack, true, 0.5)
+	c.DrawText("Bold", geometry.NewRect(10, 5, 200, 30), 14, widget.ColorBlack, true, widget.TextAlignCenter)
 	v1 := sc.Version()
 
 	if v1 <= v0 {
@@ -376,7 +376,7 @@ func TestSceneCanvas_Close(t *testing.T) {
 	c := NewSceneCanvas(sc, 200, 50)
 
 	// Force text DC creation.
-	c.DrawText("Test", geometry.NewRect(0, 0, 100, 30), 14, widget.ColorBlack, false, 0)
+	c.DrawText("Test", geometry.NewRect(0, 0, 100, 30), 14, widget.ColorBlack, false, widget.TextAlignLeft)
 
 	if c.textDC == nil {
 		t.Error("textDC should be created after DrawText")

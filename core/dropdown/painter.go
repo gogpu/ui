@@ -245,7 +245,7 @@ const (
 	dfltFocusBorderWidth float32 = 2
 	dfltPaddingH         float32 = 16
 	dfltFontSize         float32 = 16
-	dfltTextAlignLeft    float32 = 0
+	dfltTextAlignLeft            = widget.TextAlignLeft
 	dfltChevronWidth     float32 = 24
 	dfltChevronSize      float32 = 5
 )
