@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 4 Infrastructure)
+- **Font Registry** (`theme/font/`) — CSS font-weight matching algorithm (W3C spec),
+  Weight (100-900), Style (Normal/Italic), Family/Face, thread-safe Registry. 20 tests, 97.7%
+- **Icon System** (`icon/`) — vector path icons (MoveTo/LineTo/CubicTo/Close), IconWidget,
+  thread-safe Registry, 10 built-in Material-style icons, De Casteljau cubic Bezier. 39 tests, 97.6%
+- **Drag and Drop** (`dnd/`) — DragSource/DropTarget interfaces, Manager with full lifecycle,
+  5px drag threshold, Escape cancel, drop effects. Foundation for docking system.
+
 ### Added (Phase 4 Widgets)
 - **Circular Progress** (`core/progress/`) — determinate arc + indeterminate spinner,
   polyline arc approximation, time-based animation, Painter pattern. 48 tests, 97.4%
