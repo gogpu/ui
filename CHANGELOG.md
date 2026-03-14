@@ -19,6 +19,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Material 3 ListViewPainter** (`theme/material3/listview.go`) — M3 list item
   rendering with hover overlay, selection background, divider colors from theme
 
+### Added (Box — Horizontal Layout, TASK-UI-058)
+- **HBox / VBox direction** — Box widget now supports horizontal layout via
+  `SetDirection(DirectionHorizontal)`, `HBox()` / `VBox()` convenience constructors,
+  `DirectionSignal` reactive binding. Children laid out left-to-right with gap.
+  Mount/Unmount lifecycle for signal cleanup.
+
+### Added (LineChart Widget — TASK-UI-060)
+- **LineChart widget** (`core/linechart/`) — real-time line chart for time-series
+  data visualization. Multiple series with colors, rolling window (MaxPoints),
+  auto-scaling Y axis, grid lines, Y-axis labels. Right-aligned scrolling
+  (newest data at right edge). Pluggable Painter pattern, signal bindings,
+  thread-safe PushValue. 43 tests, 98.8% coverage.
+
+### Added (ProgressBar Widget — TASK-UI-059)
+- **ProgressBar widget** (`core/progressbar/`) — linear progress bar (0-100%).
+  Rounded corners via PushClipRoundRect, optional label with custom format,
+  configurable bar/track/label colors. 4-level signal priority for value binding,
+  Painter pattern, Mount/Unmount lifecycle. 31 tests, 99.3% coverage.
+
+### Added (Collapsible Section Widget — TASK-UI-061)
+- **Collapsible widget** (`core/collapsible/`) — expandable section with clickable
+  header and animated content reveal. Tween animation with EaseInOutCubic,
+  keyboard focus (Enter/Space), arrow indicator, content clipping during
+  animation. Painter pattern, two-way ExpandedSignal binding.
+  76 tests, 98.2% coverage.
+
 ### Fixed (ScrollView)
 - **Drag sticking** — mouse drag no longer "sticks" when releasing outside the
   scrollview bounds. ButtonState tracking in event_bridge properly sends

@@ -198,8 +198,12 @@ func main() {
 | `core/scrollview` | Scrollable container: vertical/horizontal/both, wheel+keyboard+drag, PushClip/PushTransform, signal bindings | 96.5% |
 | `core/tabview` | Tabbed navigation: lazy content switching, closeable tabs, keyboard nav, Top/Bottom position, signal bindings | 92.1% |
 | `core/listview` | Virtualized list: fixed-height items, recycling, single/multi selection, keyboard nav, M3 painter | 96%+ |
+| `core/linechart` | Real-time line chart: multiple series, rolling window, grid, Y-axis labels, thread-safe PushValue | 98.8% |
+| `core/progressbar` | Linear progress bar: 0-100%, rounded corners, label, signal binding, PushClipRoundRect | 99.3% |
+| `core/collapsible` | Expandable section: animated expand/collapse, keyboard focus, arrow indicator, Tween animation | 98.2% |
+| `primitives` | Box (HBox/VBox direction), Text, Image, ThemeScope, RepaintBoundary | 94%+ |
 
-**Total: ~84,000+ lines of code | 31 packages | 2,276+ tests | ~97% average coverage**
+**Total: ~90,000+ lines of code | 34 packages | 2,500+ tests | ~97% average coverage**
 
 ---
 
@@ -222,7 +226,11 @@ func main() {
 │  core/dialog/      │  Canvas +       │                      │
 │  core/scrollview/  │  SceneCanvas    │                      │
 │  core/tabview/     │  (tile-parallel │                      │
-│  focus/ overlay/ ✅│   scene.Scene)  │                      │
+│  core/listview/    │   scene.Scene)  │                      │
+│  core/linechart/   │                 │                      │
+│  core/progressbar/ │                 │                      │
+│  core/collapsible/ │                 │                      │
+│  focus/ overlay/ ✅│                 │                      │
 ├──────────────┬──────────────────────────────────────────────┤
 │  cdk/        │  Content[C] polymorphic pattern              │
 │  (Complete ✅)│  Headless behaviors (Phase 3)               │
