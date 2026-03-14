@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Animation Presets — TASK-UI-024A)
+- **M3 motion presets** (`animation/presets.go`) — Material 3 duration tokens
+  (Short1..ExtraLong4), easing aliases (Standard, Emphasized, Decelerate, Accelerate),
+  preset builders: FadeIn/Out, SlideIn (4 directions), ScaleIn/Out, DialogEnter/Exit,
+  MenuEnter/Exit, SnackbarEnter/Exit
+- **Orchestration helpers** (`animation/orchestrate.go`) — Stagger (staggered start),
+  Chain, Group, RepeatN/RepeatForever, Reverse, WithDelay
+
 ### Added (GridView Widget — TASK-UI-022)
 - **GridView widget** (`core/gridview/`) — virtualized 2D grid for large datasets.
   Fixed cell size with auto-fit columns, cell recycling (only visible rows rendered),
