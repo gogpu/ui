@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Performance Benchmarks)
+- **Benchmarks** across 5 packages: layout (flex/stack/grid/cache), signals (get/set/computed/effect/chain),
+  widget tree (walk/bounds), ListView virtualization (layout/scroll/selection), animation (tween/spring/sequence).
+  36 benchmarks total. Key results: ~17ns signal read, ~150ns 10-child flex layout, ~28ns tween tick,
+  zero allocations on hot paths.
+
 ### Added (Dirty Region Tracking — TASK-UI-053)
 - **Dirty region tracker** (`internal/dirty/`) — collects dirty widget bounds,
   merges overlapping/nearby regions, enables partial repaints. Collector walks
