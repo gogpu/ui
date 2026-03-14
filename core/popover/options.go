@@ -12,38 +12,38 @@ type Option func(*config)
 
 // config holds the popover/tooltip configuration set at construction time.
 type config struct {
-	trigger              widget.Widget
-	content              widget.Widget
-	tooltipText          string
-	placement            Placement
-	gap                  float32
-	delay                time.Duration
-	dismissOnClickOut    bool
-	painter              Painter
-	visibleSignal        state.Signal[bool]
-	disabled             bool
-	disabledFn           func() bool
-	onShow               func()
-	onHide               func()
-	maxWidth             float32
-	tooltipPaddingH      float32
-	tooltipPaddingV      float32
-	tooltipFontSize      float32
-	contentWidth         float32
-	contentHeight        float32
+	trigger           widget.Widget
+	content           widget.Widget
+	tooltipText       string
+	placement         Placement
+	gap               float32
+	delay             time.Duration
+	dismissOnClickOut bool
+	painter           Painter
+	visibleSignal     state.Signal[bool]
+	disabled          bool
+	disabledFn        func() bool
+	onShow            func()
+	onHide            func()
+	maxWidth          float32
+	tooltipPaddingH   float32
+	tooltipPaddingV   float32
+	tooltipFontSize   float32
+	contentWidth      float32
+	contentHeight     float32
 }
 
 // defaultConfig returns a config with sensible defaults.
 func defaultConfig() config {
 	return config{
-		placement:        Bottom,
-		gap:              defaultGap,
-		delay:            defaultTooltipDelay,
+		placement:         Bottom,
+		gap:               defaultGap,
+		delay:             defaultTooltipDelay,
 		dismissOnClickOut: true,
-		maxWidth:         tooltipMaxWidth,
-		tooltipPaddingH:  tooltipPadH,
-		tooltipPaddingV:  tooltipPadV,
-		tooltipFontSize:  tooltipFontSz,
+		maxWidth:          tooltipMaxWidth,
+		tooltipPaddingH:   tooltipPadH,
+		tooltipPaddingV:   tooltipPadV,
+		tooltipFontSize:   tooltipFontSz,
 	}
 }
 

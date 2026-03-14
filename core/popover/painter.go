@@ -46,10 +46,10 @@ type TooltipPaintState struct {
 // PopoverColorScheme provides theme-derived colors for popover painting.
 // Zero value means the painter should use its built-in defaults.
 type PopoverColorScheme struct {
-	Background  widget.Color
-	Border      widget.Color
-	Shadow      widget.Color
-	ShadowBlur  float32
+	Background widget.Color
+	Border     widget.Color
+	Shadow     widget.Color
+	ShadowBlur float32
 }
 
 // TooltipColorScheme provides theme-derived colors for tooltip painting.
@@ -127,10 +127,10 @@ const (
 
 // Tooltip sizing constants.
 const (
-	tooltipPadH          float32 = 8
-	tooltipPadV          float32 = 6
-	tooltipFontSz        float32 = 12
-	tooltipMaxWidth      float32 = 300
+	tooltipPadH           float32 = 8
+	tooltipPadV           float32 = 6
+	tooltipFontSz         float32 = 12
+	tooltipMaxWidth       float32 = 300
 	tooltipCharWidthRatio float32 = 0.5
 )
 

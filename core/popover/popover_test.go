@@ -63,10 +63,10 @@ func TestCalculatePosition_AllPlacements(t *testing.T) {
 		{popover.Top, 110, 66},          // centered: 150-40=110, above: 100-30-4=66
 		{popover.TopStart, 100, 66},
 		{popover.TopEnd, 120, 66},
-		{popover.Left, 16, 105},  // left: 100-80-4=16, centered: 120-15=105
+		{popover.Left, 16, 105}, // left: 100-80-4=16, centered: 120-15=105
 		{popover.LeftStart, 16, 100},
-		{popover.LeftEnd, 16, 110},   // left: 100-80-4=16, end: 140-30=110
-		{popover.Right, 204, 105},    // right: 200+4=204, centered: 120-15=105
+		{popover.LeftEnd, 16, 110}, // left: 100-80-4=16, end: 140-30=110
+		{popover.Right, 204, 105},  // right: 200+4=204, centered: 120-15=105
 		{popover.RightStart, 204, 100},
 		{popover.RightEnd, 204, 110}, // right: 200+4=204, end: 140-30=110
 	}
@@ -1457,6 +1457,415 @@ func TestPopover_WheelEventNotConsumed(t *testing.T) {
 }
 
 // =============================================================================
+// Auto-Flip Coverage: All Sides
+// =============================================================================
+
+func TestCalculatePosition_AutoFlipTop(t *testing.T) {
+	// Anchor near the top edge; Top should flip to Bottom.
+	anchor := geometry.NewRect(100, 0, 100, 20)
+	overlaySize := geometry.Sz(80, 30)
+	windowSize := geometry.Sz(800, 600)
+	gap := float32(4)
+
+	pos := popover.CalculatePosition(popover.Top, anchor, overlaySize, windowSize, gap)
+	// Top would be -34, should flip to bottom: 20+4=24
+	if pos.Y != 24 {
+		t.Errorf("Y = %v, want 24 (flipped to bottom)", pos.Y)
+	}
+}
+
+func TestCalculatePosition_AutoFlipLeft(t *testing.T) {
+	// Anchor near the left edge; Left should flip to Right.
+	anchor := geometry.NewRect(0, 100, 20, 40)
+	overlaySize := geometry.Sz(80, 30)
+	windowSize := geometry.Sz(800, 600)
+	gap := float32(4)
+
+	pos := popover.CalculatePosition(popover.Left, anchor, overlaySize, windowSize, gap)
+	// Left would be 0-80-4=-84, should flip to right: 20+4=24
+	if pos.X != 24 {
+		t.Errorf("X = %v, want 24 (flipped to right)", pos.X)
+	}
+}
+
+func TestCalculatePosition_AutoFlipStartEnd(t *testing.T) {
+	// Test various start/end flips.
+	tests := []struct {
+		name      string
+		placement popover.Placement
+		anchor    geometry.Rect
+	}{
+		{"BottomStart_flip", popover.BottomStart, geometry.NewRect(100, 580, 100, 20)},
+		{"BottomEnd_flip", popover.BottomEnd, geometry.NewRect(100, 580, 100, 20)},
+		{"TopStart_flip", popover.TopStart, geometry.NewRect(100, 0, 100, 20)},
+		{"TopEnd_flip", popover.TopEnd, geometry.NewRect(100, 0, 100, 20)},
+		{"LeftStart_flip", popover.LeftStart, geometry.NewRect(0, 100, 20, 40)},
+		{"LeftEnd_flip", popover.LeftEnd, geometry.NewRect(0, 100, 20, 40)},
+		{"RightStart_flip", popover.RightStart, geometry.NewRect(780, 100, 20, 40)},
+		{"RightEnd_flip", popover.RightEnd, geometry.NewRect(780, 100, 20, 40)},
+	}
+
+	overlaySize := geometry.Sz(80, 30)
+	windowSize := geometry.Sz(800, 600)
+	gap := float32(4)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			pos := popover.CalculatePosition(tc.placement, tc.anchor, overlaySize, windowSize, gap)
+			// Just verify no negative values (clamped) and within bounds.
+			if pos.X < 0 || pos.Y < 0 {
+				t.Errorf("position (%v, %v) should not be negative", pos.X, pos.Y)
+			}
+			if pos.X+overlaySize.Width > windowSize.Width {
+				t.Errorf("X+Width = %v, exceeds window width %v", pos.X+overlaySize.Width, windowSize.Width)
+			}
+			if pos.Y+overlaySize.Height > windowSize.Height {
+				t.Errorf("Y+Height = %v, exceeds window height %v", pos.Y+overlaySize.Height, windowSize.Height)
+			}
+		})
+	}
+}
+
+func TestCalculatePosition_ClampAllEdges(t *testing.T) {
+	// Overlay bigger than window should be clamped to (0,0).
+	anchor := geometry.NewRect(0, 0, 10, 10)
+	overlaySize := geometry.Sz(1000, 1000)
+	windowSize := geometry.Sz(800, 600)
+	gap := float32(0)
+
+	pos := popover.CalculatePosition(popover.Bottom, anchor, overlaySize, windowSize, gap)
+	if pos.X != 0 {
+		t.Errorf("X = %v, want 0 (clamped)", pos.X)
+	}
+	if pos.Y != 0 {
+		t.Errorf("Y = %v, want 0 (clamped)", pos.Y)
+	}
+}
+
+// =============================================================================
+// Overlay Widget Exercise (via captured overlay)
+// =============================================================================
+
+func TestPopover_OverlayWidgetMethods(t *testing.T) {
+	trigger := newMockWidget(geometry.NewRect(10, 10, 100, 40))
+	contentWidget := &drawRecordingWidget{}
+	contentWidget.SetBounds(geometry.NewRect(0, 0, 100, 80))
+	contentWidget.SetVisible(true)
+
+	pop := popover.NewPopover(
+		popover.TriggerWidget(trigger),
+		popover.Content(contentWidget),
+	)
+	pop.SetBounds(geometry.NewRect(10, 10, 100, 40))
+
+	ctx := widget.NewContext()
+	om := &capturingOverlayManager{}
+	ctx.SetOverlayManager(om)
+	ctx.SetWindowSize(geometry.Sz(800, 600))
+
+	pop.Show(ctx)
+
+	if om.captured == nil {
+		t.Fatal("overlay widget should have been captured")
+	}
+
+	overlay := om.captured
+
+	// Get bounds via type assertion.
+	boundsGetter, ok := overlay.(interface{ Bounds() geometry.Rect })
+	if !ok {
+		t.Fatal("overlay should support Bounds()")
+	}
+	bounds := boundsGetter.Bounds()
+
+	// Test Layout.
+	size := overlay.Layout(ctx, geometry.Tight(bounds.Size()))
+	if size.Width <= 0 || size.Height <= 0 {
+		t.Errorf("overlay size = %v, want positive", size)
+	}
+
+	// Test Draw.
+	canvas := &mockCanvas{}
+	overlay.Draw(ctx, canvas)
+
+	// Test Draw with nil canvas.
+	overlay.Draw(ctx, nil) // Should not panic.
+
+	// Test Event.
+	me := event.NewMouseEvent(event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 50), geometry.Pt(50, 50), event.ModNone)
+	overlay.Event(ctx, me) // Just exercise the path.
+
+	// Test Children.
+	children := overlay.Children()
+	if len(children) != 1 {
+		t.Errorf("expected 1 child, got %d", len(children))
+	}
+}
+
+func TestTooltip_OverlayWidgetMethods(t *testing.T) {
+	trigger := newMockWidget(geometry.NewRect(10, 10, 100, 40))
+	tip := popover.NewTooltip(
+		popover.TriggerWidget(trigger),
+		popover.TooltipText("Test tooltip"),
+		popover.Delay(0),
+	)
+	tip.SetBounds(geometry.NewRect(10, 10, 100, 40))
+
+	ctx := widget.NewContext()
+	now := time.Now()
+	ctx.SetNow(now)
+	om := &capturingOverlayManager{}
+	ctx.SetOverlayManager(om)
+	ctx.SetWindowSize(geometry.Sz(800, 600))
+
+	// Hover to trigger.
+	enter := event.NewMouseEvent(event.MouseEnter, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone)
+	tip.Event(ctx, enter)
+	ctx.SetNow(now.Add(time.Millisecond))
+	tip.Layout(ctx, geometry.Loose(geometry.Sz(800, 600)))
+
+	if om.captured == nil {
+		t.Fatal("tooltip overlay should have been captured")
+	}
+
+	tipOverlay := om.captured
+
+	// Get bounds via type assertion.
+	boundsGetter, ok := tipOverlay.(interface{ Bounds() geometry.Rect })
+	if !ok {
+		t.Fatal("tooltip overlay should support Bounds()")
+	}
+	bounds := boundsGetter.Bounds()
+
+	// Test Layout.
+	size := tipOverlay.Layout(ctx, geometry.Tight(bounds.Size()))
+	if size.Width <= 0 || size.Height <= 0 {
+		t.Errorf("overlay size = %v, want positive", size)
+	}
+
+	// Test Draw.
+	canvas := &recordingCanvas{}
+	tipOverlay.Draw(ctx, canvas)
+
+	if len(canvas.drawRoundRects) == 0 {
+		t.Error("tooltip overlay should have drawn background")
+	}
+	if len(canvas.drawTexts) == 0 {
+		t.Error("tooltip overlay should have drawn text")
+	}
+
+	// Test Draw with nil canvas.
+	tipOverlay.Draw(ctx, nil) // Should not panic.
+
+	// Test Event (tooltips don't consume events).
+	me := event.NewMouseEvent(event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 50), geometry.Pt(50, 50), event.ModNone)
+	consumed := tipOverlay.Event(ctx, me)
+	if consumed {
+		t.Error("tooltip overlay should not consume events")
+	}
+
+	// Test Children.
+	children := tipOverlay.Children()
+	if children != nil {
+		t.Error("tooltip overlay should have no children")
+	}
+}
+
+// =============================================================================
+// Unmount Coverage
+// =============================================================================
+
+func TestPopover_Unmount(t *testing.T) {
+	pop := popover.NewPopover()
+	pop.Unmount() // Should not panic.
+}
+
+func TestTooltip_Unmount(t *testing.T) {
+	tip := popover.NewTooltip()
+	tip.Unmount() // Should not panic.
+}
+
+// =============================================================================
+// Tooltip Text Clamping
+// =============================================================================
+
+func TestTooltip_LongTextClamped(t *testing.T) {
+	trigger := newMockWidget(geometry.NewRect(10, 10, 100, 40))
+	longText := "This is a very long tooltip text that should be clamped to the maximum width setting"
+	tip := popover.NewTooltip(
+		popover.TriggerWidget(trigger),
+		popover.TooltipText(longText),
+		popover.MaxWidth(150),
+		popover.Delay(0),
+	)
+	tip.SetBounds(geometry.NewRect(10, 10, 100, 40))
+
+	ctx := widget.NewContext()
+	now := time.Now()
+	ctx.SetNow(now)
+	om := &capturingOverlayManager{}
+	ctx.SetOverlayManager(om)
+	ctx.SetWindowSize(geometry.Sz(800, 600))
+
+	enter := event.NewMouseEvent(event.MouseEnter, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone)
+	tip.Event(ctx, enter)
+	ctx.SetNow(now.Add(time.Millisecond))
+	tip.Layout(ctx, geometry.Loose(geometry.Sz(800, 600)))
+
+	if !tip.IsOpen() {
+		t.Error("tooltip should be open")
+	}
+}
+
+// =============================================================================
+// Popover resolveContentSize partial width/height
+// =============================================================================
+
+func TestPopover_ContentSizePartialWidth(t *testing.T) {
+	trigger := newMockWidget(geometry.NewRect(10, 10, 100, 40))
+	content := newMockWidget(geometry.NewRect(0, 0, 100, 80))
+
+	pop := popover.NewPopover(
+		popover.TriggerWidget(trigger),
+		popover.Content(content),
+		popover.ContentSize(250, 0), // Only width set.
+	)
+	pop.SetBounds(geometry.NewRect(10, 10, 100, 40))
+
+	ctx := widget.NewContext()
+	setupOverlayManager(ctx)
+
+	pop.Show(ctx)
+	if !pop.IsOpen() {
+		t.Error("should be open")
+	}
+}
+
+func TestPopover_ContentSizePartialHeight(t *testing.T) {
+	trigger := newMockWidget(geometry.NewRect(10, 10, 100, 40))
+	content := newMockWidget(geometry.NewRect(0, 0, 100, 80))
+
+	pop := popover.NewPopover(
+		popover.TriggerWidget(trigger),
+		popover.Content(content),
+		popover.ContentSize(0, 150), // Only height set.
+	)
+	pop.SetBounds(geometry.NewRect(10, 10, 100, 40))
+
+	ctx := widget.NewContext()
+	setupOverlayManager(ctx)
+
+	pop.Show(ctx)
+	if !pop.IsOpen() {
+		t.Error("should be open")
+	}
+}
+
+// =============================================================================
+// Popover with trigger consuming events
+// =============================================================================
+
+func TestPopover_TriggerConsumesEvent(t *testing.T) {
+	trigger := &consumingWidget{}
+	trigger.SetBounds(geometry.NewRect(10, 10, 100, 40))
+	trigger.SetVisible(true)
+
+	pop := popover.NewPopover(
+		popover.TriggerWidget(trigger),
+	)
+	pop.SetBounds(geometry.NewRect(10, 10, 100, 40))
+
+	ctx := widget.NewContext()
+
+	me := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone)
+	consumed := pop.Event(ctx, me)
+
+	if !consumed {
+		t.Error("trigger should consume the event")
+	}
+	if pop.IsOpen() {
+		t.Error("popover should not open when trigger consumes event")
+	}
+}
+
+func TestTooltip_TriggerConsumesEvent(t *testing.T) {
+	trigger := &consumingWidget{}
+	trigger.SetBounds(geometry.NewRect(10, 10, 100, 40))
+	trigger.SetVisible(true)
+
+	tip := popover.NewTooltip(
+		popover.TriggerWidget(trigger),
+		popover.TooltipText("Test"),
+	)
+	tip.SetBounds(geometry.NewRect(10, 10, 100, 40))
+
+	ctx := widget.NewContext()
+
+	me := event.NewMouseEvent(event.MouseEnter, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone)
+	consumed := tip.Event(ctx, me)
+
+	if !consumed {
+		t.Error("trigger should consume the event")
+	}
+}
+
+// =============================================================================
+// triggerBoundsOf with nil trigger
+// =============================================================================
+
+func TestPopover_NilTriggerBounds(t *testing.T) {
+	content := newMockWidget(geometry.NewRect(0, 0, 100, 80))
+
+	pop := popover.NewPopover(
+		popover.Content(content),
+	)
+	pop.SetBounds(geometry.NewRect(50, 50, 100, 40))
+
+	ctx := widget.NewContext()
+	setupOverlayManager(ctx)
+
+	// Show with nil trigger should use popover's own bounds.
+	pop.Show(ctx)
+	if !pop.IsOpen() {
+		t.Error("should be open")
+	}
+}
+
+// =============================================================================
+// Tooltip with nil trigger bounds
+// =============================================================================
+
+func TestTooltip_NilTriggerBounds(t *testing.T) {
+	tip := popover.NewTooltip(
+		popover.TooltipText("No trigger"),
+		popover.Delay(0),
+	)
+	tip.SetBounds(geometry.NewRect(50, 50, 100, 40))
+
+	ctx := widget.NewContext()
+	now := time.Now()
+	ctx.SetNow(now)
+	setupOverlayManager(ctx)
+
+	// Directly exercise the show path without trigger.
+	enter := event.NewMouseEvent(event.MouseEnter, event.ButtonNone, 0,
+		geometry.Pt(80, 70), geometry.Pt(80, 70), event.ModNone)
+	tip.Event(ctx, enter)
+	ctx.SetNow(now.Add(time.Millisecond))
+	tip.Layout(ctx, geometry.Loose(geometry.Sz(800, 600)))
+
+	if !tip.IsOpen() {
+		t.Error("should be open")
+	}
+}
+
+// =============================================================================
 // Helpers
 // =============================================================================
 
@@ -1486,6 +1895,38 @@ func (m *mockOverlayManager) PopOverlay() {
 
 func (m *mockOverlayManager) RemoveOverlay(_ widget.Widget) {
 	m.removeCount++
+}
+
+// capturingOverlayManager captures the pushed widget for testing.
+type capturingOverlayManager struct {
+	captured widget.Widget
+}
+
+func (m *capturingOverlayManager) PushOverlay(w widget.Widget, _ func()) {
+	m.captured = w
+}
+
+func (m *capturingOverlayManager) PopOverlay() {}
+
+func (m *capturingOverlayManager) RemoveOverlay(_ widget.Widget) {}
+
+// consumingWidget always consumes events.
+type consumingWidget struct {
+	widget.WidgetBase
+}
+
+func (w *consumingWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+	return constraints.Constrain(w.Bounds().Size())
+}
+
+func (w *consumingWidget) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (w *consumingWidget) Event(_ widget.Context, _ event.Event) bool {
+	return true // Always consumes.
+}
+
+func (w *consumingWidget) Children() []widget.Widget {
+	return nil
 }
 
 // mockWidget is a simple widget for testing.
