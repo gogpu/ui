@@ -289,6 +289,7 @@ type Canvas interface {
     PopClip()
     PushTransform(offset geometry.Point)
     PopTransform()
+    TransformOffset() geometry.Point
 }
 ```
 
@@ -297,6 +298,7 @@ Key design decisions:
 - `MeasureText` returns text dimensions without drawing (for layout calculations)
 - `PushClipRoundRect` provides GPU SDF-based rounded rectangle clipping
 - `DrawImage` blits cached pixel buffers (used by RepaintBoundary)
+- `TransformOffset` returns the current cumulative transform offset (used by `StampScreenOrigin` for ScreenBounds)
 - Clip and transform use push/pop stacks (not Save/Restore)
 - PushTransform applies a translation offset (not a full matrix)
 
@@ -1140,16 +1142,41 @@ enabling Tab navigation and keyboard shortcut dispatch.
 **Event pipeline:**
 ```
 gpucontext (native OS events)
-  -> EventBridge (translate to ui/event types)
+  -> EventBridge (OnPointer, OnTextInput, OnKeyboard)
     -> Window.HandleEvent()
+      -> HoverTracker (hit-test ScreenBounds, synthesize Enter/Leave)
       -> FocusManager.HandleKeyEvent() (Tab/Shift+Tab, shortcuts)
-      -> Root Widget tree (bubbling dispatch)
+      -> Root Widget tree (depth-first dispatch)
 ```
 
 The EventBridge also handles:
 - **ButtonState tracking** — synthesizes MouseUp events for buttons released between frames
 - **OnTextInput** — character input handler for text fields (separate from KeyPress)
-- **keyToRune mapping** — fallback rune synthesis from KeyPress events
+- **OnPointer** — W3C PointerEventSource for window Enter/Leave events
+
+### HoverTracker and Cursor Management
+
+The Window includes a `HoverTracker` that performs hit-testing on every MouseMove event using `ScreenBounds` (screen-space coordinates). It synthesizes `MouseEnter`/`MouseLeave` events for individual widgets, enabling hover cursors (pointer, text, resize) in production.
+
+**Cursor lifecycle per frame:**
+1. `Frame()` resets cursor to default (unless mouse buttons are held -- drag cursor protection)
+2. Widget tree processes events, widgets call `ctx.SetCursor()` as needed
+3. HoverTracker runs cursor sync immediately after `HandleEvent` for responsive feedback
+4. After draw pass, cursor is synced to the platform provider
+
+**Drag cursor protection:** When mouse buttons are held (drag in progress), `ResetCursor` is skipped so the drag cursor (e.g., resize for SplitView) is maintained throughout the drag operation.
+
+### ScreenBounds (Coordinate System)
+
+`WidgetBase.ScreenBounds()` returns the widget's bounds in screen-space coordinates. During the draw pass, `Canvas.TransformOffset()` + `widget.StampScreenOrigin()` stamp each widget's screen origin as transforms accumulate. This enables:
+
+- **Overlay positioning** inside ScrollView (Dropdown, Popover use `ScreenBounds()` for correct placement)
+- **Hit-testing** for hover tracking (mouse position in screen space matches widget screen bounds)
+- Enterprise pattern equivalent to Flutter's `localToGlobal` / Qt's `mapToGlobal`
+
+### Event Coordinate Transform (ScrollView)
+
+ScrollView transforms mouse/wheel coordinates from screen space to content space before dispatching to children. This ensures hit-testing works correctly for widgets inside scrolled containers. ListView and DataTable rely on this transform rather than implementing their own.
 
 ---
 
@@ -1225,7 +1252,7 @@ The `registry/` package provides a global registry for widget factories:
 |------------|---------|---------|
 | `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.37.0 |
 | `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.10.0 |
-| `github.com/gogpu/gogpu` | Application framework, windowing (examples only) | v0.24.0 |
+| `github.com/gogpu/gogpu` | Application framework, windowing (examples only) | v0.24.1 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
 | `golang.org/x/image` | Font rendering infrastructure | v0.37.0 |
 
@@ -1307,4 +1334,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of March 15, 2026.*
+*This document reflects the actual codebase as of March 15, 2026 (61 commits on feat/ui-058-hbox-direction).*

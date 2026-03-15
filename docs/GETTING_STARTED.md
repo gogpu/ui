@@ -412,11 +412,12 @@ The `examples/` directory contains working applications:
 | `examples/hello/` | Widget demo with checkboxes, radio buttons, ListView |
 | `examples/signals/` | Reactive state management patterns |
 | `examples/taskmanager/` | Full task manager with charts, tables, animations |
+| `examples/gallery/` | Widget gallery with all 22 widgets, 3 design systems, theme switching |
 
 Run any example:
 
 ```bash
-cd examples/hello
+cd examples/gallery
 go run .
 ```
 

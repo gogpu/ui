@@ -1,6 +1,6 @@
 # Creating Extensions for gogpu/ui
 
-> **Version:** 0.3.x | **Updated:** March 2026
+> **Version:** 0.4.x | **Updated:** March 2026
 
 This guide explains how to extend gogpu/ui with custom widgets, themes, layouts, and plugins.
 
@@ -600,6 +600,7 @@ import _ "github.com/yourname/ui-extension"
 | Phase 1.x | Stable (registry, theme, layout, plugin) |
 | Phase 2.x | Stable + interactive widgets (button, checkbox, radio, textfield, dropdown) + Painter pattern + overlay |
 | Phase 3.x | Stable + slider, dialog, scrollview, tabview, animation, RepaintBoundary, scene.Scene tile-parallel rendering |
+| Phase 4.x | Stable + 22 interactive widgets, 3 design systems (M3/Fluent/Cupertino), i18n, dnd, icon, uitest |
 
 The extension API is stable and will remain compatible across future releases.
 

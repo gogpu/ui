@@ -227,7 +227,7 @@ func main() {
 | `uitest` | Testing utilities: MockCanvas, MockContext, event factories, widget helpers, assertions | 93.1% |
 | `internal/dirty` | Dirty region tracking: Collector, Tracker, merge algorithm, partial repaints | 100% |
 
-**Total: ~145,000 lines of code | 55+ packages | ~6,000 tests | ~97% average coverage**
+**Total: ~150,000 lines of code | 55+ packages | ~6,000 tests | ~97% average coverage**
 
 ---
 
@@ -294,13 +294,15 @@ gg → wgpu → naga                   ← internal to gg
 
 | Example | Description |
 |---------|-------------|
-| [`examples/hello`](examples/hello) | Full demo: checkbox, radio, ListView (1000 items), M3 theme, event-driven GPU rendering |
+| [`examples/hello`](examples/hello) | Widget demo: checkbox, radio, ListView (1000 items), M3 theme, event-driven GPU rendering |
 | [`examples/signals`](examples/signals) | Reactive signals: TextSignal, ContentSignal, CheckedSignal, SelectedSignal, DisabledSignal |
+| [`examples/taskmanager`](examples/taskmanager) | Full task manager: charts, tables, animations, real-time data |
+| [`examples/gallery`](examples/gallery) | Widget gallery: all 22 widgets, 3 design systems (M3/Fluent/Cupertino), theme switching |
 
 Run any example:
 
 ```bash
-cd examples/signals
+cd examples/gallery
 go run .
 ```
 
@@ -631,8 +633,18 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Icon system (vector paths, 10 Material icons, De Casteljau)
 - [x] Font registry (CSS weight matching, W3C spec)
 - [x] Testing utilities (MockCanvas, MockContext, assertions)
+- [x] Dirty region tracking (merge algorithm, partial repaints)
+- [x] Performance benchmarks (36 across 5 packages)
+- [x] Hover tracking (W3C PointerEventSource, HoverTracker, cursor management)
+- [x] ScreenBounds coordinate system (overlay positioning, hit-testing)
+- [x] Event coordinate transforms (ScrollView content-space dispatch)
+- [x] Inter font full Unicode (Cyrillic, Greek, Vietnamese)
+- [x] MeasureText on Canvas (layout calculations without drawing)
+- [x] FocusManager integration in Window (Tab/Shift+Tab navigation)
+- [x] OnTextInput handler (platform character input API)
+- [x] Task Manager example (charts, tables, animations)
+- [x] Widget Gallery example (all widgets, 3 design systems, theme switching)
 - [ ] Platform accessibility adapters (UIA, AT-SPI2, NSAccessibility)
-- [ ] Typography system
 - [ ] Performance optimization pass
 
 ---

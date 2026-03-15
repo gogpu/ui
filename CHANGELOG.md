@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   space to content space before dispatching to children. Fixes click hit-testing for
   widgets inside scrolled containers. Removed redundant transforms from ListView/DataTable.
 
+### Added (Widget Gallery Example)
+- **Gallery example** (`examples/gallery/`) — comprehensive widget gallery demonstrating
+  all 22 interactive widgets with live theme switching between Material 3, Fluent Design,
+  and Cupertino design systems. Organized into collapsible sections by category.
+
 ### Changed (Dependencies)
 - **gogpu** v0.24.0 → **v0.24.1**
 

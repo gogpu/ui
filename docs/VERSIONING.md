@@ -270,8 +270,9 @@ go 1.25.0
 
 require (
     github.com/coregx/signals v0.1.0
-    github.com/gogpu/gg v0.36.0
-    github.com/gogpu/gpucontext v0.9.0
+    github.com/gogpu/gg v0.37.0
+    github.com/gogpu/gogpu v0.24.1
+    github.com/gogpu/gpucontext v0.10.0
     golang.org/x/image v0.37.0
 )
 ```

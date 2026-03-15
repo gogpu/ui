@@ -1,6 +1,6 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.3.x (Phase 3 Complete, Phase 4 Near Complete)
+> **Version:** 0.4.x (Phase 3 Complete, Phase 4 Near Complete)
 > **Updated:** March 2026
 > **Go Version:** 1.25+
 
@@ -30,11 +30,11 @@
 
 | Metric | Value |
 |--------|-------|
-| Packages | 58 |
-| Go Source Files | ~346 |
-| Test Files | ~139 |
-| Total LOC | ~140,000 |
-| Test Functions | 3,782 |
+| Packages | 55+ |
+| Go Source Files | ~350 |
+| Test Files | ~151 |
+| Total LOC | ~150,000 |
+| Test Functions | ~6,000 |
 | Test Coverage | 97%+ |
 | Linter Issues | 0 |
 
@@ -262,14 +262,21 @@ v1.0.0  → Production (when ready)
 | DataTable widget | Column-based data display with sorting |
 | Toolbar widget | Action bar with items and overflow |
 | Menu widget | Menu bar, context menu, menu items |
+| Dirty Region Tracking | Region collector, merge algorithm, partial repaints |
+| Performance Benchmarks | 36 benchmarks across 5 packages |
+| Task Manager Example | Full-featured demo with charts, tables, animations |
+| Widget Gallery Example | All 22 widgets, 3 design systems, theme switching |
+| Hover Tracking | W3C PointerEventSource, HoverTracker, cursor management |
+| ScreenBounds | Screen-space coordinate transform for overlay positioning |
+| Event Coordinate Transform | ScrollView mouse/wheel coordinate transforms |
+| Inter Font Unicode | Full Unicode Inter 4.1 (Cyrillic, Greek, Vietnamese) |
 
 **Remaining:**
 
 | Task | Description | Priority |
 |------|-------------|----------|
 | Accessibility adapters | Platform-specific AT-SPI / UIA adapters | P1 |
-| Documentation | Comprehensive API docs and guides | P1 |
-| Examples | 10+ example applications | P2 |
+| Documentation polish | Comprehensive API docs and guides | P2 |
 | Performance optimization | Profiling, hot path optimization | P2 |
 | API review | Pre-release API audit and freeze | P0 |
 
@@ -285,7 +292,7 @@ v1.0.0  → Production (when ready)
 | Phase 2 (Beta) | ✅ Complete |
 | Phase 2.5 (Signals) | ✅ Complete |
 | Phase 3 (RC) | ✅ Complete |
-| Phase 4 (v1.0) | In Progress (~80%) |
+| Phase 4 (v1.0) | In Progress (~90%) |
 
 ---
 
@@ -293,12 +300,13 @@ v1.0.0  → Production (when ready)
 
 | Dependency | Version | Purpose | Status |
 |------------|---------|---------|--------|
-| gogpu/gg | v0.36.4 | 2D rendering | ✅ Integrated |
-| gogpu/gpucontext | v0.9.0 | Shared interfaces | ✅ Integrated |
+| gogpu/gg | v0.37.0 | 2D rendering + scene.Scene | ✅ Integrated |
+| gogpu/gpucontext | v0.10.0 | Shared interfaces | ✅ Integrated |
+| gogpu/gogpu | v0.24.1 | Windowing (examples) | ✅ Integrated |
 | coregx/signals | v0.1.0 | State management | ✅ Integrated |
 | golang.org/x/image | v0.37.0 | Inter font (standard) | ✅ Integrated |
 
-**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.3.0, golang.org/x/text v0.35.0
+**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.3.0, gogpu/wgpu v0.21.0, gogpu/naga v0.14.7, golang.org/x/text v0.35.0
 
 ---
 
