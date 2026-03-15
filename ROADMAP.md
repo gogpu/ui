@@ -1,6 +1,6 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.2.x (Phase 2 Complete)
+> **Version:** 0.3.x (Phase 3 Complete, Phase 4 Near Complete)
 > **Updated:** March 2026
 > **Go Version:** 1.25+
 
@@ -22,21 +22,21 @@
 - WebGPU-first rendering via gogpu/wgpu
 - Signals-based state management (coregx/signals)
 - Enterprise features: docking, virtualization, accessibility
+- Three design systems: Material 3, Fluent, Cupertino
 
 ---
 
 ## Current Status
 
-### Phase 0: Foundation ✅ COMPLETE
-
-| Package | Description | LOC | Coverage |
-|---------|-------------|-----|----------|
-| `geometry` | Point, Size, Rect, Constraints, Insets | ~800 | 100% |
-| `event` | MouseEvent, KeyEvent, WheelEvent, Modifiers | ~600 | 100% |
-| `widget` | Widget, WidgetBase, Context, Canvas, Color | ~2,956 | 100% |
-| `internal/render` | Canvas implementation using gogpu/gg | ~1,740 | 96.5% |
-| `internal/layout` | Flex, Stack, Grid layout engines | ~4,165 | 89.9% |
-| **Total** | | **~10,261** | **95%+** |
+| Metric | Value |
+|--------|-------|
+| Packages | 58 |
+| Go Source Files | ~346 |
+| Test Files | ~139 |
+| Total LOC | ~140,000 |
+| Test Functions | 3,782 |
+| Test Coverage | 97%+ |
+| Linter Issues | 0 |
 
 ---
 
@@ -58,7 +58,8 @@ v0.1.0  → Phase 1 MVP ✅ COMPLETE
 v0.1.x  → Phase 1.5 Extensibility ✅ COMPLETE
 v0.2.0  → Phase 2 Beta ✅ COMPLETE
 v0.2.x  → Phase 2.5 Signals Integration ✅ COMPLETE
-v0.3.0  → Phase 3 RC
+v0.3.0  → Phase 3 RC ✅ COMPLETE
+v0.4.0  → Phase 4 v1.0 features (in progress)
 v0.9.0  → Pre-1.0 API freeze
 v0.10+  → Stabilization
 v1.0.0  → Production (when ready)
@@ -93,19 +94,31 @@ v1.0.0  → Production (when ready)
 ┌─────────────────────────────────────────────────────────────┐
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
-│  theme/material3   │  theme/fluent   │  theme/cupertino     │
-│  (Complete ✅)     │   (Phase 4)     │    (Phase 4)         │
+│  theme/material3   │  theme/fluent     │  theme/cupertino   │
+│  (Complete ✅)     │  (Complete ✅)    │  (Complete ✅)     │
 ├─────────────────────────────────────────────────────────────┤
-│  core/button/      │  animation/ ✅  │  docking/            │
-│  core/checkbox/    │  Tween, Spring  │  DockingHost         │
-│  core/radio/       │  M3 motion      │  (Phase 4)           │
-│  core/textfield/   │                 │                      │
-│  core/dropdown/    │  internal/      │                      │
-│  core/slider/ ✅   │  render/        │                      │
-│  core/dialog/ ✅   │  Canvas +       │                      │
-│  core/scrollview/✅│  SceneCanvas ✅ │                      │
-│  core/tabview/ ✅  │  (tile-parallel │                      │
-│  focus/ overlay/ ✅│   scene.Scene)  │                      │
+│  core/button/      │  animation/ ✅    │  core/docking/ ✅  │
+│  core/checkbox/    │  Tween, Spring    │  DockingHost       │
+│  core/radio/       │  M3 motion        │  Zone, Panel       │
+│  core/textfield/   │                   │                    │
+│  core/dropdown/    │  transition/ ✅   │  dnd/ ✅           │
+│  core/slider/ ✅   │  Enter/exit       │  Drag & Drop       │
+│  core/dialog/ ✅   │  effects          │                    │
+│  core/scrollview/✅│                   │  uitest/ ✅        │
+│  core/tabview/ ✅  │  internal/        │  Test utilities    │
+│  core/listview/ ✅ │  render/          │                    │
+│  core/gridview/ ✅ │  Canvas +         │  i18n/ ✅          │
+│  core/linechart/ ✅│  SceneCanvas ✅   │  Internationalize  │
+│  core/progressbar/✅│  (tile-parallel  │                    │
+│  core/progress/ ✅ │   scene.Scene)    │  icon/ ✅          │
+│  core/collapsible/✅│                  │  Icon system       │
+│  core/splitview/ ✅│                   │                    │
+│  core/popover/ ✅  │                   │  theme/font/ ✅    │
+│  core/treeview/ ✅ │                   │  Typography        │
+│  core/datatable/ ✅│                   │                    │
+│  core/toolbar/ ✅  │                   │                    │
+│  core/menu/ ✅     │                   │                    │
+│  focus/ overlay/ ✅│                   │                    │
 ├─────────────────────────────────────────────────────────────┤
 │  layout/                            │  state/               │
 │  VStack, HStack, Grid, Flexbox      │  coregx/signals       │
@@ -133,37 +146,17 @@ v1.0.0  → Production (when ready)
 **Goal:** Core packages for building widgets
 
 **Completed:**
-- ✅ geometry — Point, Size, Rect, Constraints, Insets
-- ✅ event — MouseEvent, KeyEvent, WheelEvent, FocusEvent, Modifiers
-- ✅ widget — Widget interface, WidgetBase, Context, Canvas, Color
-- ✅ internal/render — Canvas implementation using gogpu/gg
-- ✅ internal/layout — Engine, FlexContainer, VStack, HStack, ZStack, Grid
-
-**Statistics:**
-- ~10,261 lines of code
-- 95%+ test coverage
-- 0 linter issues
+- geometry — Point, Size, Rect, Constraints, Insets
+- event — MouseEvent, KeyEvent, WheelEvent, FocusEvent, Modifiers
+- widget — Widget interface, WidgetBase, Context, Canvas, Color
+- internal/render — Canvas implementation using gogpu/gg
+- internal/layout — Engine, FlexContainer, VStack, HStack, ZStack, Grid
 
 ---
 
 ### Phase 1: MVP (v0.1.0) ✅ COMPLETE
 
 **Goal:** Working foundation with basic widgets
-
-**Tasks (10 tasks, ~12K LOC):**
-
-| Task | Description | Status | LOC |
-|------|-------------|--------|-----|
-| TASK-UI-001 | Core Widget Interface | ✅ Done (Phase 0) | — |
-| TASK-UI-002 | Signals Integration | ✅ Done | ~800 |
-| TASK-UI-003 | WidgetBase Composition | ✅ Done (Phase 0) | — |
-| TASK-UI-004 | Basic Primitives (Box, Text, Image) | ✅ Done | ~1,200 |
-| TASK-UI-005 | Stack Layout (VStack, HStack) | ✅ Done (Phase 0) | — |
-| TASK-UI-006 | Flexbox Layout Engine | ✅ Done (Phase 0) | — |
-| TASK-UI-007 | Event System | ✅ Done (Phase 0) | — |
-| TASK-UI-008 | Theme System Foundation | ✅ Done | ~1,200 |
-| TASK-UI-009 | Rendering Pipeline | ✅ Done (Phase 0) | — |
-| TASK-UI-010 | Window Integration | ✅ Done | ~800 |
 
 **Delivered:**
 - Signals integration (coregx/signals)
@@ -178,27 +171,11 @@ v1.0.0  → Production (when ready)
 
 **Goal:** Enable community to create custom widgets, themes, and layouts
 
-**Completed:** 2026-01-16 | **Total LOC:** ~9,200 | **Coverage:** 97%+
-
-| Task | Description | Status | LOC |
-|------|-------------|--------|-----|
-| ~~TASK-UI-041~~ | Widget Registry | ✅ Done | ~1,340 |
-| ~~TASK-UI-042~~ | ThemeExtension Interface | ✅ Done | ~760 |
-| ~~TASK-UI-043~~ | Public Layout API | ✅ Done | ~3,720 |
-| ~~TASK-UI-044~~ | Theme Registry | ✅ Done | ~1,180 |
-| ~~TASK-UI-045~~ | Plugin System | ✅ Done | ~3,040 |
-| ~~TASK-UI-046~~ | Community Extension Guidelines | ✅ Done | ~2,000 |
-
 **Implemented Packages:**
 - `registry/` — Widget factory registration (100% coverage)
 - `layout/` — Public layout API with custom algorithms (89.5% coverage)
 - `theme/` — Theme System + Extensions + Registry (100% coverage)
 - `plugin/` — Plugin bundling with dependency resolution (99.4% coverage)
-
-**Why Extensibility First?**
-- Community can create extensions from v0.1.x
-- Third-party widgets/themes before v1.0
-- Ecosystem growth enables faster adoption
 
 ---
 
@@ -206,45 +183,17 @@ v1.0.0  → Production (when ready)
 
 **Goal:** Interactive widget library with Material Design 3
 
-**Tasks (16 tasks, ~15K LOC):**
-
-| Task | Description | Status | LOC |
-|------|-------------|--------|-----|
-| ~~TASK-UI-011~~ | Button Widget | ✅ Done | ~2,400 |
-| ~~TASK-UI-012~~ | TextField Widget | ✅ Done | ~1,200 |
-| ~~TASK-UI-013~~ | Checkbox & Radio | ✅ Done | ~2,000 |
-| ~~TASK-UI-014~~ | Dropdown/Select + Overlay | ✅ Done | ~1,500 |
-| ~~TASK-UI-017~~ | Material 3 Theme | ✅ Done | ~1,800 |
-| ~~TASK-UI-020~~ | Keyboard Navigation (Focus) | ✅ Done | ~1,600 |
-| ~~TASK-UI-048~~ | Theme-Aware Painters | ✅ Done | — |
-| ~~TASK-UI-049~~ | ThemeProvider Context | ✅ Done | — |
-| ~~TASK-UI-050~~ | Theme-Aware Primitives | ✅ Done | — |
-| ~~TASK-UI-051~~ | CDK Foundation + ThemeScope | ✅ Done | ~350 |
-| ~~TASK-UI-052~~ | Event-Driven Rendering | ✅ Done | — |
-| ~~TASK-UI-052A~~ | macOS WaitEvents/WakeUp | ✅ Done | — |
-| ~~TASK-UI-052B~~ | Linux WaitEvents/WakeUp | ✅ Done | — |
-| ~~TASK-UI-056~~ | Box Shadow Blur | ✅ Done | — |
-| ~~TASK-UI-047~~ | gg Integration | ✅ Done | — |
-| ~~UI-ARCH-001~~ | Foundation Architecture | ✅ Done | — |
-
 **Implemented Packages:**
-- `core/button/` — Interactive button, 4 variants, 3 sizes, pluggable Painter (96%+ coverage)
-- `core/checkbox/` — Toggleable checkbox, 3 states (96%+ coverage)
-- `core/radio/` — Radio group, vertical/horizontal, arrow key navigation (96%+ coverage)
-- `core/textfield/` — Text input, cursor, selection, clipboard, validation (96%+ coverage)
-- `core/dropdown/` — Dropdown/select, overlay menu, keyboard nav, scroll (96%+ coverage)
-- `overlay/` — Overlay stack, container, position helper (95%+ coverage)
-- `focus/` — Keyboard focus management with Tab/Shift+Tab (95.2% coverage)
-- `internal/focus/` — Internal focus manager implementation
-- `theme/material3/` — M3 theme (HCT color science) + 5 painters (97%+ coverage)
-- `cdk/` — Component Development Kit, Content[C] pattern (100% coverage)
+- `core/button/` — Interactive button, 4 variants, 3 sizes, pluggable Painter
+- `core/checkbox/` — Toggleable checkbox, 3 states
+- `core/radio/` — Radio group, vertical/horizontal, arrow key navigation
+- `core/textfield/` — Text input, cursor, selection, clipboard, validation
+- `core/dropdown/` — Dropdown/select, overlay menu, keyboard nav, scroll
+- `overlay/` — Overlay stack, container, position helper
+- `focus/` — Keyboard focus management with Tab/Shift+Tab
+- `theme/material3/` — M3 theme (HCT color science) + widget painters
+- `cdk/` — Component Development Kit, Content[C] pattern
 - `primitives/themescope.go` — Theme override for widget subtrees
-
-**Moved to Phase 3 (originally planned for Phase 2):**
-- Slider Widget (TASK-UI-015)
-- Progress Indicators (TASK-UI-016)
-- Typography System (TASK-UI-018)
-- Icon System (TASK-UI-019)
 
 ---
 
@@ -252,108 +201,91 @@ v1.0.0  → Production (when ready)
 
 **Goal:** Push-based reactive state for all widgets
 
-**Tasks (5 tasks):**
-
-| Task | Description | Status |
-|------|-------------|--------|
-| SIGNALS-001 | Button signal bindings (TextSignal, DisabledSignal) | ✅ Done |
-| SIGNALS-002 | Checkbox signal bindings (CheckedSignal, LabelSignal, DisabledSignal) | ✅ Done |
-| SIGNALS-003 | Radio signal bindings (SelectedSignal, GroupDisabledSignal) | ✅ Done |
-| SIGNALS-004 | Primitives TextWidget ContentSignal | ✅ Done |
-| SIGNALS-005 | Naming convention unification (PropertySignal pattern) | ✅ Done |
-
 **Key decisions:**
 - `PropertySignal` naming convention: `TextSignal()`, `CheckedSignal()`, etc.
-- Priority: Signal > Fn > Static
+- Priority: ReadonlySignal > Signal > Fn > Static
 - Two-way binding for stateful widgets (checkbox, radio, textfield, dropdown)
 - One-way for display widgets (button text, labels, primitives)
-- Deprecated: `textfield.Value()` → `ValueSignal()`, `dropdown.Signal()` → `SelectedSignal()`
 
 ---
 
-### Phase 3: RC (v0.3.0) — In Progress
+### Phase 3: RC (v0.3.0) ✅ COMPLETE
 
 **Goal:** Enterprise features, rendering optimizations, containers
 
 **Completed:**
 
-| Task | Description | Status |
-|------|-------------|--------|
-| ~~SIGNALS-006~~ | Automatic signal binding lifecycle (Mount/Unmount) | ✅ Done |
-| ~~SIGNALS-007~~ | Scheduler integration with render loop | ✅ Done |
-| ~~SIGNALS-008~~ | ReadonlySignal, Computed properties, Effect patterns | ✅ Done |
-| ~~TASK-UI-057 SP1~~ | Retained-mode: dirty tracking, DrawTree, DrawStats | ✅ Done |
-| ~~TASK-UI-057 SP2~~ | RepaintBoundary: per-widget pixel caching | ✅ Done |
-| ~~TASK-UI-015~~ | Slider Widget (continuous/discrete, H/V, M3 painter) | ✅ Done |
-| ~~TASK-UI-026~~ | Dialog/Modal (backdrop overlay, action buttons, focus trapping, M3 painter) | ✅ Done |
-| ~~TASK-UI-024~~ | Animation Engine (tween, spring, CubicBezier, M3 tokens, Tween[T], Sequence/Parallel) | ✅ Done |
-| ~~TASK-UI-028~~ | ScrollView (vertical/horizontal/both, wheel+keyboard+drag, signal bindings, M3 painter) | ✅ Done |
-| ~~TASK-UI-029~~ | TabView (tabbed navigation, lazy content, closeable, keyboard nav, M3 painter) | ✅ Done |
-| ~~TASK-UI-057 SP3~~ | scene.Scene integration (tile-parallel rendering, SceneCanvas adapter) | ✅ Done |
-| ~~TASK-UI-021~~ | ListView (virtualized list, recycling, selection, keyboard nav, M3 painter) | ✅ Done |
-
-**Remaining:**
-
-| Task | Description | LOC | Priority |
-|------|-------------|-----|----------|
-| TASK-UI-016 | Progress Indicators | ~500 | P2 |
-| TASK-UI-022 | VirtualizedGrid | ~800 | P1 |
-| TASK-UI-025 | Transitions | ~600 | P2 |
-| TASK-UI-027 | Popover/Tooltip | ~600 | P1 |
-| TASK-UI-030 | SplitView | ~400 | P2 |
-| TASK-UI-018 | Typography System | ~600 | P1 |
-| TASK-UI-019 | Icon System | ~400 | P2 |
-
-**Deliverables:**
-- Rendering optimizations (dirty regions, RepaintBoundary, scene integration)
-- Animation system (Spring, Tween)
-- Additional widgets (Slider ✅, Dialog ✅, Progress, Tooltip)
-- Animation system ✅ (Tween, Spring, M3 motion, CubicBezier, Sequence/Parallel)
-- Containers (ScrollView ✅, TabView ✅, SplitView)
-- Virtualization ✅ (ListView with recycling, 1000+ items)
+| Task | Description |
+|------|-------------|
+| Retained-mode SP1 | Dirty tracking, DrawTree, DrawStats, FrameStats |
+| Retained-mode SP2 | RepaintBoundary: per-widget pixel caching |
+| Retained-mode SP3 | scene.Scene integration (tile-parallel rendering, SceneCanvas) |
+| Slider widget | Continuous/discrete, horizontal/vertical, M3 painter |
+| Dialog widget | Modal/modeless, action buttons, focus trapping, M3 painter |
+| Animation engine | Tween, Spring, CubicBezier, M3 tokens, Sequence/Parallel |
+| ScrollView widget | Vertical/horizontal/both, wheel+keyboard+drag, M3 painter |
+| TabView widget | Tab strip, lazy content, closeable tabs, keyboard nav, M3 painter |
+| ListView widget | Virtualized list with recycling, selection, keyboard nav, M3 painter |
+| GridView widget | Virtualized 2D grid with cell recycling |
+| LineChart widget | Data visualization with series, axes, legends |
+| ProgressBar widget | Determinate/indeterminate, linear progress |
+| Progress widget | Circular/spinner progress indicators |
+| Collapsible widget | Expandable/collapsible section with animation |
+| SplitView widget | Resizable split panes (horizontal/vertical) |
+| Popover/Tooltip | Floating content with anchor positioning |
+| Transitions | Enter/exit transition effects for widget animations |
+| Animation Presets | Pre-built animation orchestrations (M3 Motion) |
+| Dirty Region Tracking | Optimized redraw with region-based invalidation |
+| Performance Benchmarks | Comprehensive benchmark suite |
+| HBox direction | Horizontal layout direction in Box |
+| Task Manager Example | Full-featured demo application |
 
 ---
 
-### Phase 4: v1.0
+### Phase 4: v1.0 — In Progress
 
 **Goal:** Production-ready enterprise library
 
-**Tasks (10 tasks, ~23K LOC):**
+**Completed:**
 
-| Task | Description | LOC |
-|------|-------------|-----|
-| TASK-UI-031 | Docking System | 2,500 |
-| TASK-UI-032 | Drag & Drop | 800 |
-| TASK-UI-033 | Accessibility (A11y) - Pure Go AccessKit | 2,200 |
-| TASK-UI-034 | Internationalization (i18n) | 600 |
-| TASK-UI-035 | Fluent Theme | 1,000 |
-| TASK-UI-036 | Cupertino Theme | 1,000 |
-| TASK-UI-037 | Testing Utilities | 800 |
-| TASK-UI-038 | Documentation | 10,000 |
-| TASK-UI-039 | Examples | 3,000 |
-| TASK-UI-040 | Performance Optimization | 1,500 |
+| Task | Description |
+|------|-------------|
+| Fluent Theme | Windows Fluent Design System painters for all widgets |
+| Cupertino Theme | Apple HIG design system painters for all widgets |
+| Typography System | Font registry, weights, styles, families |
+| Icon System | Icon registry, drawing, widget |
+| Internationalization | Locale, direction (LTR/RTL), plural rules, bundles |
+| Drag & Drop | Session management, visual feedback, drop targets |
+| Docking System | DockingHost, Zone, Panel for IDE-style layouts |
+| Testing Utilities | Mock canvas, context, event helpers, assertions |
+| TreeView widget | Hierarchical tree with expand/collapse, node management |
+| DataTable widget | Column-based data display with sorting |
+| Toolbar widget | Action bar with items and overflow |
+| Menu widget | Menu bar, context menu, menu items |
 
-**Deliverables:**
-- IDE-style docking
-- WCAG 2.1 AA compliance
-- Multi-language support
-- 3 theme presets
-- Comprehensive docs
+**Remaining:**
+
+| Task | Description | Priority |
+|------|-------------|----------|
+| Accessibility adapters | Platform-specific AT-SPI / UIA adapters | P1 |
+| Documentation | Comprehensive API docs and guides | P1 |
+| Examples | 10+ example applications | P2 |
+| Performance optimization | Profiling, hot path optimization | P2 |
+| API review | Pre-release API audit and freeze | P0 |
 
 ---
 
 ## Total Scope
 
-| Phase | Tasks | Estimated LOC | Status |
-|-------|-------|---------------|--------|
-| Phase 0 (Foundation) | 5 packages | ~10K | ✅ Complete |
-| Phase 1 (MVP) | 10 | ~12K | ✅ Complete |
-| Phase 1.5 (Extensibility) | 6 | ~9K | ✅ Complete |
-| Phase 2 (Beta) | 16 | ~15K | ✅ Complete (16/16) |
-| Phase 2.5 (Signals) | 5 | ~1.5K | ✅ Complete |
-| Phase 3 (RC) | 19 | ~10K | In Progress (12/19 done) |
-| Phase 4 (v1.0) | 10 | ~24K | Planned |
-| **Total** | **62+** | **~80K LOC** | |
+| Phase | Status |
+|-------|--------|
+| Phase 0 (Foundation) | ✅ Complete |
+| Phase 1 (MVP) | ✅ Complete |
+| Phase 1.5 (Extensibility) | ✅ Complete |
+| Phase 2 (Beta) | ✅ Complete |
+| Phase 2.5 (Signals) | ✅ Complete |
+| Phase 3 (RC) | ✅ Complete |
+| Phase 4 (v1.0) | In Progress (~80%) |
 
 ---
 
@@ -366,6 +298,8 @@ v1.0.0  → Production (when ready)
 | coregx/signals | v0.1.0 | State management | ✅ Integrated |
 | golang.org/x/image | v0.37.0 | Inter font (standard) | ✅ Integrated |
 
+**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.3.0, golang.org/x/text v0.35.0
+
 ---
 
 ## Success Criteria
@@ -376,7 +310,7 @@ v1.0.0  → Production (when ready)
 - <1KB memory per widget
 
 ### Quality
-- 80%+ test coverage (current: 95%+)
+- 80%+ test coverage (current: 97%+)
 - WCAG 2.1 AA compliance
 - Zero known critical bugs
 
