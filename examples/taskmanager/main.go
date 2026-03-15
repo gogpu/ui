@@ -61,14 +61,14 @@ type simState struct {
 	memBar    *progressbar.Widget
 
 	// Current values for reactive text labels.
-	cpuPercent float64
-	memUsedGB  float64
-	memTotalGB float64
-	diskReadMB float64
+	cpuPercent  float64
+	memUsedGB   float64
+	memTotalGB  float64
+	diskReadMB  float64
 	diskWriteMB float64
-	processes  int
-	threads    int
-	cpuSpeed   float64
+	processes   int
+	threads     int
+	cpuSpeed    float64
 
 	// Smoothing state for realistic data simulation.
 	cpuSmooth  float64
