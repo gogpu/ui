@@ -234,6 +234,15 @@ func (w *Window) HandleEvent(e event.Event) {
 	// Dispatch event to root widget.
 	_ = w.root.Event(w.ctx, e)
 
+	// Sync cursor immediately after event dispatch so hover cursor
+	// changes are visible without waiting for the next Frame() tick.
+	// In event-driven mode (ContinuousRender=false), Frame() only
+	// runs when a redraw is needed, but cursor changes from hover
+	// don't trigger redraws.
+	if w.pp != nil {
+		w.syncCursor()
+	}
+
 	// After widget tree processes a mouse press, a widget may have called
 	// ctx.RequestFocus. Sync that to the focus manager so subsequent
 	// Tab navigation starts from the correct position.
