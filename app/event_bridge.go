@@ -71,10 +71,13 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 	es.OnKeyPress(func(key gpucontext.Key, mods gpucontext.Modifiers) {
 		uiKey := translateKey(key)
 		uiMods := translateModifiers(mods)
+		// Synthesize rune from key code as workaround for platforms
+		// that don't provide OnTextInput (e.g., gogpu without CharCallback).
+		r := keyToRune(key, mods)
 		e := event.NewKeyEvent(
 			event.KeyPress,
 			uiKey,
-			0, // rune is delivered via OnTextInput
+			r,
 			uiMods,
 		)
 		w.HandleEvent(e)
@@ -390,6 +393,126 @@ func translateKey(key gpucontext.Key) event.Key {
 	default:
 		return event.KeyUnknown
 	}
+}
+
+// keyToRune synthesizes a rune from a key code and modifiers.
+// This is a workaround for platforms that don't provide OnTextInput/CharCallback.
+// Returns 0 if the key does not map to a printable character.
+//
+//nolint:gocyclo,cyclop // key mapping requires large switch
+func keyToRune(key gpucontext.Key, mods gpucontext.Modifiers) rune {
+	if mods.HasControl() || mods.HasAlt() || mods.HasSuper() {
+		return 0 // modifier combos are not text input
+	}
+	shift := mods.HasShift()
+
+	switch key {
+	case gpucontext.KeyA:
+		return shiftRune('a', 'A', shift)
+	case gpucontext.KeyB:
+		return shiftRune('b', 'B', shift)
+	case gpucontext.KeyC:
+		return shiftRune('c', 'C', shift)
+	case gpucontext.KeyD:
+		return shiftRune('d', 'D', shift)
+	case gpucontext.KeyE:
+		return shiftRune('e', 'E', shift)
+	case gpucontext.KeyF:
+		return shiftRune('f', 'F', shift)
+	case gpucontext.KeyG:
+		return shiftRune('g', 'G', shift)
+	case gpucontext.KeyH:
+		return shiftRune('h', 'H', shift)
+	case gpucontext.KeyI:
+		return shiftRune('i', 'I', shift)
+	case gpucontext.KeyJ:
+		return shiftRune('j', 'J', shift)
+	case gpucontext.KeyK:
+		return shiftRune('k', 'K', shift)
+	case gpucontext.KeyL:
+		return shiftRune('l', 'L', shift)
+	case gpucontext.KeyM:
+		return shiftRune('m', 'M', shift)
+	case gpucontext.KeyN:
+		return shiftRune('n', 'N', shift)
+	case gpucontext.KeyO:
+		return shiftRune('o', 'O', shift)
+	case gpucontext.KeyP:
+		return shiftRune('p', 'P', shift)
+	case gpucontext.KeyQ:
+		return shiftRune('q', 'Q', shift)
+	case gpucontext.KeyR:
+		return shiftRune('r', 'R', shift)
+	case gpucontext.KeyS:
+		return shiftRune('s', 'S', shift)
+	case gpucontext.KeyT:
+		return shiftRune('t', 'T', shift)
+	case gpucontext.KeyU:
+		return shiftRune('u', 'U', shift)
+	case gpucontext.KeyV:
+		return shiftRune('v', 'V', shift)
+	case gpucontext.KeyW:
+		return shiftRune('w', 'W', shift)
+	case gpucontext.KeyX:
+		return shiftRune('x', 'X', shift)
+	case gpucontext.KeyY:
+		return shiftRune('y', 'Y', shift)
+	case gpucontext.KeyZ:
+		return shiftRune('z', 'Z', shift)
+	case gpucontext.Key0:
+		return shiftRune('0', ')', shift)
+	case gpucontext.Key1:
+		return shiftRune('1', '!', shift)
+	case gpucontext.Key2:
+		return shiftRune('2', '@', shift)
+	case gpucontext.Key3:
+		return shiftRune('3', '#', shift)
+	case gpucontext.Key4:
+		return shiftRune('4', '$', shift)
+	case gpucontext.Key5:
+		return shiftRune('5', '%', shift)
+	case gpucontext.Key6:
+		return shiftRune('6', '^', shift)
+	case gpucontext.Key7:
+		return shiftRune('7', '&', shift)
+	case gpucontext.Key8:
+		return shiftRune('8', '*', shift)
+	case gpucontext.Key9:
+		return shiftRune('9', '(', shift)
+	case gpucontext.KeySpace:
+		return ' '
+	case gpucontext.KeyMinus:
+		return shiftRune('-', '_', shift)
+	case gpucontext.KeyEqual:
+		return shiftRune('=', '+', shift)
+	case gpucontext.KeyLeftBracket:
+		return shiftRune('[', '{', shift)
+	case gpucontext.KeyRightBracket:
+		return shiftRune(']', '}', shift)
+	case gpucontext.KeyBackslash:
+		return shiftRune('\\', '|', shift)
+	case gpucontext.KeySemicolon:
+		return shiftRune(';', ':', shift)
+	case gpucontext.KeyApostrophe:
+		return shiftRune('\'', '"', shift)
+	case gpucontext.KeyGrave:
+		return shiftRune('`', '~', shift)
+	case gpucontext.KeyComma:
+		return shiftRune(',', '<', shift)
+	case gpucontext.KeyPeriod:
+		return shiftRune('.', '>', shift)
+	case gpucontext.KeySlash:
+		return shiftRune('/', '?', shift)
+	default:
+		return 0
+	}
+}
+
+func shiftRune(lower, upper rune, shift bool) rune {
+	if shift {
+		return upper
+	}
+	return lower
 }
 
 // translateModifiers converts gpucontext.Modifiers to event.Modifiers.
