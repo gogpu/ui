@@ -92,6 +92,18 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		w.HandleEvent(e)
 	})
 
+	es.OnTextInput(func(text string) {
+		for _, r := range text {
+			e := event.NewKeyEvent(
+				event.KeyPress,
+				event.KeyUnknown,
+				r,
+				event.ModNone,
+			)
+			w.HandleEvent(e)
+		}
+	})
+
 	es.OnScroll(func(dx, dy float64) {
 		delta := geometry.Pt(float32(dx), float32(dy))
 		e := event.NewWheelEvent(
