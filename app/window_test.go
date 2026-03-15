@@ -748,3 +748,253 @@ func TestWindow_LastDrawStats_NoRoot(t *testing.T) {
 		t.Errorf("TotalWidgets = %d, want 0 (no root)", stats.TotalWidgets)
 	}
 }
+
+// --- Focus management tests ---
+
+// focusableMockWidget implements both widget.Widget and widget.Focusable.
+type focusableMockWidget struct {
+	widget.WidgetBase
+	layoutSize geometry.Size
+	name       string
+}
+
+func newFocusableMock(name string) *focusableMockWidget {
+	w := &focusableMockWidget{
+		layoutSize: geometry.Sz(100, 30),
+		name:       name,
+	}
+	w.SetEnabled(true)
+	w.SetVisible(true)
+	return w
+}
+
+func (w *focusableMockWidget) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+	return c.Constrain(w.layoutSize)
+}
+
+func (w *focusableMockWidget) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (w *focusableMockWidget) Event(_ widget.Context, _ event.Event) bool {
+	return false
+}
+
+func (w *focusableMockWidget) IsFocusable() bool {
+	return w.IsEnabled() && w.IsVisible()
+}
+
+// containerMockWidget holds children for focus traversal.
+type containerMockWidget struct {
+	widget.WidgetBase
+	children []widget.Widget
+}
+
+func newContainerMock(children ...widget.Widget) *containerMockWidget {
+	c := &containerMockWidget{children: children}
+	c.SetEnabled(true)
+	c.SetVisible(true)
+	return c
+}
+
+func (c *containerMockWidget) Layout(_ widget.Context, cs geometry.Constraints) geometry.Size {
+	return cs.Constrain(geometry.Sz(400, 300))
+}
+
+func (c *containerMockWidget) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (c *containerMockWidget) Event(_ widget.Context, _ event.Event) bool {
+	return false
+}
+
+func (c *containerMockWidget) Children() []widget.Widget {
+	return c.children
+}
+
+func TestWindow_TabNavigation_ForwardCycle(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	field1 := newFocusableMock("field1")
+	field2 := newFocusableMock("field2")
+	field3 := newFocusableMock("field3")
+	root := newContainerMock(field1, field2, field3)
+
+	w.SetRoot(root)
+	w.Frame() // trigger layout so focus ring is built
+
+	// No widget focused initially.
+	if w.Context().FocusedWidget() != nil {
+		t.Error("no widget should be focused initially")
+	}
+
+	// Tab: focus moves to first focusable widget.
+	tabPress := event.NewKeyEvent(event.KeyPress, event.KeyTab, 0, event.ModNone)
+	w.HandleEvent(tabPress)
+
+	if !field1.IsFocused() {
+		t.Error("field1 should be focused after first Tab")
+	}
+	if w.Context().FocusedWidget() != field1 {
+		t.Error("context should report field1 as focused")
+	}
+
+	// Tab again: focus moves to field2.
+	w.HandleEvent(tabPress)
+	if !field2.IsFocused() {
+		t.Error("field2 should be focused after second Tab")
+	}
+	if field1.IsFocused() {
+		t.Error("field1 should be blurred after second Tab")
+	}
+
+	// Tab again: focus moves to field3.
+	w.HandleEvent(tabPress)
+	if !field3.IsFocused() {
+		t.Error("field3 should be focused after third Tab")
+	}
+
+	// Tab again: wraps to field1.
+	w.HandleEvent(tabPress)
+	if !field1.IsFocused() {
+		t.Error("field1 should be focused after wrap-around Tab")
+	}
+}
+
+func TestWindow_TabNavigation_Backward(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	field1 := newFocusableMock("field1")
+	field2 := newFocusableMock("field2")
+	root := newContainerMock(field1, field2)
+
+	w.SetRoot(root)
+	w.Frame()
+
+	// Shift+Tab with no focus: should focus last widget.
+	shiftTabPress := event.NewKeyEvent(event.KeyPress, event.KeyTab, 0, event.ModShift)
+	w.HandleEvent(shiftTabPress)
+
+	if !field2.IsFocused() {
+		t.Error("field2 should be focused after first Shift+Tab (last focusable)")
+	}
+
+	// Shift+Tab again: moves to field1.
+	w.HandleEvent(shiftTabPress)
+	if !field1.IsFocused() {
+		t.Error("field1 should be focused after second Shift+Tab")
+	}
+	if field2.IsFocused() {
+		t.Error("field2 should be blurred")
+	}
+
+	// Shift+Tab again: wraps to field2.
+	w.HandleEvent(shiftTabPress)
+	if !field2.IsFocused() {
+		t.Error("field2 should be focused after wrap-around Shift+Tab")
+	}
+}
+
+func TestWindow_TabNavigation_NoFocusableWidgets(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	// Root with no focusable children.
+	root := newMockWidget()
+	w.SetRoot(root)
+	w.Frame()
+
+	tabPress := event.NewKeyEvent(event.KeyPress, event.KeyTab, 0, event.ModNone)
+	// Should not panic.
+	w.HandleEvent(tabPress)
+
+	if w.Context().FocusedWidget() != nil {
+		t.Error("no widget should be focused when there are no focusable widgets")
+	}
+}
+
+func TestWindow_TabNavigation_ContextSyncAfterMouseFocus(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	field1 := newFocusableMock("field1")
+	field2 := newFocusableMock("field2")
+	field3 := newFocusableMock("field3")
+	root := newContainerMock(field1, field2, field3)
+
+	w.SetRoot(root)
+	w.Frame()
+
+	// Simulate mouse click focusing field2 via context (as widgets do).
+	w.Context().RequestFocus(field2)
+
+	// Now Tab should move from field2 to field3 (not restart from field1).
+	tabPress := event.NewKeyEvent(event.KeyPress, event.KeyTab, 0, event.ModNone)
+	w.HandleEvent(tabPress)
+
+	if !field3.IsFocused() {
+		t.Errorf("field3 should be focused after Tab from field2; field1=%v field2=%v field3=%v",
+			field1.IsFocused(), field2.IsFocused(), field3.IsFocused())
+	}
+}
+
+func TestWindow_TabNavigation_NonKeyEventsPassThrough(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	field1 := newFocusableMock("field1")
+	root := newContainerMock(field1)
+	w.SetRoot(root)
+	w.Frame()
+
+	// Non-key events should not be intercepted by focus manager.
+	mouseEvent := event.NewMouseEvent(
+		event.MousePress,
+		event.ButtonLeft,
+		event.ButtonStateLeft,
+		geometry.Pt(10, 20),
+		geometry.Pt(10, 20),
+		event.ModNone,
+	)
+	w.HandleEvent(mouseEvent)
+
+	// Field1 should not be focused (mouse events go to widget tree, not focus manager).
+	if field1.IsFocused() {
+		t.Error("mouse event should not trigger focus manager")
+	}
+}
+
+func TestWindow_TabNavigation_KeyReleaseConsumed(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	field1 := newFocusableMock("field1")
+	field2 := newFocusableMock("field2")
+	root := newContainerMock(field1, field2)
+	w.SetRoot(root)
+	w.Frame()
+
+	// Tab press moves focus.
+	tabPress := event.NewKeyEvent(event.KeyPress, event.KeyTab, 0, event.ModNone)
+	w.HandleEvent(tabPress)
+	if !field1.IsFocused() {
+		t.Error("field1 should be focused")
+	}
+
+	// Tab release should also be consumed (not dispatched to widget tree).
+	tabRelease := event.NewKeyEvent(event.KeyRelease, event.KeyTab, 0, event.ModNone)
+	w.HandleEvent(tabRelease)
+
+	// Focus should still be on field1 (release doesn't move focus).
+	if !field1.IsFocused() {
+		t.Error("field1 should still be focused after Tab release")
+	}
+}
+
+func TestWindow_FocusManager_Accessor(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	if w.FocusManager() == nil {
+		t.Error("FocusManager() should not return nil")
+	}
+}

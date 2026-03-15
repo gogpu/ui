@@ -9,6 +9,7 @@ import (
 	ui "github.com/gogpu/ui"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	ifocus "github.com/gogpu/ui/internal/focus"
 	"github.com/gogpu/ui/overlay"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/theme"
@@ -37,6 +38,7 @@ type Window struct {
 	scheduler *state.Scheduler
 	theme     *theme.Theme
 	overlays  *overlay.Stack
+	focusMgr  *ifocus.Manager
 
 	// needsLayout indicates that layout should be recalculated.
 	needsLayout bool
@@ -74,6 +76,7 @@ func newWindow(
 		pp:          pp,
 		scheduler:   scheduler,
 		theme:       t,
+		focusMgr:    ifocus.New(nil),
 		needsLayout: true,
 	}
 
@@ -144,6 +147,10 @@ func (w *Window) SetRoot(root widget.Widget) {
 	w.needsLayout = true
 	w.needsRedraw = true
 
+	// Update focus manager with new root so Tab navigation
+	// traverses the correct widget tree.
+	w.focusMgr.SetRoot(root)
+
 	// Mount new tree and mark all widgets as needing redraw.
 	if w.root != nil {
 		widget.MountTree(w.root, w.ctx)
@@ -181,7 +188,9 @@ func (w *Window) setTheme(t *theme.Theme) {
 //
 // Events are first offered to the overlay stack (top overlay has priority).
 // If no overlay consumes the event (and no modal overlay blocks it),
-// the event is propagated to the root widget.
+// key events are offered to the focus manager for Tab/Shift+Tab navigation
+// and registered shortcuts. Finally, unconsumed events are propagated to
+// the root widget.
 func (w *Window) HandleEvent(e event.Event) {
 	if w.root == nil || e == nil {
 		return
@@ -195,8 +204,25 @@ func (w *Window) HandleEvent(e event.Event) {
 		return
 	}
 
+	// Let focus manager intercept Tab/Shift+Tab and shortcuts.
+	if ke, ok := e.(*event.KeyEvent); ok {
+		w.syncContextFocusToManager()
+
+		if w.focusMgr.HandleKeyEvent(ke) {
+			w.syncManagerFocusToContext()
+			return
+		}
+	}
+
 	// Dispatch event to root widget.
 	_ = w.root.Event(w.ctx, e)
+
+	// After widget tree processes a mouse press, a widget may have called
+	// ctx.RequestFocus. Sync that to the focus manager so subsequent
+	// Tab navigation starts from the correct position.
+	if me, ok := e.(*event.MouseEvent); ok && me.MouseType == event.MousePress {
+		w.syncContextFocusToManager()
+	}
 }
 
 // HandleResize processes a window resize.
@@ -354,6 +380,57 @@ func (w *Window) WindowSize() geometry.Size {
 	return w.windowSize
 }
 
+// syncManagerFocusToContext updates the widget context's focused widget
+// to match the focus manager's state. Called after the focus manager
+// moves focus via Tab/Shift+Tab navigation.
+func (w *Window) syncManagerFocusToContext() {
+	focused := w.focusMgr.Focused()
+	if focused == nil {
+		// Focus manager cleared focus.
+		current := w.ctx.FocusedWidget()
+		if current != nil {
+			w.ctx.ReleaseFocus(current)
+		}
+		return
+	}
+
+	// The Focusable interface doesn't embed Widget, but in practice all
+	// focusable widgets implement Widget (they embed WidgetBase). Use
+	// type assertion to get the Widget interface for the context.
+	if fw, ok := focused.(widget.Widget); ok {
+		w.ctx.RequestFocus(fw)
+	}
+}
+
+// syncContextFocusToManager updates the focus manager's state to match
+// the widget context. Called before Tab processing so navigation starts
+// from the widget that received focus via mouse click or programmatic
+// ctx.RequestFocus.
+func (w *Window) syncContextFocusToManager() {
+	ctxFocused := w.ctx.FocusedWidget()
+	mgrFocused := w.focusMgr.Focused()
+
+	// Check if they already agree.
+	if ctxFocused == nil && mgrFocused == nil {
+		return
+	}
+
+	// If context has a focused widget, sync it to the manager.
+	if ctxFocused != nil {
+		if f, ok := ctxFocused.(widget.Focusable); ok {
+			if mgrFocused != f {
+				w.focusMgr.Focus(f)
+			}
+			return
+		}
+	}
+
+	// Context has no focus (or non-focusable widget); clear manager focus.
+	if mgrFocused != nil {
+		w.focusMgr.Blur()
+	}
+}
+
 // layout performs the layout pass on the widget tree and overlays.
 func (w *Window) layout() {
 	if w.root == nil {
@@ -376,6 +453,11 @@ func (w *Window) layout() {
 
 	// Layout overlays with window-sized constraints.
 	w.overlays.Layout(w.ctx, w.windowSize)
+
+	// Refresh focus manager's root after layout so the focusable
+	// widget list reflects any tree changes (widgets added/removed,
+	// visibility/enabled state changes).
+	w.focusMgr.SetRoot(w.root)
 }
 
 // draw performs the draw pass on the widget tree in headless mode.
@@ -480,6 +562,14 @@ func (w *Window) updateWindowSize() {
 // Overlays returns the window's overlay stack.
 func (w *Window) Overlays() *overlay.Stack {
 	return w.overlays
+}
+
+// FocusManager returns the window's focus manager.
+//
+// The focus manager handles Tab/Shift+Tab navigation between focusable
+// widgets and supports registering global keyboard shortcuts.
+func (w *Window) FocusManager() *ifocus.Manager {
+	return w.focusMgr
 }
 
 // windowOverlayManager adapts the Window's overlay.Stack to the
