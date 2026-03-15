@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Event Coordinate Transform — TASK-UI-066)
+- **ScrollView event dispatch** — mouse/wheel coordinates now transformed from screen
+  space to content space before dispatching to children. Fixes click hit-testing for
+  widgets inside scrolled containers. Removed redundant transforms from ListView/DataTable.
+
+### Changed (Dependencies)
+- **gogpu** v0.24.0 → **v0.24.1**
+
 ### Added (Screen-Space Coordinates — TASK-UI-065)
 - **ScreenBounds** (`widget/base.go`) — screen-space coordinate transform for overlay
   positioning inside ScrollView. Draw-pass transform stamping via `Canvas.TransformOffset()`
