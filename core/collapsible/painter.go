@@ -86,28 +86,26 @@ func applyStateModifier(base widget.Color, hovered, pressed bool) widget.Color {
 	return base
 }
 
-// drawArrow draws a triangular arrow indicator.
-// progress 0.0 = right-pointing, 1.0 = down-pointing.
+// drawArrow draws a chevron arrow indicator.
+// progress 0.0 = right-pointing (>), 1.0 = down-pointing (v).
 func drawArrow(canvas widget.Canvas, headerBounds geometry.Rect, color widget.Color, progress float32) {
 	h := headerBounds.Height()
 	arrowSize := h * arrowSizeRatio
 	cx := headerBounds.Min.X + arrowPadding + arrowSize/2
 	cy := headerBounds.Min.Y + h/2
 
-	// Interpolate between right arrow (>) and down arrow (v).
-	// Right arrow: tip right, base left.
-	// Down arrow: tip down, base top.
 	half := arrowSize / 2
+	t := progress // 0=right, 1=down
 
-	// Right arrow points: left-top, right-center, left-bottom.
-	// Down arrow points: left-top, center-bottom, right-top.
-	// We interpolate between these.
-	p1x := cx - half + progress*half
-	p1y := cy - half + progress*half
-	p2x := cx + half - progress*half*2
-	p2y := cy + progress*half
-	p3x := cx - half + progress*half*2
-	p3y := cy + half - progress*half
+	// Right chevron (>):  p1(cx-half, cy-half) → p2(cx+half, cy) → p3(cx-half, cy+half)
+	// Down chevron  (v):  p1(cx-half, cy-half) → p2(cx, cy+half) → p3(cx+half, cy-half)
+	// Lerp each point between the two states.
+	p1x := cx - half
+	p1y := cy - half
+	p2x := cx + half*(1-t)
+	p2y := cy + half*t
+	p3x := cx - half + half*2*t
+	p3y := cy + half*(1-t*2)
 
 	canvas.DrawLine(geometry.Pt(p1x, p1y), geometry.Pt(p2x, p2y), color, arrowStrokeWidth)
 	canvas.DrawLine(geometry.Pt(p2x, p2y), geometry.Pt(p3x, p3y), color, arrowStrokeWidth)
