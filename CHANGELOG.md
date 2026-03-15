@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 4 — Continued)
+- **Docking System** (`core/docking/`) — IDE-style dockable panels with border layout
+  (Left/Right/Top/Bottom/Center zones), tabbed panel groups, auto-collapse empty zones,
+  Dock/Undock/MovePanel API. 62 tests, 95.3%
+- **Testing Utilities** (`uitest/`) — reusable MockCanvas (records all draw calls),
+  MockContext, event factories, widget helpers, custom assertions. Replaces 30+ duplicate
+  mocks across test files. 53 tests, 93.1%
+
 ### Added (Phase 4 Infrastructure)
 - **Font Registry** (`theme/font/`) — CSS font-weight matching algorithm (W3C spec),
   Weight (100-900), Style (Normal/Italic), Family/Face, thread-safe Registry. 20 tests, 97.7%
