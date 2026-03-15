@@ -530,14 +530,137 @@ func TestSetFrameCallback_NilWindow(t *testing.T) {
 
 // Verify compile-time interface satisfaction for mocks.
 var (
-	_ gpucontext.WindowProvider   = (*mockWindowProvider)(nil)
-	_ gpucontext.PlatformProvider = (*mockPlatformProvider)(nil)
-	_ gpucontext.EventSource      = (*mockEventSource)(nil)
-	_ widget.Canvas               = (*mockCanvas)(nil)
-	_ widget.Widget               = (*mockWidget)(nil)
-	_ widget.Widget               = (*cursorSettingWidget)(nil)
-	_ widget.Widget               = (*cursorSettingOnLayoutWidget)(nil)
+	_ gpucontext.WindowProvider     = (*mockWindowProvider)(nil)
+	_ gpucontext.PlatformProvider   = (*mockPlatformProvider)(nil)
+	_ gpucontext.EventSource        = (*mockEventSource)(nil)
+	_ gpucontext.PointerEventSource = (*mockEventSource)(nil)
+	_ widget.Canvas                 = (*mockCanvas)(nil)
+	_ widget.Widget                 = (*mockWidget)(nil)
+	_ widget.Widget                 = (*cursorSettingWidget)(nil)
+	_ widget.Widget                 = (*cursorSettingOnLayoutWidget)(nil)
 )
+
+// --- PointerEventSource tests ---
+
+func TestEventBridge_PointerEnter(t *testing.T) {
+	es := &mockEventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+
+	if es.onPointer == nil {
+		t.Fatal("OnPointer was not registered")
+	}
+
+	es.onPointer(gpucontext.PointerEvent{
+		Type:        gpucontext.PointerEnter,
+		X:           100.0,
+		Y:           200.0,
+		PointerType: gpucontext.PointerTypeMouse,
+		IsPrimary:   true,
+		Modifiers:   gpucontext.ModShift,
+	})
+
+	if !root.eventCalled {
+		t.Fatal("PointerEnter event not dispatched")
+	}
+	me, ok := root.lastEvent.(*event.MouseEvent)
+	if !ok {
+		t.Fatal("expected MouseEvent")
+	}
+	if me.MouseType != event.MouseEnter {
+		t.Errorf("mouse type = %v, want Enter", me.MouseType)
+	}
+	if me.Position.X != 100.0 || me.Position.Y != 200.0 {
+		t.Errorf("position = %v, want (100, 200)", me.Position)
+	}
+	if !me.Modifiers().IsShift() {
+		t.Error("expected Shift modifier")
+	}
+}
+
+func TestEventBridge_PointerLeave(t *testing.T) {
+	es := &mockEventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+
+	es.onPointer(gpucontext.PointerEvent{
+		Type:        gpucontext.PointerLeave,
+		X:           0.0,
+		Y:           0.0,
+		PointerType: gpucontext.PointerTypeMouse,
+		IsPrimary:   true,
+	})
+
+	if !root.eventCalled {
+		t.Fatal("PointerLeave event not dispatched")
+	}
+	me, ok := root.lastEvent.(*event.MouseEvent)
+	if !ok {
+		t.Fatal("expected MouseEvent")
+	}
+	if me.MouseType != event.MouseLeave {
+		t.Errorf("mouse type = %v, want Leave", me.MouseType)
+	}
+}
+
+func TestEventBridge_PointerMove_Ignored(t *testing.T) {
+	es := &mockEventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+
+	// PointerMove should be ignored (already handled by OnMouseMove).
+	es.onPointer(gpucontext.PointerEvent{
+		Type: gpucontext.PointerMove,
+		X:    50.0,
+		Y:    50.0,
+	})
+
+	if root.eventCalled {
+		t.Error("PointerMove should not dispatch via OnPointer (handled by OnMouseMove)")
+	}
+}
+
+func TestEventBridge_PointerEnter_UpdatesLastMousePos(t *testing.T) {
+	es := &mockEventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+
+	// PointerEnter should update lastMousePos so subsequent scroll events
+	// carry the correct position.
+	es.onPointer(gpucontext.PointerEvent{
+		Type: gpucontext.PointerEnter,
+		X:    300.0,
+		Y:    400.0,
+	})
+
+	// Reset event tracking.
+	root.eventCalled = false
+	root.lastEvent = nil
+
+	// Scroll should use the position from PointerEnter.
+	es.onScroll(0.0, -1.0)
+
+	we, ok := root.lastEvent.(*event.WheelEvent)
+	if !ok {
+		t.Fatal("expected WheelEvent")
+	}
+	if we.Position.X != 300.0 || we.Position.Y != 400.0 {
+		t.Errorf("wheel position = %v, want (300, 400)", we.Position)
+	}
+}
+
+func TestEventBridge_PointerEventSource_Registration(t *testing.T) {
+	es := &mockEventSource{}
+	_ = New(WithEventSource(es))
+
+	if es.onPointer == nil {
+		t.Error("OnPointer callback was not registered")
+	}
+}
 
 // Verify no unused imports by using geometry in a test.
 var _ = geometry.Pt(0, 0)

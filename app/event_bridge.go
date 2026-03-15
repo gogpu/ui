@@ -125,6 +125,57 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 	es.OnFocus(func(focused bool) {
 		w.HandleFocusChange(focused)
 	})
+
+	// Wire W3C Pointer Events for Enter/Leave (cursor/hover support).
+	attachPointerBridge(es, w, &pressedButtons, &lastMousePos)
+}
+
+// attachPointerBridge wires W3C PointerEventSource for Enter/Leave events.
+//
+// The platform generates PointerEnter when the mouse enters the window
+// and PointerLeave when it leaves. These are essential for resetting
+// hover state when the mouse exits the window entirely.
+//
+// PointerMove/Down/Up are already handled by the legacy OnMouseMove,
+// OnMousePress, and OnMouseRelease callbacks, so only Enter and Leave
+// are handled here to avoid duplicate event dispatch.
+func attachPointerBridge(
+	es gpucontext.EventSource,
+	w *Window,
+	pressedButtons *event.ButtonState,
+	lastMousePos *geometry.Point,
+) {
+	pes, ok := es.(gpucontext.PointerEventSource)
+	if !ok {
+		return
+	}
+
+	pes.OnPointer(func(ev gpucontext.PointerEvent) {
+		switch ev.Type {
+		case gpucontext.PointerEnter:
+			pos := geometry.Pt(float32(ev.X), float32(ev.Y))
+			*lastMousePos = pos
+			e := event.NewMouseEvent(
+				event.MouseEnter,
+				event.ButtonNone,
+				*pressedButtons,
+				pos, pos,
+				translateModifiers(ev.Modifiers),
+			)
+			w.HandleEvent(e)
+
+		case gpucontext.PointerLeave:
+			pos := geometry.Pt(float32(ev.X), float32(ev.Y))
+			e := event.NewMouseEvent(
+				event.MouseLeave,
+				event.ButtonNone,
+				*pressedButtons,
+				pos, pos,
+				translateModifiers(ev.Modifiers),
+			)
+			w.HandleEvent(e)
+		}
+	})
 }
 
 // translateMouseButton converts gpucontext.MouseButton to event.Button.

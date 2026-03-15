@@ -54,6 +54,11 @@ type Window struct {
 	// draw traversal. Updated by DrawTo() and the headless draw() path.
 	lastDrawStats widget.DrawStats
 
+	// hoveredWidget tracks the widget currently under the mouse pointer.
+	// Used for sending MouseEnter/MouseLeave events to individual widgets
+	// as the mouse moves across the widget tree.
+	hoveredWidget widget.Widget
+
 	// windowSize tracks the last known window size in physical pixels.
 	windowSize geometry.Size
 
@@ -211,6 +216,18 @@ func (w *Window) HandleEvent(e event.Event) {
 		if w.focusMgr.HandleKeyEvent(ke) {
 			w.syncManagerFocusToContext()
 			return
+		}
+	}
+
+	// Track widget-level hover for MouseEnter/MouseLeave dispatch.
+	if me, ok := e.(*event.MouseEvent); ok {
+		switch me.MouseType {
+		case event.MouseMove:
+			w.updateHover(me.Position, me.Buttons, me.Modifiers())
+		case event.MouseLeave:
+			// Mouse left the window entirely — clear hover state.
+			// The window-level leave event still propagates to the root below.
+			w.clearHover(me.Buttons, me.Modifiers())
 		}
 	}
 
@@ -614,6 +631,111 @@ func (m *windowOverlayManager) RemoveOverlay(w widget.Widget) {
 
 // Compile-time check.
 var _ widget.OverlayManager = (*windowOverlayManager)(nil)
+
+// updateHover performs hit-testing to find the widget under the mouse and
+// sends MouseEnter/MouseLeave events to individual widgets as the mouse
+// moves across the widget tree.
+//
+// This uses ScreenBounds (computed during the Draw pass) for correct
+// coordinate mapping, which accounts for scroll offsets, box positions,
+// and all parent transforms.
+func (w *Window) updateHover(pos geometry.Point, buttons event.ButtonState, mods event.Modifiers) {
+	target := hitTest(w.root, pos)
+	if target == w.hoveredWidget {
+		return
+	}
+
+	// Send MouseLeave to the old hovered widget.
+	if w.hoveredWidget != nil {
+		leave := event.NewMouseEvent(
+			event.MouseLeave,
+			event.ButtonNone,
+			buttons,
+			pos, pos,
+			mods,
+		)
+		_ = w.hoveredWidget.Event(w.ctx, leave)
+	}
+
+	// Send MouseEnter to the new hovered widget.
+	if target != nil {
+		enter := event.NewMouseEvent(
+			event.MouseEnter,
+			event.ButtonNone,
+			buttons,
+			pos, pos,
+			mods,
+		)
+		_ = target.Event(w.ctx, enter)
+	}
+
+	w.hoveredWidget = target
+}
+
+// clearHover sends MouseLeave to the currently hovered widget and clears
+// the hover state. Called when the mouse leaves the window entirely.
+func (w *Window) clearHover(buttons event.ButtonState, mods event.Modifiers) {
+	if w.hoveredWidget == nil {
+		return
+	}
+
+	leave := event.NewMouseEvent(
+		event.MouseLeave,
+		event.ButtonNone,
+		buttons,
+		geometry.Point{}, geometry.Point{},
+		mods,
+	)
+	_ = w.hoveredWidget.Event(w.ctx, leave)
+	w.hoveredWidget = nil
+}
+
+// HoveredWidget returns the widget currently under the mouse pointer,
+// or nil if no widget is hovered.
+func (w *Window) HoveredWidget() widget.Widget {
+	return w.hoveredWidget
+}
+
+// hitTest walks the widget tree depth-first and returns the deepest
+// visible widget whose ScreenBounds contains the given position.
+//
+// Children are checked in reverse order (top-most first in z-order)
+// so that overlapping widgets receive events correctly.
+// Returns nil if no widget contains the point.
+func hitTest(root widget.Widget, pos geometry.Point) widget.Widget {
+	if root == nil {
+		return nil
+	}
+	return hitTestRecursive(root, pos)
+}
+
+// hitTestRecursive performs the recursive depth-first search.
+func hitTestRecursive(w widget.Widget, pos geometry.Point) widget.Widget {
+	// Check visibility — invisible widgets don't receive hover events.
+	if base, ok := w.(interface{ IsVisible() bool }); ok && !base.IsVisible() {
+		return nil
+	}
+
+	// Check if this widget's ScreenBounds contains the position.
+	if sb, ok := w.(interface{ ScreenBounds() geometry.Rect }); ok {
+		bounds := sb.ScreenBounds()
+		if !bounds.Contains(pos) {
+			return nil
+		}
+	}
+
+	// Check children in reverse order (topmost first).
+	children := w.Children()
+	for i := len(children) - 1; i >= 0; i-- {
+		child := children[i]
+		if hit := hitTestRecursive(child, pos); hit != nil {
+			return hit
+		}
+	}
+
+	// No child hit — this widget itself is the target.
+	return w
+}
 
 // widgetCursorToPlatform converts a widget.CursorType to gpucontext.CursorShape.
 func widgetCursorToPlatform(c widget.CursorType) gpucontext.CursorShape {

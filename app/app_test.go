@@ -79,7 +79,7 @@ func (m *mockPlatformProvider) ReduceMotion() bool { return false }
 func (m *mockPlatformProvider) HighContrast() bool { return false }
 func (m *mockPlatformProvider) FontScale() float32 { return m.fontScale }
 
-// mockEventSource implements gpucontext.EventSource for testing.
+// mockEventSource implements gpucontext.EventSource and gpucontext.PointerEventSource for testing.
 type mockEventSource struct {
 	onKeyPress            func(gpucontext.Key, gpucontext.Modifiers)
 	onKeyRelease          func(gpucontext.Key, gpucontext.Modifiers)
@@ -92,6 +92,7 @@ type mockEventSource struct {
 	onFocus               func(bool)
 	onIMECompositionStart func()
 	onIMECompositionEnd   func(string)
+	onPointer             func(gpucontext.PointerEvent)
 }
 
 func (m *mockEventSource) OnKeyPress(fn func(gpucontext.Key, gpucontext.Modifiers)) {
@@ -127,6 +128,9 @@ func (m *mockEventSource) OnIMECompositionStart(fn func()) {
 func (m *mockEventSource) OnIMECompositionUpdate(func(gpucontext.IMEState)) {}
 func (m *mockEventSource) OnIMECompositionEnd(fn func(string)) {
 	m.onIMECompositionEnd = fn
+}
+func (m *mockEventSource) OnPointer(fn func(gpucontext.PointerEvent)) {
+	m.onPointer = fn
 }
 
 // --- App tests ---

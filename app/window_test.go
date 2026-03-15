@@ -1003,3 +1003,297 @@ func TestWindow_FocusManager_Accessor(t *testing.T) {
 		t.Error("FocusManager() should not return nil")
 	}
 }
+
+// --- Hover tracking tests ---
+
+// hoverTrackingWidget records MouseEnter/MouseLeave events.
+type hoverTrackingWidget struct {
+	widget.WidgetBase
+	enterCount int
+	leaveCount int
+	layoutSize geometry.Size
+}
+
+func newHoverWidget(r geometry.Rect) *hoverTrackingWidget {
+	h := &hoverTrackingWidget{
+		layoutSize: r.Size(),
+	}
+	h.SetVisible(true)
+	h.SetEnabled(true)
+	h.SetBounds(r)
+	// Set screen origin to match bounds for hit testing.
+	h.SetScreenOrigin(r.Min)
+	return h
+}
+
+func (h *hoverTrackingWidget) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+	return c.Constrain(h.layoutSize)
+}
+
+func (h *hoverTrackingWidget) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (h *hoverTrackingWidget) Event(_ widget.Context, e event.Event) bool {
+	if me, ok := e.(*event.MouseEvent); ok {
+		switch me.MouseType {
+		case event.MouseEnter:
+			h.enterCount++
+			return true
+		case event.MouseLeave:
+			h.leaveCount++
+			return true
+		}
+	}
+	return false
+}
+
+// hoverContainer holds children for hover test scenarios.
+type hoverContainer struct {
+	widget.WidgetBase
+	kids []widget.Widget
+}
+
+func newHoverContainer(children ...widget.Widget) *hoverContainer {
+	c := &hoverContainer{kids: children}
+	c.SetVisible(true)
+	c.SetEnabled(true)
+	c.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	c.SetScreenOrigin(geometry.Pt(0, 0))
+	return c
+}
+
+func (c *hoverContainer) Layout(_ widget.Context, cs geometry.Constraints) geometry.Size {
+	return cs.Constrain(geometry.Sz(800, 600))
+}
+
+func (c *hoverContainer) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (c *hoverContainer) Event(_ widget.Context, _ event.Event) bool {
+	return false
+}
+
+func (c *hoverContainer) Children() []widget.Widget {
+	return c.kids
+}
+
+func TestWindow_HoverTracking_EnterWidget(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	btn := newHoverWidget(geometry.NewRect(10, 10, 110, 50))
+	root := newHoverContainer(btn)
+	w.SetRoot(root)
+
+	// Move mouse into the button's ScreenBounds.
+	moveEvent := event.NewMouseEvent(
+		event.MouseMove,
+		event.ButtonNone,
+		0,
+		geometry.Pt(50, 30),
+		geometry.Pt(50, 30),
+		event.ModNone,
+	)
+	w.HandleEvent(moveEvent)
+
+	if btn.enterCount != 1 {
+		t.Errorf("enterCount = %d, want 1", btn.enterCount)
+	}
+	if w.HoveredWidget() != btn {
+		t.Error("hovered widget should be the button")
+	}
+}
+
+func TestWindow_HoverTracking_LeaveWidget(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	btn := newHoverWidget(geometry.NewRect(10, 10, 110, 50))
+	root := newHoverContainer(btn)
+	w.SetRoot(root)
+
+	// Enter the button.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone,
+	))
+
+	// Move outside the button (but inside the container).
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(200, 200), geometry.Pt(200, 200), event.ModNone,
+	))
+
+	if btn.leaveCount != 1 {
+		t.Errorf("leaveCount = %d, want 1", btn.leaveCount)
+	}
+	// Hover should now be on the container (root).
+	if w.HoveredWidget() == btn {
+		t.Error("hovered widget should no longer be the button")
+	}
+}
+
+func TestWindow_HoverTracking_MoveWithinSameWidget(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	btn := newHoverWidget(geometry.NewRect(10, 10, 110, 50))
+	root := newHoverContainer(btn)
+	w.SetRoot(root)
+
+	// Move inside the button twice — should only generate one Enter.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(20, 20), geometry.Pt(20, 20), event.ModNone,
+	))
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(30, 30), geometry.Pt(30, 30), event.ModNone,
+	))
+
+	if btn.enterCount != 1 {
+		t.Errorf("enterCount = %d, want 1 (no duplicate Enter)", btn.enterCount)
+	}
+	if btn.leaveCount != 0 {
+		t.Errorf("leaveCount = %d, want 0", btn.leaveCount)
+	}
+}
+
+func TestWindow_HoverTracking_WindowLeave(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	btn := newHoverWidget(geometry.NewRect(10, 10, 110, 50))
+	root := newHoverContainer(btn)
+	w.SetRoot(root)
+
+	// Enter the button.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone,
+	))
+
+	// Mouse leaves the window entirely.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseLeave, event.ButtonNone, 0,
+		geometry.Pt(0, 0), geometry.Pt(0, 0), event.ModNone,
+	))
+
+	if btn.leaveCount != 1 {
+		t.Errorf("leaveCount = %d, want 1 (window leave should clear hover)", btn.leaveCount)
+	}
+	if w.HoveredWidget() != nil {
+		t.Error("hovered widget should be nil after window leave")
+	}
+}
+
+func TestWindow_HoverTracking_SwitchBetweenWidgets(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	btn1 := newHoverWidget(geometry.NewRect(10, 10, 110, 50))
+	btn2 := newHoverWidget(geometry.NewRect(10, 60, 110, 100))
+	root := newHoverContainer(btn1, btn2)
+	w.SetRoot(root)
+
+	// Enter btn1.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone,
+	))
+
+	if btn1.enterCount != 1 {
+		t.Errorf("btn1 enterCount = %d, want 1", btn1.enterCount)
+	}
+
+	// Move to btn2.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 80), geometry.Pt(50, 80), event.ModNone,
+	))
+
+	if btn1.leaveCount != 1 {
+		t.Errorf("btn1 leaveCount = %d, want 1", btn1.leaveCount)
+	}
+	if btn2.enterCount != 1 {
+		t.Errorf("btn2 enterCount = %d, want 1", btn2.enterCount)
+	}
+	if w.HoveredWidget() != btn2 {
+		t.Error("hovered widget should be btn2")
+	}
+}
+
+func TestWindow_HoverTracking_InvisibleWidgetSkipped(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	btn := newHoverWidget(geometry.NewRect(10, 10, 110, 50))
+	btn.SetVisible(false)
+	root := newHoverContainer(btn)
+	w.SetRoot(root)
+
+	// Move into where the button would be — it's invisible.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone,
+	))
+
+	if btn.enterCount != 0 {
+		t.Errorf("enterCount = %d, want 0 (invisible widget)", btn.enterCount)
+	}
+	// Should hover the container instead.
+	if w.HoveredWidget() == btn {
+		t.Error("invisible widget should not receive hover")
+	}
+}
+
+func TestWindow_HoverTracking_NoRoot(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	// Should not panic with no root.
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone,
+	))
+
+	if w.HoveredWidget() != nil {
+		t.Error("hovered widget should be nil with no root")
+	}
+}
+
+func TestHitTest_Nil(t *testing.T) {
+	result := hitTest(nil, geometry.Pt(10, 10))
+	if result != nil {
+		t.Error("hitTest(nil, ...) should return nil")
+	}
+}
+
+func TestHitTest_OutsideBounds(t *testing.T) {
+	btn := newHoverWidget(geometry.NewRect(50, 10, 150, 50))
+	result := hitTest(btn, geometry.Pt(200, 200))
+	if result != nil {
+		t.Error("hitTest should return nil when point is outside bounds")
+	}
+}
+
+func TestHitTest_DeepestChild(t *testing.T) {
+	// Container with a child — hit test should return the deepest widget.
+	child := newHoverWidget(geometry.NewRect(30, 10, 130, 50))
+	root := newHoverContainer(child)
+
+	result := hitTest(root, geometry.Pt(70, 30))
+	if result != child {
+		t.Errorf("hitTest should return deepest child, got %T", result)
+	}
+}
+
+func TestHitTest_ReverseZOrder(t *testing.T) {
+	// Two overlapping children — last child (higher z-order) should win.
+	child1 := newHoverWidget(geometry.NewRect(20, 10, 120, 50))
+	child2 := newHoverWidget(geometry.NewRect(20, 10, 120, 50)) // Same bounds, higher z-order
+	root := newHoverContainer(child1, child2)
+
+	result := hitTest(root, geometry.Pt(60, 30))
+	if result != child2 {
+		t.Error("hitTest should return the topmost (last) child for overlapping widgets")
+	}
+}
