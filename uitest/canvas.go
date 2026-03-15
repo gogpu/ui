@@ -137,6 +137,11 @@ type MockCanvas struct {
 
 	// PopTransformCount tracks how many times PopTransform was called.
 	PopTransformCount int
+
+	// transformStack tracks cumulative offsets for TransformOffset().
+	transformStack []geometry.Point
+	// currentOffset is the current cumulative transform offset.
+	currentOffset geometry.Point
 }
 
 // Clear records the color argument.
@@ -216,14 +221,26 @@ func (c *MockCanvas) PopClip() {
 	c.PopClipCount++
 }
 
-// PushTransform records the translation offset.
+// PushTransform records the translation offset and updates the cumulative offset.
 func (c *MockCanvas) PushTransform(offset geometry.Point) {
 	c.Transforms = append(c.Transforms, offset)
+	c.transformStack = append(c.transformStack, c.currentOffset)
+	c.currentOffset = c.currentOffset.Add(offset)
 }
 
-// PopTransform increments the pop transform counter.
+// PopTransform restores the previous transform offset.
 func (c *MockCanvas) PopTransform() {
 	c.PopTransformCount++
+	if len(c.transformStack) > 0 {
+		lastIdx := len(c.transformStack) - 1
+		c.currentOffset = c.transformStack[lastIdx]
+		c.transformStack = c.transformStack[:lastIdx]
+	}
+}
+
+// TransformOffset returns the current cumulative transform offset.
+func (c *MockCanvas) TransformOffset() geometry.Point {
+	return c.currentOffset
 }
 
 // Reset clears all recorded calls, returning the canvas to its initial state.
@@ -243,6 +260,8 @@ func (c *MockCanvas) Reset() {
 	c.Transforms = c.Transforms[:0]
 	c.PopClipCount = 0
 	c.PopTransformCount = 0
+	c.transformStack = c.transformStack[:0]
+	c.currentOffset = geometry.Point{}
 }
 
 // TotalDrawCalls returns the total number of recorded draw operations

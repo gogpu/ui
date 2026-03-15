@@ -148,6 +148,16 @@ type Canvas interface {
 	//
 	// Must be called for each PushTransform call.
 	PopTransform()
+
+	// TransformOffset returns the current cumulative transform offset.
+	//
+	// This is the total translation applied by all PushTransform calls
+	// currently on the transform stack. It represents the mapping from
+	// local widget coordinates to window (screen) coordinates.
+	//
+	// Used by [StampScreenOrigin] to compute a widget's screen-space
+	// position during the Draw pass.
+	TransformOffset() geometry.Point
 }
 
 // Color represents an RGBA color with float32 components.

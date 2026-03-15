@@ -460,6 +460,9 @@ func TestWidgetBase_CoordinateTransform(t *testing.T) {
 	w := NewWidgetBase()
 	w.SetBounds(geometry.NewRect(100, 200, 50, 50))
 
+	// Set screen origin (as the framework would during Draw)
+	w.SetScreenOrigin(geometry.Pt(100, 200))
+
 	// Local to global
 	local := geometry.Pt(10, 20)
 	global := w.LocalToGlobal(local)
@@ -472,6 +475,52 @@ func TestWidgetBase_CoordinateTransform(t *testing.T) {
 	gotLocal := w.GlobalToLocal(global)
 	if gotLocal != local {
 		t.Errorf("GlobalToLocal(%v) = %v, want %v", global, gotLocal, local)
+	}
+}
+
+func TestWidgetBase_ScreenOrigin(t *testing.T) {
+	w := NewWidgetBase()
+	w.SetBounds(geometry.NewRect(10, 20, 80, 40))
+
+	// Before any Draw pass, screen origin is zero.
+	if got := w.ScreenOrigin(); got != (geometry.Point{}) {
+		t.Errorf("ScreenOrigin before Draw = %v, want (0,0)", got)
+	}
+
+	// ScreenBounds before Draw uses zero origin.
+	sb := w.ScreenBounds()
+	if sb.Min != (geometry.Point{}) {
+		t.Errorf("ScreenBounds.Min before Draw = %v, want (0,0)", sb.Min)
+	}
+	if sb.Width() != 80 || sb.Height() != 40 {
+		t.Errorf("ScreenBounds size = (%v,%v), want (80,40)", sb.Width(), sb.Height())
+	}
+
+	// After the framework stamps screen origin during Draw
+	w.SetScreenOrigin(geometry.Pt(50, 100))
+	if got := w.ScreenOrigin(); got != (geometry.Pt(50, 100)) {
+		t.Errorf("ScreenOrigin = %v, want (50,100)", got)
+	}
+
+	sb = w.ScreenBounds()
+	if sb.Min != (geometry.Pt(50, 100)) {
+		t.Errorf("ScreenBounds.Min = %v, want (50,100)", sb.Min)
+	}
+	if sb.Max != (geometry.Pt(130, 140)) {
+		t.Errorf("ScreenBounds.Max = %v, want (130,140)", sb.Max)
+	}
+}
+
+func TestWidgetBase_CoordinateTransformBeforeDraw(t *testing.T) {
+	// Before Draw pass, screenOrigin is zero, so LocalToGlobal
+	// returns the point unchanged.
+	w := NewWidgetBase()
+	w.SetBounds(geometry.NewRect(100, 200, 50, 50))
+
+	local := geometry.Pt(10, 20)
+	global := w.LocalToGlobal(local)
+	if global != local {
+		t.Errorf("LocalToGlobal before Draw = %v, want %v (screenOrigin is zero)", global, local)
 	}
 }
 

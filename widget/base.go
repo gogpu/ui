@@ -22,6 +22,7 @@ type Stopper interface {
 //
 // Embed this struct in custom widget implementations to get:
 //   - Bounds tracking (position and size)
+//   - Screen-space coordinate tracking
 //   - Focus state management
 //   - Visibility control
 //   - Enabled/disabled state
@@ -51,18 +52,19 @@ type Stopper interface {
 // should occur on the main/UI thread. The mutex is provided for cases
 // where properties need to be queried from callbacks.
 type WidgetBase struct {
-	mu          sync.RWMutex
-	bounds      geometry.Rect // Cached layout bounds
-	focused     bool          // Whether widget has focus
-	visible     bool          // Whether widget is visible
-	enabled     bool          // Whether widget accepts input
-	needsRedraw bool          // Whether widget needs re-rendering (retained mode)
-	id          string        // Optional ID for debugging
-	children    []Widget      // Child widgets
-	parent      Widget        // Parent widget (if any)
-	bindings    []Unbinder    // Signal bindings (cleaned up on unmount)
-	effects     []Stopper     // Effects (stopped on unmount)
-	mounted     bool          // Whether widget is currently mounted
+	mu           sync.RWMutex
+	bounds       geometry.Rect  // Cached layout bounds
+	screenOrigin geometry.Point // Window-space origin, set during Draw pass
+	focused      bool           // Whether widget has focus
+	visible      bool           // Whether widget is visible
+	enabled      bool           // Whether widget accepts input
+	needsRedraw  bool           // Whether widget needs re-rendering (retained mode)
+	id           string         // Optional ID for debugging
+	children     []Widget       // Child widgets
+	parent       Widget         // Parent widget (if any)
+	bindings     []Unbinder     // Signal bindings (cleaned up on unmount)
+	effects      []Stopper      // Effects (stopped on unmount)
+	mounted      bool           // Whether widget is currently mounted
 }
 
 // NewWidgetBase creates a new WidgetBase with default settings.
@@ -334,24 +336,77 @@ func (w *WidgetBase) ContainsPoint(p geometry.Point) bool {
 	return w.bounds.Contains(p)
 }
 
+// ScreenOrigin returns the widget's top-left corner in window (screen) coordinates.
+//
+// This value is computed during the Draw pass by the framework via
+// [StampScreenOrigin], reflecting all accumulated transforms from parent
+// containers (scroll offsets, box positions, etc.).
+//
+// Before the first Draw pass completes, this returns the zero point.
+func (w *WidgetBase) ScreenOrigin() geometry.Point {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.screenOrigin
+}
+
+// SetScreenOrigin records the widget's window-space origin.
+//
+// This is called by the framework during the Draw pass via [StampScreenOrigin].
+// User code should not call this method directly.
+func (w *WidgetBase) SetScreenOrigin(origin geometry.Point) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.screenOrigin = origin
+}
+
+// ScreenBounds returns the widget's bounds in window (screen) coordinates.
+//
+// Screen bounds are computed during the Draw pass by the framework,
+// reflecting all accumulated transforms from parent containers (scroll
+// offsets, box positions, etc.). This is the correct value to use when
+// positioning overlays, popups, tooltips, and context menus.
+//
+// Before the first Draw pass completes, this returns a rect at (0,0)
+// with the widget's size.
+//
+// Example:
+//
+//	func (w *MyWidget) showPopup(ctx widget.Context) {
+//	    anchor := w.ScreenBounds()
+//	    pos := overlay.Position(overlay.PlacementBelow, anchor, popupSize, windowSize, 4)
+//	    // pos is now correct even if w is inside a ScrollView
+//	}
+func (w *WidgetBase) ScreenBounds() geometry.Rect {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	size := w.bounds.Size()
+	return geometry.FromPointSize(w.screenOrigin, size)
+}
+
 // LocalToGlobal converts a point from local coordinates to global (window) coordinates.
 //
 // Local coordinates are relative to the widget's top-left corner.
 // Global coordinates are relative to the window's top-left corner.
+//
+// This method uses the screen origin computed during the Draw pass,
+// which accounts for all parent transforms including scroll offsets.
 func (w *WidgetBase) LocalToGlobal(p geometry.Point) geometry.Point {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	return p.Add(w.bounds.Min)
+	return p.Add(w.screenOrigin)
 }
 
 // GlobalToLocal converts a point from global (window) coordinates to local coordinates.
 //
 // Local coordinates are relative to the widget's top-left corner.
 // Global coordinates are relative to the window's top-left corner.
+//
+// This method uses the screen origin computed during the Draw pass,
+// which accounts for all parent transforms including scroll offsets.
 func (w *WidgetBase) GlobalToLocal(p geometry.Point) geometry.Point {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	return p.Sub(w.bounds.Min)
+	return p.Sub(w.screenOrigin)
 }
 
 // IsMounted reports whether the widget is currently in the mounted tree.

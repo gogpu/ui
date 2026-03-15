@@ -309,5 +309,94 @@ func (c *noopCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *noopCanvas) PopClip()                                     {}
 func (c *noopCanvas) PushTransform(geometry.Point)                 {}
 func (c *noopCanvas) PopTransform()                                {}
+func (c *noopCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 var _ Canvas = (*noopCanvas)(nil)
+
+// --- StampScreenOrigin tests ---
+
+// stampCanvas tracks transform offsets for stamping tests.
+type stampCanvas struct {
+	noopCanvas
+	offsetStack   []geometry.Point
+	currentOffset geometry.Point
+}
+
+func (c *stampCanvas) PushTransform(offset geometry.Point) {
+	c.offsetStack = append(c.offsetStack, c.currentOffset)
+	c.currentOffset = c.currentOffset.Add(offset)
+}
+
+func (c *stampCanvas) PopTransform() {
+	if len(c.offsetStack) > 0 {
+		lastIdx := len(c.offsetStack) - 1
+		c.currentOffset = c.offsetStack[lastIdx]
+		c.offsetStack = c.offsetStack[:lastIdx]
+	}
+}
+
+func (c *stampCanvas) TransformOffset() geometry.Point {
+	return c.currentOffset
+}
+
+func TestStampScreenOrigin_Basic(t *testing.T) {
+	canvas := &stampCanvas{}
+
+	// Simulate a container at (50, 100)
+	canvas.PushTransform(geometry.Pt(50, 100))
+
+	child := newMockWidget()
+	child.SetBounds(geometry.NewRect(10, 20, 80, 40))
+
+	StampScreenOrigin(child, canvas)
+
+	// Screen origin = container offset (50,100) + child bounds.Min (10,20) = (60,120)
+	got := child.ScreenOrigin()
+	want := geometry.Pt(60, 120)
+	if got != want {
+		t.Errorf("ScreenOrigin = %v, want %v", got, want)
+	}
+
+	// ScreenBounds should reflect the screen position
+	sb := child.ScreenBounds()
+	if sb.Min != want {
+		t.Errorf("ScreenBounds.Min = %v, want %v", sb.Min, want)
+	}
+	if sb.Width() != 80 || sb.Height() != 40 {
+		t.Errorf("ScreenBounds size = (%v,%v), want (80,40)", sb.Width(), sb.Height())
+	}
+
+	canvas.PopTransform()
+}
+
+func TestStampScreenOrigin_NestedTransforms(t *testing.T) {
+	canvas := &stampCanvas{}
+
+	// Simulate Box at (100, 50)
+	canvas.PushTransform(geometry.Pt(100, 50))
+
+	// Inside, a ScrollView that scrolled 30px down:
+	// PushTransform(Pt(0, -30))
+	canvas.PushTransform(geometry.Pt(0, -30))
+
+	child := newMockWidget()
+	child.SetBounds(geometry.NewRect(10, 80, 60, 30))
+
+	StampScreenOrigin(child, canvas)
+
+	// Screen origin = (100+0+10, 50-30+80) = (110, 100)
+	got := child.ScreenOrigin()
+	want := geometry.Pt(110, 100)
+	if got != want {
+		t.Errorf("ScreenOrigin = %v, want %v", got, want)
+	}
+
+	canvas.PopTransform()
+	canvas.PopTransform()
+}
+
+func TestStampScreenOrigin_NilChild(t *testing.T) {
+	canvas := &stampCanvas{}
+	// Should not panic
+	StampScreenOrigin(nil, canvas)
+}

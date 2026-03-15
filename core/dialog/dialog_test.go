@@ -490,6 +490,7 @@ func (c *recordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *recordingCanvas) PopClip()                                     {}
 func (c *recordingCanvas) PushTransform(_ geometry.Point)               {}
 func (c *recordingCanvas) PopTransform()                                {}
+func (c *recordingCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // --- mockOverlayManager records overlay operations ---
 

@@ -1986,3 +1986,5 @@ func (c *internalMockCanvas) PushTransform(offset geometry.Point) {
 func (c *internalMockCanvas) PopTransform() {
 	c.popTransformCount++
 }
+
+func (c *internalMockCanvas) TransformOffset() geometry.Point { return geometry.Point{} }

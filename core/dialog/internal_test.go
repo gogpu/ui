@@ -990,6 +990,7 @@ func (c *internalRecordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) 
 func (c *internalRecordingCanvas) PopClip()                                     {}
 func (c *internalRecordingCanvas) PushTransform(_ geometry.Point)               {}
 func (c *internalRecordingCanvas) PopTransform()                                {}
+func (c *internalRecordingCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // --- internalMockOverlayManager ---
 

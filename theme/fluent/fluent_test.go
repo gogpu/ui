@@ -89,6 +89,7 @@ func (c *recordCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *recordCanvas) PopClip()                                     {}
 func (c *recordCanvas) PushTransform(_ geometry.Point)               {}
 func (c *recordCanvas) PopTransform()                                {}
+func (c *recordCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // Method name constants to satisfy goconst.
 const (

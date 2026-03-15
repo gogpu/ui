@@ -394,6 +394,7 @@ func (b *BoxWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	// Draw children with transform offset for this box's position.
 	canvas.PushTransform(bounds.Min)
 	for _, child := range b.children {
+		widget.StampScreenOrigin(child, canvas)
 		child.Draw(ctx, canvas)
 	}
 	canvas.PopTransform()

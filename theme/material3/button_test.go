@@ -83,7 +83,8 @@ func (c *recordCanvas) PopClip() {}
 
 func (c *recordCanvas) PushTransform(offset geometry.Point) {}
 
-func (c *recordCanvas) PopTransform() {}
+func (c *recordCanvas) PopTransform()                   {}
+func (c *recordCanvas) TransformOffset() geometry.Point { return geometry.Point{} }
 
 // Method name constants to satisfy goconst.
 const (

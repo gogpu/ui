@@ -258,3 +258,4 @@ func (c *tabMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *tabMockCanvas) PopClip()                                     {}
 func (c *tabMockCanvas) PushTransform(_ geometry.Point)               {}
 func (c *tabMockCanvas) PopTransform()                                {}
+func (c *tabMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }

@@ -140,10 +140,11 @@ func (p *Popover) Show(ctx widget.Context) {
 	// Lay out the content to get its natural size.
 	contentSize := p.resolveContentSize(ctx)
 
-	// Position relative to trigger.
-	anchor := triggerBoundsOf(p.cfg.trigger)
+	// Position relative to trigger using screen-space bounds.
+	// ScreenBounds accounts for all parent transforms (scroll offsets, etc.).
+	anchor := triggerScreenBoundsOf(p.cfg.trigger)
 	if anchor.IsEmpty() {
-		anchor = p.Bounds()
+		anchor = p.ScreenBounds()
 	}
 	windowSize := ctx.WindowSize()
 	pos := CalculatePosition(p.cfg.placement, anchor, contentSize, windowSize, p.cfg.gap)
@@ -373,6 +374,19 @@ func triggerBoundsOf(w widget.Widget) geometry.Rect {
 		return bg.Bounds()
 	}
 	return geometry.Rect{}
+}
+
+// triggerScreenBoundsOf returns the screen-space bounds of a trigger widget.
+// Screen bounds account for all parent transforms (scroll offsets, box positions).
+// Falls back to local Bounds() if the widget doesn't support ScreenBounds.
+func triggerScreenBoundsOf(w widget.Widget) geometry.Rect {
+	if w == nil {
+		return geometry.Rect{}
+	}
+	if sb, ok := w.(interface{ ScreenBounds() geometry.Rect }); ok {
+		return sb.ScreenBounds()
+	}
+	return triggerBoundsOf(w)
 }
 
 // Compile-time interface checks.

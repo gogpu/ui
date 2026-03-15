@@ -210,3 +210,4 @@ func (c *tableMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *tableMockCanvas) PopClip()                                     {}
 func (c *tableMockCanvas) PushTransform(_ geometry.Point)               {}
 func (c *tableMockCanvas) PopTransform()                                {}
+func (c *tableMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }

@@ -87,6 +87,10 @@ func drawTreeRecursive(w Widget, ctx Context, canvas Canvas, stats *DrawStats) {
 		stats.DirtyWidgets++
 	}
 
+	// Stamp screen origin on the root widget before drawing.
+	// Container widgets stamp their children in their own Draw methods.
+	StampScreenOrigin(w, canvas)
+
 	// Draw the widget. In Sub-Phase 1, all widgets are drawn because gg
 	// clears the pixmap each frame. The widget's own Draw method handles
 	// visibility checks and child drawing. Sub-Phase 2 will add pixel

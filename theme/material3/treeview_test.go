@@ -257,3 +257,4 @@ func (c *treeMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *treeMockCanvas) PopClip()                                     {}
 func (c *treeMockCanvas) PushTransform(_ geometry.Point)               {}
 func (c *treeMockCanvas) PopTransform()                                {}
+func (c *treeMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }

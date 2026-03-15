@@ -740,6 +740,7 @@ func (c *recordingCanvas) PushClip(_ geometry.Rect)                  { c.clipCou
 func (c *recordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {
 	c.clipCount++
 }
-func (c *recordingCanvas) PopClip()                       { c.clipCount-- }
-func (c *recordingCanvas) PushTransform(_ geometry.Point) {}
-func (c *recordingCanvas) PopTransform()                  {}
+func (c *recordingCanvas) PopClip()                        { c.clipCount-- }
+func (c *recordingCanvas) PushTransform(_ geometry.Point)  {}
+func (c *recordingCanvas) PopTransform()                   {}
+func (c *recordingCanvas) TransformOffset() geometry.Point { return geometry.Point{} }

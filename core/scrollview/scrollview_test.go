@@ -76,6 +76,7 @@ func (c *stubCanvas) PushTransform(offset geometry.Point) {
 func (c *stubCanvas) PopTransform() {
 	c.transformsPopped++
 }
+func (c *stubCanvas) TransformOffset() geometry.Point { return geometry.Point{} }
 
 // --- Construction Tests ---
 

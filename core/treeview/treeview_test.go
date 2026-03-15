@@ -1990,6 +1990,7 @@ func (c *mockCanvas) PushClipRoundRect(geometry.Rect, float32)  {}
 func (c *mockCanvas) PopClip()                                  { c.popClipCalls++ }
 func (c *mockCanvas) PushTransform(geometry.Point)              {}
 func (c *mockCanvas) PopTransform()                             {}
+func (c *mockCanvas) TransformOffset() geometry.Point           { return geometry.Point{} }
 
 type mockScheduler struct{}
 

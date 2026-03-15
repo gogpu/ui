@@ -77,6 +77,7 @@ func (c *mockCanvas) PopTransform() {
 		c.transforms = c.transforms[:len(c.transforms)-1]
 	}
 }
+func (c *mockCanvas) TransformOffset() geometry.Point { return geometry.Point{} }
 
 // opacityCanvas extends mockCanvas with OpacityPusher support.
 type opacityCanvas struct {

@@ -70,6 +70,7 @@ func (c *canvasRecorder) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *canvasRecorder) PopClip()                                     {}
 func (c *canvasRecorder) PushTransform(_ geometry.Point)               {}
 func (c *canvasRecorder) PopTransform()                                {}
+func (c *canvasRecorder) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // Compile-time check.
 var _ widget.Canvas = (*canvasRecorder)(nil)

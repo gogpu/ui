@@ -596,6 +596,7 @@ func (c *recordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *recordingCanvas) PopClip()                                     {}
 func (c *recordingCanvas) PushTransform(_ geometry.Point)               {}
 func (c *recordingCanvas) PopTransform()                                {}
+func (c *recordingCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // --- mockCanvas for non-recording tests ---
 
@@ -623,6 +624,7 @@ func (c *mockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *mockCanvas) PopClip()                                     {}
 func (c *mockCanvas) PushTransform(_ geometry.Point)               {}
 func (c *mockCanvas) PopTransform()                                {}
+func (c *mockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // --- Lifecycle Tests ---
 

@@ -119,6 +119,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		if tab.Content != nil {
 			contentBounds := w.contentBounds(w.Bounds().Size())
 			canvas.PushClip(contentBounds)
+			widget.StampScreenOrigin(tab.Content, canvas)
 			tab.Content.Draw(ctx, canvas)
 			canvas.PopClip()
 		}

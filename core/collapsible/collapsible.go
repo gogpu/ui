@@ -203,6 +203,7 @@ func (w *Widget) drawContent(ctx widget.Context, canvas widget.Canvas, bounds ge
 	if setter, ok := w.cfg.content.(interface{ SetBounds(geometry.Rect) }); ok {
 		setter.SetBounds(contentBounds)
 	}
+	widget.StampScreenOrigin(w.cfg.content, canvas)
 	w.cfg.content.Draw(ctx, canvas)
 
 	canvas.PopClip()

@@ -272,6 +272,7 @@ func (g *Group) Draw(ctx widget.Context, canvas widget.Canvas) {
 	// Push the group's position so items render at the correct screen location.
 	canvas.PushTransform(g.Bounds().Min)
 	for _, it := range items {
+		widget.StampScreenOrigin(it, canvas)
 		it.Draw(ctx, canvas)
 	}
 	canvas.PopTransform()

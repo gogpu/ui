@@ -943,6 +943,7 @@ func (c *mockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *mockCanvas) PopClip()                                     { c.popClipCount++ }
 func (c *mockCanvas) PushTransform(_ geometry.Point)               { c.pushTransformCount++ }
 func (c *mockCanvas) PopTransform()                                { c.popTransformCount++ }
+func (c *mockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // eventConsumer is a mock widget that optionally consumes events.
 type eventConsumer struct {

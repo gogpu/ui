@@ -161,6 +161,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	canvas.PushTransform(geometry.Pt(bounds.Min.X-scrollX, bounds.Min.Y-scrollY))
 
 	if w.content != nil {
+		widget.StampScreenOrigin(w.content, canvas)
 		w.content.Draw(ctx, canvas)
 	}
 

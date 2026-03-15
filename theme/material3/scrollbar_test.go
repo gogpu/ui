@@ -175,3 +175,4 @@ func (c *scrollbarMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *scrollbarMockCanvas) PopClip()                                     {}
 func (c *scrollbarMockCanvas) PushTransform(_ geometry.Point)               {}
 func (c *scrollbarMockCanvas) PopTransform()                                {}
+func (c *scrollbarMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }

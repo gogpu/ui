@@ -114,6 +114,7 @@ func (ts *ThemeScopeWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 
 	scoped := ts.scopedContext(ctx)
 	canvas.PushTransform(ts.Bounds().Min)
+	widget.StampScreenOrigin(ts.child, canvas)
 	ts.child.Draw(scoped, canvas)
 	canvas.PopTransform()
 }

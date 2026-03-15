@@ -182,8 +182,9 @@ func (w *Widget) Open(ctx widget.Context) {
 		},
 	)
 
-	// Position the menu below the trigger.
-	triggerBounds := w.Bounds()
+	// Position the menu below the trigger using screen-space bounds.
+	// ScreenBounds accounts for all parent transforms (scroll offsets, etc.).
+	triggerBounds := w.ScreenBounds()
 	windowSize := ctx.WindowSize()
 	menuSize := geometry.Sz(triggerBounds.Width(), float32(w.menuWidget.visibleCount())*w.menuWidget.itemHeight)
 	pos := overlay.Position(overlay.PlacementBelow, triggerBounds, menuSize, windowSize, 2)

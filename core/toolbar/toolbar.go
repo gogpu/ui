@@ -275,6 +275,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 			// Spacers are invisible.
 		case ItemCustom:
 			if item.Widget != nil {
+				widget.StampScreenOrigin(item.Widget, canvas)
 				item.Widget.Draw(ctx, canvas)
 			}
 		}

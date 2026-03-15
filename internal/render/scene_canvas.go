@@ -371,6 +371,11 @@ func (c *SceneCanvas) PopTransform() {
 	c.transformStack = c.transformStack[:lastIdx]
 }
 
+// TransformOffset returns the current cumulative transform offset.
+func (c *SceneCanvas) TransformOffset() geometry.Point {
+	return c.currentOffset
+}
+
 // --- Internal helpers ---
 
 // applyTransform applies the current transform offset to a rectangle

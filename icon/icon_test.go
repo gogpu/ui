@@ -259,6 +259,7 @@ func (m *mockCanvas) PushClipRoundRect(geometry.Rect, float32)  {}
 func (m *mockCanvas) PopClip()                                  {}
 func (m *mockCanvas) PushTransform(geometry.Point)              {}
 func (m *mockCanvas) PopTransform()                             {}
+func (m *mockCanvas) TransformOffset() geometry.Point           { return geometry.Point{} }
 
 func TestDraw_EmptyOps(t *testing.T) {
 	c := &mockCanvas{}

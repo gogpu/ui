@@ -240,3 +240,4 @@ func (c *svMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
 func (c *svMockCanvas) PopClip()                                     {}
 func (c *svMockCanvas) PushTransform(_ geometry.Point)               {}
 func (c *svMockCanvas) PopTransform()                                {}
+func (c *svMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }

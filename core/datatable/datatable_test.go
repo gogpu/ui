@@ -48,6 +48,7 @@ func (m *mockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) { m.clips++ }
 func (m *mockCanvas) PopClip()                                     { m.clips-- }
 func (m *mockCanvas) PushTransform(_ geometry.Point)               { m.transforms++ }
 func (m *mockCanvas) PopTransform()                                { m.transforms-- }
+func (m *mockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 
 // testColumns returns a standard set of test columns.
 func testColumns() []Column {
