@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 4 — Enterprise Widgets)
+- **TreeView** (`core/treeview/`) — hierarchical tree with expand/collapse, virtualized
+  rendering, keyboard nav, indent with connector lines, selection, Painter pattern
+- **DataTable** (`core/datatable/`) — sortable column table, fixed header, virtualized
+  rows, row selection, column alignment, zebra striping, sort indicators
+- **Toolbar** (`core/toolbar/`) — horizontal action bar with icon buttons, separators,
+  spacers, custom widget items, keyboard nav
+- **Menu System** (`core/menu/`) — MenuBar + ContextMenu, submenus, separators,
+  disabled items, shortcut display, overlay integration
+
 ### Added (Phase 4 — Design Systems & Infrastructure)
 - **Fluent Design Theme** (`theme/fluent/`) — Microsoft Fluent Design with 9 painters,
   accent color system, inner focus ring, 4px radii, light/dark variants. 42 tests.
