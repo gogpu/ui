@@ -3,6 +3,7 @@ package material3
 import (
 	"github.com/gogpu/ui/core/collapsible"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -85,26 +86,21 @@ func m3ApplyCollapsibleState(base widget.Color, hovered, pressed bool) widget.Co
 	return base
 }
 
-// m3DrawCollapsibleArrow draws a chevron indicator using lines.
+// m3DrawCollapsibleArrow draws a chevron icon indicator.
 // progress 0.0 = right-pointing (>), 1.0 = down-pointing (v).
+// Uses icon.ChevronRight / icon.ChevronDown for crisp vector rendering.
 func m3DrawCollapsibleArrow(canvas widget.Canvas, headerBounds geometry.Rect, color widget.Color, progress float32) {
 	h := headerBounds.Height()
-	arrowSize := h * m3CollapsibleArrowSizeRatio
-	cx := headerBounds.Min.X + m3CollapsibleArrowPadding + arrowSize/2
-	cy := headerBounds.Min.Y + h/2
+	iconSize := h * m3CollapsibleArrowSizeRatio * 2
+	x := headerBounds.Min.X + m3CollapsibleArrowPadding
+	y := headerBounds.Min.Y + (h-iconSize)/2
+	bounds := geometry.NewRect(x, y, iconSize, iconSize)
 
-	half := arrowSize / 2
-
-	// Interpolate between right arrow (>) and down arrow (v).
-	p1x := cx - half + progress*half
-	p1y := cy - half + progress*half
-	p2x := cx + half - progress*half*2
-	p2y := cy + progress*half
-	p3x := cx - half + progress*half*2
-	p3y := cy + half - progress*half
-
-	canvas.DrawLine(geometry.Pt(p1x, p1y), geometry.Pt(p2x, p2y), color, m3CollapsibleArrowStrokeWidth)
-	canvas.DrawLine(geometry.Pt(p2x, p2y), geometry.Pt(p3x, p3y), color, m3CollapsibleArrowStrokeWidth)
+	data := icon.ChevronRight
+	if progress > 0.5 {
+		data = icon.ChevronDown
+	}
+	icon.Draw(canvas, data, bounds, color)
 }
 
 // m3CollapsibleTitleBounds returns the bounds for the title text within the header.
