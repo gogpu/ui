@@ -300,13 +300,13 @@ v1.0.0  → Production (when ready)
 
 | Dependency | Version | Purpose | Status |
 |------------|---------|---------|--------|
-| gogpu/gg | v0.37.0 | 2D rendering + scene.Scene | ✅ Integrated |
+| gogpu/gg | v0.37.1 | 2D rendering + scene.Scene | ✅ Integrated |
 | gogpu/gpucontext | v0.10.0 | Shared interfaces | ✅ Integrated |
-| gogpu/gogpu | v0.24.1 | Windowing (examples) | ✅ Integrated |
+| gogpu/gogpu | v0.24.2 | Windowing (examples) | ✅ Integrated |
 | coregx/signals | v0.1.0 | State management | ✅ Integrated |
 | golang.org/x/image | v0.37.0 | Inter font (standard) | ✅ Integrated |
 
-**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.3.0, gogpu/wgpu v0.21.0, gogpu/naga v0.14.7, golang.org/x/text v0.35.0
+**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.3.0, gogpu/wgpu v0.21.1, gogpu/naga v0.14.7, golang.org/x/text v0.35.0
 
 ---
 

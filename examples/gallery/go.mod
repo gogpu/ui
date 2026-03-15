@@ -5,8 +5,8 @@ go 1.25.0
 replace github.com/gogpu/ui => ../..
 
 require (
-	github.com/gogpu/gg v0.37.0
-	github.com/gogpu/gogpu v0.24.1
+	github.com/gogpu/gg v0.37.1
+	github.com/gogpu/gogpu v0.24.2
 	github.com/gogpu/ui v0.0.0-00010101000000-000000000000
 )
 
@@ -18,7 +18,7 @@ require (
 	github.com/gogpu/gpucontext v0.10.0 // indirect
 	github.com/gogpu/gputypes v0.3.0 // indirect
 	github.com/gogpu/naga v0.14.7 // indirect
-	github.com/gogpu/wgpu v0.21.0 // indirect
+	github.com/gogpu/wgpu v0.21.1 // indirect
 	golang.org/x/image v0.37.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
