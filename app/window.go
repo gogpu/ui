@@ -220,10 +220,14 @@ func (w *Window) HandleEvent(e event.Event) {
 	}
 
 	// Track widget-level hover for MouseEnter/MouseLeave dispatch.
+	// Skip hover updates during drag (button pressed) to prevent cursor
+	// from resetting when dragging over other widgets (e.g., SplitView divider).
 	if me, ok := e.(*event.MouseEvent); ok {
 		switch me.MouseType {
 		case event.MouseMove:
-			w.updateHover(me.Position, me.Buttons, me.Modifiers())
+			if me.Buttons == 0 {
+				w.updateHover(me.Position, me.Buttons, me.Modifiers())
+			}
 		case event.MouseLeave:
 			// Mouse left the window entirely — clear hover state.
 			// The window-level leave event still propagates to the root below.
