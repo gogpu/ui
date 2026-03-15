@@ -363,6 +363,7 @@ func (w *Widget) handleMouseMove(ctx widget.Context, me *event.MouseEvent) bool 
 		}
 
 		w.updateRatioFromDrag(ctx, me.Position)
+		w.updateCursor(ctx) // Maintain drag cursor on every move
 		return true
 	}
 

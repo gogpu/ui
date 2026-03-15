@@ -59,6 +59,10 @@ type Window struct {
 	// as the mouse moves across the widget tree.
 	hoveredWidget widget.Widget
 
+	// mouseButtonsHeld tracks pressed mouse buttons to prevent cursor
+	// reset during drag operations (Frame.ResetCursor skipped while dragging).
+	mouseButtonsHeld event.ButtonState
+
 	// windowSize tracks the last known window size in physical pixels.
 	windowSize geometry.Size
 
@@ -235,6 +239,11 @@ func (w *Window) HandleEvent(e event.Event) {
 		}
 	}
 
+	// Track mouse button state for drag cursor protection.
+	if me, ok := e.(*event.MouseEvent); ok {
+		w.mouseButtonsHeld = me.Buttons
+	}
+
 	// Dispatch event to root widget.
 	_ = w.root.Event(w.ctx, e)
 
@@ -306,8 +315,12 @@ func (w *Window) Frame() {
 	// Update time.
 	w.ctx.SetNow(frameStart)
 
-	// Reset cursor for this frame.
-	w.ctx.ResetCursor()
+	// Reset cursor for this frame — but not during drag operations.
+	// During drag, the dragging widget (SplitView, Slider) sets cursor
+	// on every MouseMove; resetting here would flash default between frames.
+	if w.mouseButtonsHeld == 0 {
+		w.ctx.ResetCursor()
+	}
 
 	// Flush pending signal changes (may trigger new dirty marks).
 	// The scheduler's flushFn sets persistent needsRedraw flags on widgets.

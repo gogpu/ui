@@ -100,6 +100,7 @@ func handleMouseMove(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 
 	newValue := valueFromPosition(w, e.Position)
 	setValue(w, ctx, newValue)
+	ctx.SetCursor(widget.CursorPointer) // Maintain drag cursor on every move
 
 	return true
 }
