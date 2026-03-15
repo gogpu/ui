@@ -424,13 +424,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	w.drawHeader(ctx, canvas, bounds)
 
 	// Draw data rows via the scroll view.
-	scrollBounds := geometry.NewRect(
-		bounds.Min.X,
-		bounds.Min.Y+defaultHeaderHeight,
-		bounds.Width(),
-		bounds.Height()-defaultHeaderHeight,
-	)
-	w.scroll.SetBounds(scrollBounds)
+	w.updateScrollBounds()
 	w.scroll.Draw(ctx, canvas)
 }
 
@@ -439,6 +433,11 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 	if !w.IsVisible() || !w.IsEnabled() {
 		return false
 	}
+
+	// Ensure scroll view bounds are set (they match the data area below the header).
+	// This is needed because ScrollView transforms event coordinates using its bounds,
+	// and bounds must be set before event dispatch, not just in Draw.
+	w.updateScrollBounds()
 
 	// Handle keyboard at table level.
 	if ke, ok := e.(*event.KeyEvent); ok {
@@ -456,6 +455,21 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 
 	// Delegate to scroll view for data rows.
 	return w.scroll.Event(ctx, e)
+}
+
+// updateScrollBounds sets the scroll view bounds to the data area below the header.
+func (w *Widget) updateScrollBounds() {
+	bounds := w.Bounds()
+	if bounds.IsEmpty() {
+		return
+	}
+	scrollBounds := geometry.NewRect(
+		bounds.Min.X,
+		bounds.Min.Y+defaultHeaderHeight,
+		bounds.Width(),
+		bounds.Height()-defaultHeaderHeight,
+	)
+	w.scroll.SetBounds(scrollBounds)
 }
 
 // Children returns the internal scroll view as the single child.
@@ -1093,10 +1107,12 @@ func handleContentMouseEvent(dt *Widget, ctx widget.Context, e *event.MouseEvent
 	}
 }
 
+// handleContentMouseMove updates the hovered row index based on mouse position.
+// The event position is already in content space (transformed by ScrollView).
 func handleContentMouseMove(dt *Widget, ctx widget.Context, e *event.MouseEvent) bool {
-	scrollY := dt.currentScrollY()
-	contentY := e.Position.Y - dt.Bounds().Min.Y - defaultHeaderHeight + scrollY
-	row := dt.rowAtY(contentY)
+	// Position is already in content space — ScrollView applies the inverse
+	// of its Draw transform before dispatching to content children.
+	row := dt.rowAtY(e.Position.Y)
 
 	if row != dt.hoveredRow {
 		dt.hoveredRow = row
@@ -1105,14 +1121,16 @@ func handleContentMouseMove(dt *Widget, ctx widget.Context, e *event.MouseEvent)
 	return false
 }
 
+// handleContentMousePress handles item click for row selection.
+// The event position is already in content space (transformed by ScrollView).
 func handleContentMousePress(dt *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 	if e.Button != event.ButtonLeft {
 		return false
 	}
 
-	scrollY := dt.currentScrollY()
-	contentY := e.Position.Y - dt.Bounds().Min.Y - defaultHeaderHeight + scrollY
-	row := dt.rowAtY(contentY)
+	// Position is already in content space — ScrollView applies the inverse
+	// of its Draw transform before dispatching to content children.
+	row := dt.rowAtY(e.Position.Y)
 
 	if row < 0 {
 		return false

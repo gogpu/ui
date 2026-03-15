@@ -40,11 +40,13 @@ func handleContentMouseEvent(lv *Widget, ctx widget.Context, e *event.MouseEvent
 }
 
 // handleContentMouseMove updates the hovered item index based on mouse position.
+// The event position is already in content space (transformed by ScrollView).
 func handleContentMouseMove(lv *Widget, ctx widget.Context, e *event.MouseEvent) bool {
-	scrollY := lv.currentScrollY()
-	localY := e.Position.Y - lv.Bounds().Min.Y + scrollY
+	// Position is already in content space — ScrollView applies the inverse
+	// of its Draw transform before dispatching to content children.
+	contentY := e.Position.Y
 
-	idx := lv.heights.findIndexAtOffset(localY)
+	idx := lv.heights.findIndexAtOffset(contentY)
 	itemCount := lv.cfg.ResolvedItemCount()
 	if idx < 0 || idx >= itemCount {
 		idx = noHoveredIndex
@@ -59,15 +61,17 @@ func handleContentMouseMove(lv *Widget, ctx widget.Context, e *event.MouseEvent)
 }
 
 // handleContentMousePress handles item click for selection.
+// The event position is already in content space (transformed by ScrollView).
 func handleContentMousePress(lv *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 	if e.Button != event.ButtonLeft {
 		return false
 	}
 
-	scrollY := lv.currentScrollY()
-	localY := e.Position.Y - lv.Bounds().Min.Y + scrollY
+	// Position is already in content space — ScrollView applies the inverse
+	// of its Draw transform before dispatching to content children.
+	contentY := e.Position.Y
 
-	idx := lv.heights.findIndexAtOffset(localY)
+	idx := lv.heights.findIndexAtOffset(contentY)
 	itemCount := lv.cfg.ResolvedItemCount()
 	if idx < 0 || idx >= itemCount {
 		return false

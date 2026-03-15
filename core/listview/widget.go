@@ -179,6 +179,13 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 		return false
 	}
 
+	// Ensure scroll view bounds are set before event dispatch.
+	// ScrollView transforms event coordinates using its bounds.
+	bounds := w.Bounds()
+	if !bounds.IsEmpty() {
+		w.scroll.SetBounds(bounds)
+	}
+
 	// Handle keyboard events at the list level.
 	if ke, ok := e.(*event.KeyEvent); ok {
 		if handleListKeyEvent(w, ctx, ke) {

@@ -257,6 +257,14 @@ func (w *Widget) paintScrollbars(canvas widget.Canvas) {
 }
 
 // Event handles an input event and returns true if consumed.
+//
+// Event coordinates are transformed from parent space to content space before
+// dispatching to the content widget. This is the inverse of the Draw transform
+// (PushTransform with scroll offset), following the universal GUI framework
+// pattern used by Flutter, Qt, WPF, and Gio.
+//
+// Scrollbar interactions are NOT transformed because scrollbars are drawn
+// on top of the viewport in parent-space coordinates.
 func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 	// Handle scrollbar interactions FIRST so the thumb drag always works,
 	// even when content would consume the same mouse event (e.g., item click).
@@ -266,14 +274,67 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 		}
 	}
 
-	// Then pass events to the content child.
+	// Only dispatch to content if the event position is within the viewport.
+	// This prevents content from receiving events when the mouse is outside.
+	// Skip this check if bounds haven't been set yet (empty rect).
+	if !w.isEventInsideViewport(e) {
+		return handleEvent(w, ctx, e)
+	}
+
+	// Transform event coordinates to content space and dispatch to content.
 	if w.content != nil {
-		if consumed := w.content.Event(ctx, e); consumed {
+		contentEvent := w.transformToContentSpace(e)
+		if consumed := w.content.Event(ctx, contentEvent); consumed {
 			return true
 		}
 	}
 
 	return handleEvent(w, ctx, e)
+}
+
+// isEventInsideViewport reports whether a positional event is within the
+// scroll view's viewport bounds. Returns true for non-positional events
+// (key, focus) and when bounds are empty (not yet set).
+func (w *Widget) isEventInsideViewport(e event.Event) bool {
+	bounds := w.Bounds()
+	if bounds.IsEmpty() {
+		return true // bounds not set yet, allow dispatch
+	}
+
+	if me, ok := e.(*event.MouseEvent); ok {
+		return bounds.Contains(me.Position)
+	}
+	if we, ok := e.(*event.WheelEvent); ok {
+		return bounds.Contains(we.Position)
+	}
+	return true // non-positional events always pass through
+}
+
+// transformToContentSpace converts event coordinates from parent space to
+// content space by applying the inverse of the Draw transform.
+//
+// Draw applies: PushTransform(Pt(bounds.Min.X - scrollX, bounds.Min.Y - scrollY))
+// So screen-to-content is: contentPos = screenPos - bounds.Min + scrollOffset
+//
+// Non-positional events (key, focus) pass through unchanged.
+func (w *Widget) transformToContentSpace(e event.Event) event.Event {
+	bounds := w.Bounds()
+	scrollX := w.cfg.ResolvedScrollX()
+	scrollY := w.cfg.ResolvedScrollY()
+	offset := geometry.Pt(scrollX-bounds.Min.X, scrollY-bounds.Min.Y)
+
+	switch ev := e.(type) {
+	case *event.MouseEvent:
+		local := *ev
+		local.Position = ev.Position.Add(offset)
+		return &local
+	case *event.WheelEvent:
+		local := *ev
+		local.Position = ev.Position.Add(offset)
+		return &local
+	default:
+		return e
+	}
 }
 
 // Children returns the content widget as the single child.

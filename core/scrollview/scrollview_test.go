@@ -675,6 +675,273 @@ func TestScrollbar_NeverHides(t *testing.T) {
 	// Just verify no panic.
 }
 
+// --- Event Coordinate Transform Tests ---
+
+// eventRecorderWidget records mouse events it receives with their positions.
+type eventRecorderWidget struct {
+	widget.WidgetBase
+	preferredSize geometry.Size
+	lastMousePos  geometry.Point
+	lastWheelPos  geometry.Point
+	mouseReceived bool
+	wheelReceived bool
+}
+
+func newRecorder(w, h float32) *eventRecorderWidget {
+	r := &eventRecorderWidget{preferredSize: geometry.Sz(w, h)}
+	r.SetVisible(true)
+	r.SetEnabled(true)
+	return r
+}
+
+func (r *eventRecorderWidget) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+	return c.Constrain(r.preferredSize)
+}
+
+func (r *eventRecorderWidget) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (r *eventRecorderWidget) Event(_ widget.Context, e event.Event) bool {
+	switch ev := e.(type) {
+	case *event.MouseEvent:
+		if r.Bounds().Contains(ev.Position) {
+			r.mouseReceived = true
+			r.lastMousePos = ev.Position
+			return true
+		}
+	case *event.WheelEvent:
+		if r.Bounds().Contains(ev.Position) {
+			r.wheelReceived = true
+			r.lastWheelPos = ev.Position
+			return true
+		}
+	}
+	return false
+}
+
+func (r *eventRecorderWidget) Children() []widget.Widget { return nil }
+
+func TestEvent_CoordinateTransform_ClickHitsScrolledContent(t *testing.T) {
+	// Content is 200x800, viewport is 200x400, scrolled 300px down.
+	// A widget at content position (0, 0)-(200, 800) should receive a click
+	// at screen position (100, 200) as content position (100, 500) = (100, 200+300).
+	ctx := widget.NewContext()
+	recorder := newRecorder(200, 800)
+
+	sv := scrollview.New(recorder, scrollview.ScrollY(300))
+	sv.SetBounds(geometry.NewRect(0, 0, 200, 400))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+	// Click at screen position (100, 200).
+	me := event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(100, 200), geometry.Pt(100, 200), event.ModNone,
+	)
+
+	consumed := sv.Event(ctx, me)
+	if !consumed {
+		t.Fatal("click should be consumed by content widget")
+	}
+	if !recorder.mouseReceived {
+		t.Fatal("content widget should have received the mouse event")
+	}
+
+	// Verify the position was transformed: screen(100, 200) -> content(100, 500).
+	wantX := float32(100)
+	wantY := float32(500) // 200 + 300 (scrollY)
+	if recorder.lastMousePos.X != wantX || recorder.lastMousePos.Y != wantY {
+		t.Errorf("content received position = (%v, %v), want (%v, %v)",
+			recorder.lastMousePos.X, recorder.lastMousePos.Y, wantX, wantY)
+	}
+}
+
+func TestEvent_CoordinateTransform_WithBoundsOffset(t *testing.T) {
+	// ScrollView bounds start at (50, 100), scrolled 200px down.
+	// Screen click at (100, 250) should map to content position:
+	//   contentPos = screenPos - bounds.Min + scrollOffset
+	//   contentPos = (100, 250) - (50, 100) + (0, 200) = (50, 350)
+	ctx := widget.NewContext()
+	recorder := newRecorder(200, 800)
+
+	sv := scrollview.New(recorder, scrollview.ScrollY(200))
+	sv.SetBounds(geometry.NewRect(50, 100, 200, 400))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+	me := event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(100, 250), geometry.Pt(100, 250), event.ModNone,
+	)
+
+	consumed := sv.Event(ctx, me)
+	if !consumed {
+		t.Fatal("click should be consumed by content widget")
+	}
+
+	wantX := float32(50)  // 100 - 50
+	wantY := float32(350) // 250 - 100 + 200
+	if recorder.lastMousePos.X != wantX || recorder.lastMousePos.Y != wantY {
+		t.Errorf("content received position = (%v, %v), want (%v, %v)",
+			recorder.lastMousePos.X, recorder.lastMousePos.Y, wantX, wantY)
+	}
+}
+
+func TestEvent_CoordinateTransform_HorizontalScroll(t *testing.T) {
+	// Horizontal scrollview scrolled 150px right. Bounds at origin.
+	// Screen click at (100, 50) -> content (250, 50) = (100+150, 50).
+	ctx := widget.NewContext()
+	recorder := newRecorder(1000, 200)
+
+	sv := scrollview.New(recorder,
+		scrollview.DirectionOpt(scrollview.Horizontal),
+		scrollview.ScrollX(150),
+	)
+	sv.SetBounds(geometry.NewRect(0, 0, 300, 200))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(300, 200)))
+
+	me := event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(100, 50), geometry.Pt(100, 50), event.ModNone,
+	)
+
+	consumed := sv.Event(ctx, me)
+	if !consumed {
+		t.Fatal("click should be consumed by content widget")
+	}
+
+	wantX := float32(250) // 100 + 150
+	wantY := float32(50)
+	if recorder.lastMousePos.X != wantX || recorder.lastMousePos.Y != wantY {
+		t.Errorf("content received position = (%v, %v), want (%v, %v)",
+			recorder.lastMousePos.X, recorder.lastMousePos.Y, wantX, wantY)
+	}
+}
+
+func TestEvent_CoordinateTransform_WheelEvent(t *testing.T) {
+	// Wheel event position should also be transformed to content space.
+	ctx := widget.NewContext()
+	recorder := newRecorder(200, 800)
+
+	sv := scrollview.New(recorder, scrollview.ScrollY(100))
+	sv.SetBounds(geometry.NewRect(0, 0, 200, 400))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+	we := event.NewWheelEvent(
+		geometry.Pt(0, 1),
+		geometry.Pt(50, 150),
+		geometry.Pt(50, 150),
+		event.ModNone,
+	)
+
+	consumed := sv.Event(ctx, we)
+	if !consumed {
+		t.Fatal("wheel event should be consumed by content widget")
+	}
+	if !recorder.wheelReceived {
+		t.Fatal("content widget should have received the wheel event")
+	}
+
+	wantX := float32(50)
+	wantY := float32(250) // 150 + 100
+	if recorder.lastWheelPos.X != wantX || recorder.lastWheelPos.Y != wantY {
+		t.Errorf("content received wheel position = (%v, %v), want (%v, %v)",
+			recorder.lastWheelPos.X, recorder.lastWheelPos.Y, wantX, wantY)
+	}
+}
+
+func TestEvent_CoordinateTransform_OutsideViewport(t *testing.T) {
+	// Click outside the ScrollView viewport should NOT be dispatched to content.
+	ctx := widget.NewContext()
+	recorder := newRecorder(200, 800)
+
+	sv := scrollview.New(recorder, scrollview.ScrollY(0))
+	sv.SetBounds(geometry.NewRect(0, 0, 200, 400))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+	// Click outside viewport bounds.
+	me := event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(300, 500), geometry.Pt(300, 500), event.ModNone,
+	)
+
+	sv.Event(ctx, me)
+	if recorder.mouseReceived {
+		t.Error("content should NOT receive events outside the viewport")
+	}
+}
+
+func TestEvent_CoordinateTransform_ZeroScroll(t *testing.T) {
+	// With zero scroll offset, the transform should just subtract bounds.Min.
+	ctx := widget.NewContext()
+	recorder := newRecorder(200, 800)
+
+	sv := scrollview.New(recorder) // default scrollY=0
+	sv.SetBounds(geometry.NewRect(10, 20, 200, 400))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+	me := event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(60, 120), geometry.Pt(60, 120), event.ModNone,
+	)
+
+	consumed := sv.Event(ctx, me)
+	if !consumed {
+		t.Fatal("click should be consumed by content widget")
+	}
+
+	// contentPos = screenPos - bounds.Min + scroll = (60,120) - (10,20) + (0,0) = (50, 100)
+	wantX := float32(50)
+	wantY := float32(100)
+	if recorder.lastMousePos.X != wantX || recorder.lastMousePos.Y != wantY {
+		t.Errorf("content received position = (%v, %v), want (%v, %v)",
+			recorder.lastMousePos.X, recorder.lastMousePos.Y, wantX, wantY)
+	}
+}
+
+func TestEvent_CoordinateTransform_KeyEventsPassThrough(t *testing.T) {
+	// Key events have no position and should pass through to content unchanged.
+	ctx := widget.NewContext()
+	content := newStub(200, 800)
+	sv := scrollview.New(content, scrollview.ScrollY(100))
+	sv.SetBounds(geometry.NewRect(0, 0, 200, 400))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+	key := &event.KeyEvent{
+		KeyType: event.KeyPress,
+		Key:     event.KeyDown,
+	}
+
+	// Key events go to content without transformation (no panic, no crash).
+	sv.Event(ctx, key)
+	// No assertion needed -- we just verify no panic and correct dispatch.
+}
+
+func TestEvent_ScrollbarNotTransformed(t *testing.T) {
+	// Clicking on the scrollbar track should NOT be transformed to content space.
+	// The scrollbar is drawn in parent coordinates, not content coordinates.
+	ctx := widget.NewContext()
+	recorder := newRecorder(200, 800)
+
+	sv := scrollview.New(recorder,
+		scrollview.ScrollbarOpt(scrollview.ScrollbarAlways),
+	)
+	sv.SetBounds(geometry.NewRect(0, 0, 200, 400))
+	sv.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+	// Click on the right edge where the vertical scrollbar track is.
+	// The scrollbar occupies the rightmost ~12px of the viewport.
+	me := event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(195, 200), geometry.Pt(195, 200), event.ModNone,
+	)
+
+	sv.Event(ctx, me)
+
+	// The scrollbar handler should process this, not the content.
+	// Content should NOT have received a transformed event.
+	if recorder.mouseReceived {
+		t.Error("scrollbar click should NOT be dispatched to content")
+	}
+}
+
 // --- Interface Compliance ---
 
 func TestWidgetInterface(t *testing.T) {

@@ -1772,10 +1772,11 @@ func TestContentMouseMove(t *testing.T) {
 	dt.Layout(ctx, geometry.Tight(geometry.Sz(600, 400)))
 	dt.SetBounds(geometry.NewRect(0, 0, 600, 400))
 
-	// Simulate content mouse move.
+	// Simulate content mouse move in content space (already transformed by ScrollView).
+	// Content space has no header offset or bounds offset.
 	handleContentMouseMove(dt, ctx, &event.MouseEvent{
 		MouseType: event.MouseMove,
-		Position:  geometry.Pt(100, defaultHeaderHeight+48),
+		Position:  geometry.Pt(100, 48),
 	})
 	if dt.hoveredRow != 1 {
 		t.Errorf("hoveredRow = %d, want 1", dt.hoveredRow)
@@ -1795,10 +1796,11 @@ func TestContentMousePress_Selection(t *testing.T) {
 	dt.Layout(ctx, geometry.Tight(geometry.Sz(600, 400)))
 	dt.SetBounds(geometry.NewRect(0, 0, 600, 400))
 
+	// Content space: no header offset (ScrollView already transformed).
 	consumed := handleContentMousePress(dt, ctx, &event.MouseEvent{
 		MouseType: event.MousePress,
 		Button:    event.ButtonLeft,
-		Position:  geometry.Pt(100, defaultHeaderHeight+3*32+16),
+		Position:  geometry.Pt(100, 3*32+16),
 	})
 	if !consumed {
 		t.Error("left click on row should be consumed")
@@ -1819,10 +1821,11 @@ func TestContentMousePress_RightButton(t *testing.T) {
 	dt.Layout(ctx, geometry.Tight(geometry.Sz(600, 400)))
 	dt.SetBounds(geometry.NewRect(0, 0, 600, 400))
 
+	// Content space: no header offset (ScrollView already transformed).
 	consumed := handleContentMousePress(dt, ctx, &event.MouseEvent{
 		MouseType: event.MousePress,
 		Button:    event.ButtonRight,
-		Position:  geometry.Pt(100, defaultHeaderHeight+48),
+		Position:  geometry.Pt(100, 48),
 	})
 	if consumed {
 		t.Error("right click should not be consumed")
@@ -1840,11 +1843,11 @@ func TestContentMousePress_OutOfRange(t *testing.T) {
 	dt.Layout(ctx, geometry.Tight(geometry.Sz(600, 400)))
 	dt.SetBounds(geometry.NewRect(0, 0, 600, 400))
 
-	// Click below data area.
+	// Click below data area (content space: no header offset).
 	consumed := handleContentMousePress(dt, ctx, &event.MouseEvent{
 		MouseType: event.MousePress,
 		Button:    event.ButtonLeft,
-		Position:  geometry.Pt(100, defaultHeaderHeight+5*32),
+		Position:  geometry.Pt(100, 5*32),
 	})
 	if consumed {
 		t.Error("click out of range should not be consumed")
