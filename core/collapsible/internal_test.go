@@ -240,9 +240,8 @@ func TestMouseEvent_HoverEnterLeave(t *testing.T) {
 		geometry.Pt(250, 18), geometry.Pt(250, 18), event.ModNone)
 	consumed = handleEvent(w, ctx, leave)
 
-	if !consumed {
-		t.Error("MouseLeave should be consumed")
-	}
+	// MouseLeave is not consumed — allows content widgets to also handle it.
+	_ = consumed
 	if w.istate != stateNormal {
 		t.Errorf("state = %v, want stateNormal", w.istate)
 	}

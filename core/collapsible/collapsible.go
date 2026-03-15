@@ -210,7 +210,17 @@ func (w *Widget) drawContent(ctx widget.Context, canvas widget.Canvas, bounds ge
 
 // Event handles input events and returns true if consumed.
 func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
-	return handleEvent(w, ctx, e)
+	// Let header handle its own events first.
+	if handleEvent(w, ctx, e) {
+		return true
+	}
+
+	// Forward to content widget when expanded.
+	if w.IsExpanded() && w.cfg.content != nil {
+		return w.cfg.content.Event(ctx, e)
+	}
+
+	return false
 }
 
 // Children returns the content widget for tree traversal.

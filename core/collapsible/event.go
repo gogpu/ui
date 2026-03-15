@@ -34,9 +34,10 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 		if hdr.Contains(e.Position) {
 			w.istate = stateHover
 			ctx.SetCursor(widget.CursorPointer)
+			ctx.Invalidate()
+			return true
 		}
-		ctx.Invalidate()
-		return true
+		return false // Let content handle enter
 
 	case event.MouseMove:
 		if hdr.Contains(e.Position) {
@@ -55,10 +56,12 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 		return false // Allow propagation for content area events.
 
 	case event.MouseLeave:
-		w.istate = stateNormal
-		ctx.SetCursor(widget.CursorDefault)
-		ctx.Invalidate()
-		return true
+		if w.istate != stateNormal {
+			w.istate = stateNormal
+			ctx.SetCursor(widget.CursorDefault)
+			ctx.Invalidate()
+		}
+		return false // Let content handle leave too
 
 	case event.MousePress:
 		if e.Button != event.ButtonLeft {
@@ -85,8 +88,9 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 		ctx.Invalidate()
 		if wasPressed && hdr.Contains(e.Position) {
 			w.Toggle()
+			return true
 		}
-		return true
+		return false // Let content handle release
 
 	default:
 		return false
