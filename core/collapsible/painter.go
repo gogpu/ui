@@ -2,6 +2,7 @@ package collapsible
 
 import (
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -86,29 +87,22 @@ func applyStateModifier(base widget.Color, hovered, pressed bool) widget.Color {
 	return base
 }
 
-// drawArrow draws a chevron arrow indicator.
+// drawArrow draws a chevron icon indicator.
 // progress 0.0 = right-pointing (>), 1.0 = down-pointing (v).
+// Uses icon.ChevronRight / icon.ChevronDown for crisp rendering.
 func drawArrow(canvas widget.Canvas, headerBounds geometry.Rect, color widget.Color, progress float32) {
 	h := headerBounds.Height()
-	arrowSize := h * arrowSizeRatio
-	cx := headerBounds.Min.X + arrowPadding + arrowSize/2
-	cy := headerBounds.Min.Y + h/2
+	iconSize := h * arrowSizeRatio * 2
+	x := headerBounds.Min.X + arrowPadding
+	y := headerBounds.Min.Y + (h-iconSize)/2
+	bounds := geometry.NewRect(x, y, iconSize, iconSize)
 
-	half := arrowSize / 2
-	t := progress // 0=right, 1=down
-
-	// Right chevron (>):  p1(cx-half, cy-half) → p2(cx+half, cy) → p3(cx-half, cy+half)
-	// Down chevron  (v):  p1(cx-half, cy-half) → p2(cx, cy+half) → p3(cx+half, cy-half)
-	// Lerp each point between the two states.
-	p1x := cx - half
-	p1y := cy - half
-	p2x := cx + half*(1-t)
-	p2y := cy + half*t
-	p3x := cx - half + half*2*t
-	p3y := cy + half*(1-t*2)
-
-	canvas.DrawLine(geometry.Pt(p1x, p1y), geometry.Pt(p2x, p2y), color, arrowStrokeWidth)
-	canvas.DrawLine(geometry.Pt(p2x, p2y), geometry.Pt(p3x, p3y), color, arrowStrokeWidth)
+	// Choose icon based on progress (snap at 0.5 for clean rendering).
+	data := icon.ChevronRight
+	if progress > 0.5 {
+		data = icon.ChevronDown
+	}
+	icon.Draw(canvas, data, bounds, color)
 }
 
 // titleTextBounds returns the bounds for the title text within the header.
