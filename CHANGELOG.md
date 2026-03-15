@@ -70,6 +70,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **wgpu** (indirect) -> **v0.21.0** (new HAL API, TextureView lifecycle)
 - **naga** (indirect) -> **v0.14.7**
 
+### Refactored (API Consistency)
+- **TextAlign type** — `Canvas.DrawText` alignment parameter changed from raw `float32`
+  to type-safe `widget.TextAlign` enum (Left/Center/Right). 65 files updated.
+- **Painter naming** — linechart `DrawChart`→`PaintChart`, `ChartState`→`PaintState`;
+  progressbar `ColorScheme`→`ProgressBarColorScheme`
+
+### Added (M3 Painters for Phase 4 Widgets)
+- **12 new Material 3 painters** (`theme/material3/`) — ProgressBar, Progress (circular),
+  Collapsible, Popover, SplitView, GridView, LineChart, TreeView, DataTable, Toolbar,
+  Menu, Docking. All with M3 color roles and tests.
+
 ### Added (Phase 4 — Enterprise Widgets)
 - **TreeView** (`core/treeview/`) — hierarchical tree with expand/collapse, virtualized
   rendering, keyboard nav, indent with connector lines, selection, Painter pattern
