@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Collapsible)
+- **Event forwarding** — Collapsible now properly forwards events to content widgets
+  when expanded. Previously mouse clicks on content children were not dispatched.
+
+### Fixed (App — Text Input)
+- **OnTextInput handler** — EventBridge now uses `OnTextInput` callback for character
+  input, replacing the `keyToRune` workaround that failed for non-ASCII characters
+- **keyToRune removal** — removed fragile key-to-rune synthesis; character input now
+  comes exclusively from the platform's text input API
+
+### Added (Widget Canvas)
+- **MeasureText** — new `widget.Canvas` interface method for measuring text dimensions
+  without drawing. Returns `geometry.Size` with text width and height. Used by widgets
+  for layout calculations (e.g., label width in ProgressBar, column sizing in DataTable).
+
+### Fixed (App — Focus)
+- **FocusManager integration** — Window now creates and wires a `focus.Manager` for
+  Tab/Shift+Tab keyboard navigation. Key events flow through FocusManager before
+  reaching the widget tree, enabling system-level focus traversal.
+- **Tab focus redraw** — focus changes now properly trigger widget invalidation so
+  focus rings are drawn/cleared immediately
+
+### Fixed (Font)
+- **Inter font full Unicode** — replaced Latin-only Inter font subsets with full
+  Unicode Inter 4.1 font files. Enables Cyrillic, Greek, Vietnamese, and other scripts.
+
+### Changed (Dependencies — Cascade Update)
+- **gg** v0.36.4 -> **v0.37.0** (full ecosystem update for new wgpu HAL API)
+- **gpucontext** v0.9.0 -> **v0.10.0** (TextureView.Destroy API change)
+- **gogpu** v0.23.3 -> **v0.24.0** (new wgpu HAL integration)
+- **wgpu** (indirect) -> **v0.21.0** (new HAL API, TextureView lifecycle)
+- **naga** (indirect) -> **v0.14.7**
+
 ### Added (Phase 4 — Enterprise Widgets)
 - **TreeView** (`core/treeview/`) — hierarchical tree with expand/collapse, virtualized
   rendering, keyboard nav, indent with connector lines, selection, Painter pattern

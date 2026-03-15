@@ -13,20 +13,22 @@
 |                    User Application                          |
 +==============================================================+
 |            Layer 3b: Design Systems (styling)                |
-| theme/material3/  |  (future)         |  (future)            |
-| M3 Button/Check/  |  fluent/          |  cupertino/          |
-| RadioPainter      |                   |                      |
+| theme/material3/  |  theme/fluent/    |  theme/cupertino/    |
+| 21 Painters       |  9 Painters       |  9 Painters          |
+| (M3 HCT colors)   |  (Acrylic/Mica)  |  (Apple HIG)         |
 +-------------------+-------------------+----------------------+
 |         Layer 3a: Generic Widgets (behavior)                 |
 | core/button/      |  core/checkbox/   |  primitives/         |
-| core/radio/       |  core/textfield/  |  Box, Text, Image    |
-| core/dropdown/    |  core/slider/     |  ThemeScope          |
-| core/dialog/      |  core/scrollview/ |  RepaintBoundary     |
-| core/tabview/     |  core/listview/   |                      |
+| core/radio/       |  core/textfield/  |  Box (HBox/VBox),    |
+| core/dropdown/    |  core/slider/     |  Text, Image,        |
+| core/dialog/      |  core/scrollview/ |  ThemeScope,         |
+| core/tabview/     |  core/listview/   |  RepaintBoundary     |
 | core/gridview/    |  core/linechart/  |                      |
-| core/progressbar/ |  core/progress/   |                      |
-| core/collapsible/ |  core/popover/    |                      |
-| core/splitview/   |  Widget, Painter  |                      |
+| core/progressbar/ |  core/progress/   |  22 interactive      |
+| core/collapsible/ |  core/popover/    |  widgets in core/    |
+| core/splitview/   |  core/treeview/   |                      |
+| core/datatable/   |  core/toolbar/    |                      |
+| core/menu/        |  core/docking/    |                      |
 +-------------------+-------------------+----------------------+
 |         Layer 2: Component Development Kit                   |
 | cdk/              |                                          |
@@ -54,10 +56,14 @@
 | M3 Presets,      |  Scale, Show/Hide |  IconWidget,          |
 | Orchestration    |  Enter/Exit       |  10 built-in icons    |
 +------------------+-------------------+-----------------------+
-| dnd/             |  theme/font/      |                       |
-| DragSource,      |  Font Registry,   |                       |
-| DropTarget,      |  CSS weight match |                       |
-| Manager          |  Family/Face      |                       |
+| dnd/             |  theme/font/      |  i18n/                |
+| DragSource,      |  Font Registry,   |  Locale, Bundle,      |
+| DropTarget,      |  CSS weight match |  Translator,          |
+| Manager          |  Family/Face      |  CLDR plural, RTL     |
++------------------+-------------------+-----------------------+
+| uitest/          |                   |                       |
+| MockCanvas,      |  MockContext,     |  Event factories,     |
+| Widget helpers   |  Assertions       |  Reusable mocks       |
 +------------------+-------------------+-----------------------+
 | overlay/         |  render/          |  app/                 |
 | Stack, Container |  Canvas factory   |  App, Window,         |
@@ -96,7 +102,7 @@
 |---------|---------|-----------|
 | `cdk/` | Headless behaviors, polymorphic content | `Content[C]`, `StringContent`, `FuncContent[C]`, `WidgetContent` |
 
-### Layer 3a: Generic Widgets
+### Layer 3a: Generic Widgets (22 interactive widgets in core/)
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
@@ -109,13 +115,28 @@
 | `core/dialog/` | Modal dialog (backdrop, actions, focus trap) | `Widget`, `Painter`, `Alert`, `Confirm` |
 | `core/scrollview/` | Scrollable container (V/H/both) | `Widget`, `Painter`, wheel, keyboard, drag |
 | `core/tabview/` | Tabbed navigation (lazy content) | `Widget`, `Tab`, `Painter`, `DefaultPainter` |
-| `primitives/` | Display-only widgets + RepaintBoundary | `BoxWidget`, `TextWidget`, `ImageWidget`, `ThemeScope`, `RepaintBoundary` |
+| `core/listview/` | Virtualized list (fixed-height items, recycling) | `Widget`, `Painter`, selection, keyboard nav |
+| `core/gridview/` | Virtualized 2D grid (auto-fit columns, cell recycling) | `Widget`, `Painter`, Content[C], selection |
+| `core/linechart/` | Real-time line chart (multiple series, rolling window) | `Widget`, `Painter`, `Series`, thread-safe PushValue |
+| `core/progressbar/` | Linear progress bar (0-100%, rounded corners) | `Widget`, `Painter`, signal binding |
+| `core/progress/` | Circular progress (determinate arc + spinner) | `Widget`, `Painter`, polyline arc |
+| `core/collapsible/` | Expandable section (animated expand/collapse) | `Widget`, `Painter`, Tween animation |
+| `core/popover/` | Popover (click) + Tooltip (hover), 12 placements | `Widget`, `Painter`, auto-flip, overlay |
+| `core/splitview/` | Resizable split panels (H/V, draggable divider) | `Widget`, `Painter`, min constraints, collapse |
+| `core/treeview/` | Hierarchical tree (expand/collapse, virtualized) | `Widget`, `Painter`, indent, connector lines |
+| `core/datatable/` | Sortable column table (fixed header, virtualized rows) | `Widget`, `Painter`, column sort, zebra striping |
+| `core/toolbar/` | Horizontal action bar (icon buttons, separators) | `Widget`, `Painter`, spacers, custom items |
+| `core/menu/` | MenuBar + ContextMenu (submenus, shortcuts) | `MenuBar`, `ContextMenu`, `Painter`, overlay |
+| `core/docking/` | IDE-style dockable panels (border layout, tabbed groups) | `Host`, `Panel`, `Painter`, Dock/Undock API |
+| `primitives/` | Display-only widgets + RepaintBoundary | `BoxWidget` (HBox/VBox), `TextWidget`, `ImageWidget`, `ThemeScope`, `RepaintBoundary` |
 
 ### Layer 3b: Design Systems
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `theme/material3/` | M3 design tokens + painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
+| `theme/material3/` | M3 design tokens + 21 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `GridViewPainter`, `LineChartPainter`, `ProgressBarPainter`, `ProgressPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
+| `theme/fluent/` | Microsoft Fluent Design + 9 painters | `Theme`, accent color system, inner focus ring, 4px radii, light/dark |
+| `theme/cupertino/` | Apple HIG + 9 painters | `Theme`, iOS toggle switch, segmented control, pill buttons |
 
 ### Infrastructure
 
@@ -126,9 +147,15 @@
 | `layout/` | Layout tree and algorithms | `NodeID`, `NodeLayout`, `Result`, `Algorithm` |
 | `state/` | Reactive state with push-pull lifecycle | `Signal`, `ReadonlySignal`, `Computed`, `Effect`, `Binding`, `Scheduler` |
 | `theme/` | Base theme system | `Theme`, `ColorPalette`, `Typography`, `SpacingScale`, `ShadowStyles`, `RadiusScale` |
+| `theme/font/` | Font registry (CSS weight matching, W3C spec) | `Registry`, `Family`, `Face`, `Weight`, `Style` |
 | `a11y/` | Accessibility | `Accessible`, `Node`, `NodeID`, `Role`, `State`, `Action`, `Tree` |
-| `animation/` | Animation engine | `Controller`, `To`, `SpringTo`, `Sequence`, `Parallel`, `CubicBezier` |
-| `app/` | Window integration | `App`, `Window`, `EventBridge`, `FrameStats` |
+| `animation/` | Animation engine + M3 presets + orchestration | `Controller`, `To`, `SpringTo`, `Sequence`, `Parallel`, `CubicBezier`, `Stagger`, `Chain` |
+| `transition/` | Widget enter/exit animations | `Wrapper`, `FadeIn`, `FadeOut`, `SlideIn`, `SlideOut`, `ScaleIn`, `ScaleOut` |
+| `icon/` | Vector path icons (10 built-in Material icons) | `Icon`, `IconWidget`, `Registry`, De Casteljau cubic Bezier |
+| `i18n/` | Internationalization (CLDR plural rules, RTL) | `Locale`, `Bundle`, `Translator`, `LocaleSignal` |
+| `dnd/` | Drag and drop | `DragSource`, `DropTarget`, `Manager`, 5px threshold |
+| `uitest/` | Testing utilities (reusable mocks) | `MockCanvas`, `MockContext`, event factories, assertions |
+| `app/` | Window integration + FocusManager | `App`, `Window`, `EventBridge`, `FrameStats`, `FocusManager` |
 | `registry/` | Widget registry | `Registry`, `Category`, widget/context/canvas type aliases |
 | `plugin/` | Plugin system | `Plugin`, `Manager`, `PluginContext`, `Dependency`, `AssetLoader` |
 | `render/` | Public Canvas factory | `NewCanvas` (wraps internal/render) |
@@ -140,6 +167,7 @@
 | `internal/render/` | Canvas, SceneCanvas, Renderer backed by gg | `Canvas`, `SceneCanvas`, `Renderer`, `SoftwareTarget`, `RenderConfig` |
 | `internal/layout/` | Layout engines | `FlexContainer`, `VStack`, `HStack`, `GridContainer`, `Engine` |
 | `internal/focus/` | Focus manager implementation | `Manager`, `Shortcut`, `DrawFocusRing`, traversal helpers |
+| `internal/dirty/` | Dirty region tracking | `Tracker`, `Collector`, merge algorithm, partial repaints |
 
 ---
 
@@ -254,7 +282,10 @@ type Canvas interface {
     StrokeCircle(center geometry.Point, radius float32, color Color, strokeWidth float32)
     DrawLine(from, to geometry.Point, color Color, strokeWidth float32)
     DrawText(text string, bounds geometry.Rect, fontSize float32, color Color, bold bool, align TextAlign)
+    MeasureText(text string, fontSize float32, bold bool) geometry.Size
+    DrawImage(img image.Image, at geometry.Point)
     PushClip(r geometry.Rect)
+    PushClipRoundRect(r geometry.Rect, radius float32)
     PopClip()
     PushTransform(offset geometry.Point)
     PopTransform()
@@ -263,6 +294,9 @@ type Canvas interface {
 
 Key design decisions:
 - `DrawText` takes bounds, fontSize, color, bold flag, and alignment (`TextAlignLeft`, `TextAlignCenter`, `TextAlignRight`)
+- `MeasureText` returns text dimensions without drawing (for layout calculations)
+- `PushClipRoundRect` provides GPU SDF-based rounded rectangle clipping
+- `DrawImage` blits cached pixel buffers (used by RepaintBoundary)
 - Clip and transform use push/pop stacks (not Save/Restore)
 - PushTransform applies a translation offset (not a full matrix)
 
@@ -668,7 +702,7 @@ The framework manages lifecycle automatically:
 - `UnmountTree` walks bottom-up, calling `CleanupBindings()` then `Unmount()` on each widget
 - Widgets without signals need not implement `Lifecycle` — they are unaffected
 
-All 6 widget types implement `Lifecycle`: button, checkbox, radio, textfield, dropdown, primitives/text.
+All widget types with signal bindings implement `Lifecycle`: button, checkbox, radio, textfield, dropdown, slider, dialog, scrollview, tabview, listview, gridview, linechart, progressbar, collapsible, popover, splitview, treeview, datatable, toolbar, menu, docking, primitives/text, primitives/box.
 
 ### Retained-Mode Rendering
 
@@ -1090,13 +1124,32 @@ a.Frame() // Called from host render loop
 - Layout pass with tight constraints from window size
 - Draw pass via `DrawTo(canvas)`
 - Event dispatch to root widget
+- **FocusManager integration** — Tab/Shift+Tab navigation via `focus.Manager`
 - Focus change handling
 - Cursor sync to platform
 - Frame statistics reporting via `FrameCallback`
 
+The Window creates a `focus.Manager` and wires it to the widget tree root.
+Key events flow through the FocusManager before reaching the widget tree,
+enabling Tab navigation and keyboard shortcut dispatch.
+
 ### EventBridge
 
 `app.EventBridge` translates `gpucontext` events into `event.*` types and dispatches them to the Window.
+
+**Event pipeline:**
+```
+gpucontext (native OS events)
+  -> EventBridge (translate to ui/event types)
+    -> Window.HandleEvent()
+      -> FocusManager.HandleKeyEvent() (Tab/Shift+Tab, shortcuts)
+      -> Root Widget tree (bubbling dispatch)
+```
+
+The EventBridge also handles:
+- **ButtonState tracking** — synthesizes MouseUp events for buttons released between frames
+- **OnTextInput** — character input handler for text fields (separate from KeyPress)
+- **keyToRune mapping** — fallback rune synthesis from KeyPress events
 
 ---
 
@@ -1104,18 +1157,26 @@ a.Frame() // Called from host render loop
 
 ### BoxWidget
 
-Container that lays out children in a vertical stack:
+Container that lays out children in a vertical (default) or horizontal stack:
 
 ```go
+// Vertical (default)
 card := primitives.Box(
     primitives.Text("Title").Bold(),
     primitives.Text("Body"),
 ).Padding(16).Background(widget.Hex(0xFFFFFF)).Rounded(8)
+
+// Horizontal layout
+row := primitives.HBox(label, input, button).Gap(8)
+
+// Direction via signal binding
+dir := state.NewSignal(primitives.DirectionHorizontal)
+box := primitives.Box(children...).DirectionSignal(dir)
 ```
 
-Supports: padding, background, border, rounded corners, shadow, gap, explicit dimensions (width/height/min/max).
+Supports: padding, background, border, rounded corners, shadow, gap, direction (HBox/VBox), explicit dimensions (width/height/min/max), PushClipRoundRect for child clipping.
 
-Implements `widget.Widget` and `a11y.Accessible`.
+Implements `widget.Widget`, `a11y.Accessible`, and `widget.Lifecycle` (for signal cleanup).
 
 ### TextWidget
 
@@ -1162,10 +1223,13 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.36.0 |
-| `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.9.0 |
+| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.37.0 |
+| `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.10.0 |
+| `github.com/gogpu/gogpu` | Application framework, windowing (examples only) | v0.24.0 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
 | `golang.org/x/image` | Font rendering infrastructure | v0.37.0 |
+
+**Indirect:** gogpu/wgpu v0.21.0, gogpu/naga v0.14.7, gogpu/gputypes v0.3.0, go-text/typesetting v0.3.4, golang.org/x/text v0.35.0
 
 Go version: **1.25.0**
 
@@ -1243,4 +1307,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of March 11, 2026.*
+*This document reflects the actual codebase as of March 15, 2026.*
