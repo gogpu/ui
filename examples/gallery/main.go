@@ -157,6 +157,12 @@ func buildGallery(gs *galleryState) *scrollview.Widget {
 			dropdown.PainterOpt(material3.DropdownPainter{Theme: m3}),
 			dropdown.OnChange(func(idx int, val string) {
 				fmt.Printf("theme: %s (index %d)\n", val, idx)
+				// Update theme seed color — all painters hold *Theme pointer,
+				// so replacing the struct contents updates everything.
+				seeds := []uint32{0x6750A4, 0x0078D4, 0x2E7D32, 0xE65100}
+				if idx < len(seeds) {
+					*m3 = *material3.New(widget.Hex(seeds[idx]))
+				}
 			}),
 		),
 	).Gap(16).PaddingXY(0, 8)

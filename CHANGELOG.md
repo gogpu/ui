@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Hover Tracking — TASK-UI-067)
+- **W3C PointerEventSource** — wired `gpucontext.PointerEventSource.OnPointer()` for
+  window Enter/Leave events. HoverTracker in Window performs hit-testing on MouseMove
+  using ScreenBounds, synthesizes MouseEnter/MouseLeave for individual widgets.
+  Enables hover cursors (pointer, text, resize) in production. 17 new tests.
+
+### Fixed (Drag Cursor — TASK-UI-068)
+- **Drag cursor maintained** — SplitView and Slider now set cursor on every drag MouseMove.
+  Window skips ResetCursor in Frame() while mouse buttons are held. Cursor sync runs
+  immediately after HandleEvent for responsive hover feedback in event-driven mode.
+
 ### Fixed (Event Coordinate Transform — TASK-UI-066)
 - **ScrollView event dispatch** — mouse/wheel coordinates now transformed from screen
   space to content space before dispatching to children. Fixes click hit-testing for
