@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Phase 4 — Design Systems & Infrastructure)
+- **Fluent Design Theme** (`theme/fluent/`) — Microsoft Fluent Design with 9 painters,
+  accent color system, inner focus ring, 4px radii, light/dark variants. 42 tests.
+- **Cupertino Theme** (`theme/cupertino/`) — Apple HIG with 9 painters, iOS toggle switch
+  checkbox, segmented control tabview, transparent scrollbar, pill buttons. 44 tests.
+- **i18n System** (`i18n/`) — Locale, Bundle, Translator with 4-level fallback,
+  CLDR plural rules (6 language families), RTL detection, reactive LocaleSignal. 32 tests, 97.9%
+
 ### Added (Phase 4 — Continued)
 - **Docking System** (`core/docking/`) — IDE-style dockable panels with border layout
   (Left/Right/Top/Bottom/Center zones), tabbed panel groups, auto-collapse empty zones,
