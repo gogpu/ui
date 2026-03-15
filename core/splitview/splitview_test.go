@@ -60,12 +60,16 @@ func (c *canvasRecorder) StrokeCircle(_ geometry.Point, _ float32, _ widget.Colo
 func (c *canvasRecorder) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)               {}
 func (c *canvasRecorder) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
-func (c *canvasRecorder) DrawImage(_ image.Image, _ geometry.Point)   {}
-func (c *canvasRecorder) PushClip(_ geometry.Rect)                    {}
+
+func (c *canvasRecorder) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
+func (c *canvasRecorder) DrawImage(_ image.Image, _ geometry.Point)    {}
+func (c *canvasRecorder) PushClip(_ geometry.Rect)                     {}
 func (c *canvasRecorder) PushClipRoundRect(_ geometry.Rect, _ float32) {}
-func (c *canvasRecorder) PopClip()                                    {}
-func (c *canvasRecorder) PushTransform(_ geometry.Point)              {}
-func (c *canvasRecorder) PopTransform()                               {}
+func (c *canvasRecorder) PopClip()                                     {}
+func (c *canvasRecorder) PushTransform(_ geometry.Point)               {}
+func (c *canvasRecorder) PopTransform()                                {}
 
 // Compile-time check.
 var _ widget.Canvas = (*canvasRecorder)(nil)
@@ -160,10 +164,10 @@ func TestNew_WithColorScheme(t *testing.T) {
 
 func TestChildren(t *testing.T) {
 	tests := []struct {
-		name     string
-		first    widget.Widget
-		second   widget.Widget
-		wantLen  int
+		name    string
+		first   widget.Widget
+		second  widget.Widget
+		wantLen int
 	}{
 		{"no panels", nil, nil, 0},
 		{"first only", newMockWidget(), nil, 1},

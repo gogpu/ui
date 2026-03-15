@@ -299,11 +299,15 @@ func (c *noopCanvas) DrawCircle(geometry.Point, float32, Color)                 
 func (c *noopCanvas) StrokeCircle(geometry.Point, float32, Color, float32)            {}
 func (c *noopCanvas) DrawLine(geometry.Point, geometry.Point, Color, float32)         {}
 func (c *noopCanvas) DrawText(string, geometry.Rect, float32, Color, bool, TextAlign) {}
-func (c *noopCanvas) DrawImage(image.Image, geometry.Point)                           {}
-func (c *noopCanvas) PushClip(geometry.Rect)                                          {}
-func (c *noopCanvas) PushClipRoundRect(_ geometry.Rect, _ float32)                    {}
-func (c *noopCanvas) PopClip()                                                        {}
-func (c *noopCanvas) PushTransform(geometry.Point)                                    {}
-func (c *noopCanvas) PopTransform()                                                   {}
+
+func (c *noopCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
+func (c *noopCanvas) DrawImage(image.Image, geometry.Point)        {}
+func (c *noopCanvas) PushClip(geometry.Rect)                       {}
+func (c *noopCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
+func (c *noopCanvas) PopClip()                                     {}
+func (c *noopCanvas) PushTransform(geometry.Point)                 {}
+func (c *noopCanvas) PopTransform()                                {}
 
 var _ Canvas = (*noopCanvas)(nil)

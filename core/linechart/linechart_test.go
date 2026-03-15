@@ -736,6 +736,10 @@ func (c *recordingCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widge
 	c.drawCount++
 	c.textCount++
 }
+
+func (c *recordingCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *recordingCanvas) DrawImage(_ image.Image, _ geometry.Point) { c.drawCount++ }
 func (c *recordingCanvas) PushClip(_ geometry.Rect)                  { c.clipCount++ }
 func (c *recordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {

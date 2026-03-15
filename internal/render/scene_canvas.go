@@ -267,6 +267,36 @@ func (c *SceneCanvas) DrawText(s string, bounds geometry.Rect, fontSize float32,
 	c.sc.DrawImage(scImg, scene.TranslateAffine(bounds.Min.X, bounds.Min.Y))
 }
 
+// MeasureText returns the width in pixels of the given text string
+// when rendered at the specified font size and weight.
+// SceneCanvas approximates using average character width since the text
+// rendering context may not be initialized.
+func (c *SceneCanvas) MeasureText(s string, fontSize float32, bold bool) float32 {
+	if s == "" {
+		return 0
+	}
+
+	// Try to use the gg text context for accurate measurement.
+	ensureDefaultFonts()
+	source := defaultRegular
+	if bold {
+		source = defaultBold
+	}
+	if source != nil {
+		// Lazily create a small text context for measurement.
+		if c.textDC == nil {
+			c.textDC = gg.NewContext(1, 1)
+		}
+		face := source.Face(float64(fontSize))
+		c.textDC.SetFont(face)
+		w, _ := c.textDC.MeasureString(s)
+		return float32(w)
+	}
+
+	// Fallback: approximate with average character width.
+	return float32(len([]rune(s))) * fontSize * 0.5
+}
+
 // DrawImage draws an image at the specified position.
 func (c *SceneCanvas) DrawImage(img image.Image, at geometry.Point) {
 	if img == nil {

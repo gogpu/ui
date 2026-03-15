@@ -817,11 +817,11 @@ func (s *mockScheduler) MarkDirty(_ widget.Widget) {
 
 // recordingCanvas is a minimal mock for external tests.
 type recordingCanvas struct {
-	drawCount        int
+	drawCount         int
 	strokeCircleCount int
-	lineCount        int
-	drewText         bool
-	lastText         string
+	lineCount         int
+	drewText          bool
+	lastText          string
 }
 
 func (c *recordingCanvas) Clear(_ widget.Color)                                     {}
@@ -847,9 +847,13 @@ func (c *recordingCanvas) DrawText(text string, _ geometry.Rect, _ float32, _ wi
 	c.drewText = true
 	c.lastText = text
 }
-func (c *recordingCanvas) DrawImage(_ image.Image, _ geometry.Point) { c.drawCount++ }
-func (c *recordingCanvas) PushClip(_ geometry.Rect)                  {}
+
+func (c *recordingCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
+func (c *recordingCanvas) DrawImage(_ image.Image, _ geometry.Point)    { c.drawCount++ }
+func (c *recordingCanvas) PushClip(_ geometry.Rect)                     {}
 func (c *recordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
-func (c *recordingCanvas) PopClip()                       {}
-func (c *recordingCanvas) PushTransform(_ geometry.Point) {}
-func (c *recordingCanvas) PopTransform()                  {}
+func (c *recordingCanvas) PopClip()                                     {}
+func (c *recordingCanvas) PushTransform(_ geometry.Point)               {}
+func (c *recordingCanvas) PopTransform()                                {}

@@ -399,6 +399,10 @@ func (w *Window) syncManagerFocusToContext() {
 	// type assertion to get the Widget interface for the context.
 	if fw, ok := focused.(widget.Widget); ok {
 		w.ctx.RequestFocus(fw)
+		w.needsRedraw = true
+		if w.wp != nil {
+			w.wp.RequestRedraw()
+		}
 	}
 }
 

@@ -230,6 +230,10 @@ func (c *svMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) 
 func (c *svMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 	c.drawCount++
 }
+
+func (c *svMockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *svMockCanvas) DrawImage(_ image.Image, _ geometry.Point)    { c.drawCount++ }
 func (c *svMockCanvas) PushClip(_ geometry.Rect)                     {}
 func (c *svMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}

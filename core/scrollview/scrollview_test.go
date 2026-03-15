@@ -54,6 +54,10 @@ func (c *stubCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _
 func (c *stubCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)               {}
 func (c *stubCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
+
+func (c *stubCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *stubCanvas) DrawImage(_ image.Image, _ geometry.Point) {}
 
 func (c *stubCanvas) PushClip(r geometry.Rect) {

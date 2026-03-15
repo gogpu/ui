@@ -402,6 +402,29 @@ func (c *Canvas) DrawText(s string, bounds geometry.Rect, fontSize float32, colo
 	c.dc.DrawString(s, x, baselineY)
 }
 
+// MeasureText returns the width in pixels of the given text string
+// when rendered at the specified font size and weight.
+func (c *Canvas) MeasureText(s string, fontSize float32, bold bool) float32 {
+	if s == "" {
+		return 0
+	}
+
+	ensureDefaultFonts()
+
+	source := defaultRegular
+	if bold {
+		source = defaultBold
+	}
+	if source == nil {
+		return float32(len([]rune(s))) * fontSize * 0.5
+	}
+
+	face := source.Face(float64(fontSize))
+	c.dc.SetFont(face)
+	w, _ := c.dc.MeasureString(s)
+	return float32(w)
+}
+
 // DrawImage draws an image at the specified position.
 //
 // The image is composited using source-over blending via gg.DrawImage.

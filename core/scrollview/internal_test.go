@@ -1962,6 +1962,10 @@ func (c *internalMockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.
 func (c *internalMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32)             {}
 func (c *internalMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 }
+
+func (c *internalMockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *internalMockCanvas) DrawImage(_ image.Image, _ geometry.Point) {}
 
 func (c *internalMockCanvas) PushClip(r geometry.Rect) {

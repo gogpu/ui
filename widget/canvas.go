@@ -110,6 +110,11 @@ type Canvas interface {
 	// The align parameter controls horizontal alignment.
 	DrawText(text string, bounds geometry.Rect, fontSize float32, color Color, bold bool, align TextAlign)
 
+	// MeasureText returns the width in pixels of the given text string
+	// when rendered at the specified font size and weight.
+	// This is essential for accurate cursor positioning in text fields.
+	MeasureText(text string, fontSize float32, bold bool) float32
+
 	// DrawImage draws an image at the specified position.
 	//
 	// The image is drawn with its top-left corner at the given point.

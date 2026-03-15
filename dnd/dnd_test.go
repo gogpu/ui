@@ -11,12 +11,12 @@ import (
 
 // mockDragSource implements DragSource for testing.
 type mockDragSource struct {
-	data         DragData
-	allowDrag    bool
-	dragStarted  bool
-	dragEnded    bool
-	endAccepted  bool
-	startPos     geometry.Point
+	data        DragData
+	allowDrag   bool
+	dragStarted bool
+	dragEnded   bool
+	endAccepted bool
+	startPos    geometry.Point
 }
 
 func (m *mockDragSource) DragStart(pos geometry.Point) (DragData, bool) {
@@ -32,17 +32,17 @@ func (m *mockDragSource) DragEnd(accepted bool) {
 
 // mockDropTarget implements DropTarget for testing.
 type mockDropTarget struct {
-	acceptKinds   []string
-	entered       bool
-	overCount     int
-	left          bool
-	dropped       bool
-	dropAccepted  bool
-	lastOverPos   geometry.Point
-	lastDropPos   geometry.Point
-	lastOverData  DragData
-	lastDropData  DragData
-	overEffect    DropEffect
+	acceptKinds  []string
+	entered      bool
+	overCount    int
+	left         bool
+	dropped      bool
+	dropAccepted bool
+	lastOverPos  geometry.Point
+	lastDropPos  geometry.Point
+	lastOverData DragData
+	lastDropData DragData
+	overEffect   DropEffect
 }
 
 func (m *mockDropTarget) CanAccept(data DragData) bool {

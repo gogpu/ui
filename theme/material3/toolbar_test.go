@@ -208,6 +208,10 @@ func (c *toolbarMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ wid
 	c.drawCount++
 	c.textCount++
 }
+
+func (c *toolbarMockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *toolbarMockCanvas) DrawImage(_ image.Image, _ geometry.Point)    { c.drawCount++ }
 func (c *toolbarMockCanvas) PushClip(_ geometry.Rect)                     {}
 func (c *toolbarMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}

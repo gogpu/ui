@@ -38,6 +38,10 @@ func (m *mockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) { 
 func (m *mockCanvas) DrawText(text string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 	m.texts = append(m.texts, text)
 }
+
+func (m *mockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (m *mockCanvas) DrawImage(_ image.Image, _ geometry.Point)    {}
 func (m *mockCanvas) PushClip(_ geometry.Rect)                     { m.clips++ }
 func (m *mockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) { m.clips++ }

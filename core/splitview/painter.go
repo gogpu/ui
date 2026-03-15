@@ -113,8 +113,8 @@ func paintHandle(canvas widget.Canvas, divider geometry.Rect, orient Orientation
 
 // Handle dimensions.
 const (
-	handleRadius  float32 = 2  // radius of each handle dot
-	handleSpacing float32 = 6  // spacing between handle dots
+	handleRadius  float32 = 2 // radius of each handle dot
+	handleSpacing float32 = 6 // spacing between handle dots
 )
 
 // Default colors for DefaultPainter.

@@ -399,7 +399,7 @@ func translateKey(key gpucontext.Key) event.Key {
 // This is a workaround for platforms that don't provide OnTextInput/CharCallback.
 // Returns 0 if the key does not map to a printable character.
 //
-//nolint:gocyclo,cyclop // key mapping requires large switch
+//nolint:gocyclo,cyclop,funlen // key mapping requires large switch
 func keyToRune(key gpucontext.Key, mods gpucontext.Modifiers) rune {
 	if mods.HasControl() || mods.HasAlt() || mods.HasSuper() {
 		return 0 // modifier combos are not text input

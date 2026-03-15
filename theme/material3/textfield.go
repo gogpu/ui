@@ -122,9 +122,16 @@ func m3PaintTextFieldSelection(canvas widget.Canvas, contentBounds geometry.Rect
 		selStart, selEnd = selEnd, selStart
 	}
 
-	charWidth := m3TFFontSize * m3TFCharWidthRatio
-	x1 := contentBounds.Min.X + float32(selStart)*charWidth
-	x2 := contentBounds.Min.X + float32(selEnd)*charWidth
+	// Determine the display text for measurement.
+	displayText := st.Text
+	if st.InputType == textfield.TypePassword {
+		displayText = m3MaskText(len([]rune(st.Text)))
+	}
+	runes := []rune(displayText)
+
+	// Measure actual text width up to selection boundaries.
+	x1 := contentBounds.Min.X + canvas.MeasureText(string(runes[:selStart]), m3TFFontSize, false)
+	x2 := contentBounds.Min.X + canvas.MeasureText(string(runes[:selEnd]), m3TFFontSize, false)
 
 	if x2 > contentBounds.Max.X {
 		x2 = contentBounds.Max.X
@@ -144,8 +151,16 @@ func m3PaintTextFieldCursor(canvas widget.Canvas, st textfield.PaintState, color
 	}
 
 	content := m3TFContentRect(st.Bounds)
-	charWidth := m3TFFontSize * m3TFCharWidthRatio
-	cursorX := content.Min.X + float32(st.CursorPos)*charWidth
+
+	// Determine the display text for measurement.
+	displayText := st.Text
+	if st.InputType == textfield.TypePassword {
+		displayText = m3MaskText(len([]rune(st.Text)))
+	}
+
+	// Measure actual text width up to cursor position.
+	textBeforeCursor := string([]rune(displayText)[:st.CursorPos])
+	cursorX := content.Min.X + canvas.MeasureText(textBeforeCursor, m3TFFontSize, false)
 
 	if cursorX > content.Max.X {
 		cursorX = content.Max.X
@@ -209,7 +224,6 @@ const (
 	m3TFContentPaddingH    float32 = 16
 	m3TFContentPaddingV    float32 = 12
 	m3TFFontSize           float32 = 16
-	m3TFCharWidthRatio     float32 = 0.55
 	m3TFTextAlignLeft              = widget.TextAlignLeft
 	m3TFCursorWidth        float32 = 2
 	m3TFCursorPadding      float32 = 2

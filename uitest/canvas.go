@@ -190,6 +190,12 @@ func (c *MockCanvas) DrawText(text string, bounds geometry.Rect, fontSize float3
 	})
 }
 
+// MeasureText returns an approximate width for the given text.
+// Uses average character width (0.5 * fontSize) for test predictability.
+func (c *MockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
+
 // DrawImage records the image and position arguments.
 func (c *MockCanvas) DrawImage(img image.Image, at geometry.Point) {
 	c.Images = append(c.Images, DrawImageCall{Image: img, At: at})

@@ -185,9 +185,9 @@ func resolveLabelColor(ps PaintState, hasScheme bool) widget.Color {
 
 // Default colors for DefaultPainter.
 var (
-	defaultIndicatorColor   = widget.Hex(0x6750A4) // Material primary
-	defaultTrackColor       = widget.RGBA(0.90, 0.90, 0.90, 1.0)
-	defaultLabelColor       = widget.ColorBlack
+	defaultIndicatorColor    = widget.Hex(0x6750A4) // Material primary
+	defaultTrackColor        = widget.RGBA(0.90, 0.90, 0.90, 1.0)
+	defaultLabelColor        = widget.ColorBlack
 	defaultDisabledIndicator = widget.RGBA(0.70, 0.70, 0.70, 1.0)
-	defaultDisabledTrack    = widget.RGBA(0.93, 0.93, 0.93, 1.0)
+	defaultDisabledTrack     = widget.RGBA(0.93, 0.93, 0.93, 1.0)
 )

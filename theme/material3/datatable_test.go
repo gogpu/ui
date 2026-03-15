@@ -200,6 +200,10 @@ func (c *tableMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widge
 	c.drawCount++
 	c.textCount++
 }
+
+func (c *tableMockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *tableMockCanvas) DrawImage(_ image.Image, _ geometry.Point)    { c.drawCount++ }
 func (c *tableMockCanvas) PushClip(_ geometry.Rect)                     {}
 func (c *tableMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}

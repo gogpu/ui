@@ -980,6 +980,10 @@ func (c *internalRecordingCanvas) DrawText(text string, bounds geometry.Rect, fo
 	c.drawTexts = append(c.drawTexts, internalDrawTextCall{text: text, bounds: bounds, fontSize: fontSize, color: color, bold: bold, align: align})
 }
 
+func (c *internalRecordingCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
+
 func (c *internalRecordingCanvas) DrawImage(_ image.Image, _ geometry.Point)    {}
 func (c *internalRecordingCanvas) PushClip(_ geometry.Rect)                     {}
 func (c *internalRecordingCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}

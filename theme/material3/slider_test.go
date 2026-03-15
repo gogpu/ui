@@ -349,6 +349,10 @@ func (c *sliderMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float
 func (c *sliderMockCanvas) DrawText(_ string, _ geometry.Rect, _ float32, _ widget.Color, _ bool, _ widget.TextAlign) {
 	c.drawCount++
 }
+
+func (c *sliderMockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *sliderMockCanvas) DrawImage(_ image.Image, _ geometry.Point)    { c.drawCount++ }
 func (c *sliderMockCanvas) PushClip(_ geometry.Rect)                     {}
 func (c *sliderMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}

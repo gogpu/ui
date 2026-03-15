@@ -1980,6 +1980,10 @@ func (c *mockCanvas) DrawLine(geometry.Point, geometry.Point, widget.Color, floa
 func (c *mockCanvas) DrawText(string, geometry.Rect, float32, widget.Color, bool, widget.TextAlign) {
 	c.drawTextCalls++
 }
+
+func (c *mockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (c *mockCanvas) DrawImage(_ image.Image, _ geometry.Point) {}
 func (c *mockCanvas) PushClip(geometry.Rect)                    { c.pushClipCalls++ }
 func (c *mockCanvas) PushClipRoundRect(geometry.Rect, float32)  {}

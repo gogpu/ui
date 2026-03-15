@@ -240,21 +240,25 @@ func (m *mockCanvas) DrawLine(from, to geometry.Point, color widget.Color, strok
 }
 
 // Stub methods required by the Canvas interface.
-func (m *mockCanvas) Clear(widget.Color)                                                    {}
-func (m *mockCanvas) DrawRect(geometry.Rect, widget.Color)                                  {}
-func (m *mockCanvas) StrokeRect(geometry.Rect, widget.Color, float32)                       {}
-func (m *mockCanvas) DrawRoundRect(geometry.Rect, widget.Color, float32)                    {}
-func (m *mockCanvas) StrokeRoundRect(geometry.Rect, widget.Color, float32, float32)         {}
-func (m *mockCanvas) DrawCircle(geometry.Point, float32, widget.Color)                      {}
-func (m *mockCanvas) StrokeCircle(geometry.Point, float32, widget.Color, float32)            {}
+func (m *mockCanvas) Clear(widget.Color)                                            {}
+func (m *mockCanvas) DrawRect(geometry.Rect, widget.Color)                          {}
+func (m *mockCanvas) StrokeRect(geometry.Rect, widget.Color, float32)               {}
+func (m *mockCanvas) DrawRoundRect(geometry.Rect, widget.Color, float32)            {}
+func (m *mockCanvas) StrokeRoundRect(geometry.Rect, widget.Color, float32, float32) {}
+func (m *mockCanvas) DrawCircle(geometry.Point, float32, widget.Color)              {}
+func (m *mockCanvas) StrokeCircle(geometry.Point, float32, widget.Color, float32)   {}
 func (m *mockCanvas) DrawText(string, geometry.Rect, float32, widget.Color, bool, widget.TextAlign) {
 }
+
+func (m *mockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
 func (m *mockCanvas) DrawImage(_ image.Image, _ geometry.Point) {}
-func (m *mockCanvas) PushClip(geometry.Rect)                                         {}
-func (m *mockCanvas) PushClipRoundRect(geometry.Rect, float32)                       {}
-func (m *mockCanvas) PopClip()                                                       {}
-func (m *mockCanvas) PushTransform(geometry.Point)                                   {}
-func (m *mockCanvas) PopTransform()                                                  {}
+func (m *mockCanvas) PushClip(geometry.Rect)                    {}
+func (m *mockCanvas) PushClipRoundRect(geometry.Rect, float32)  {}
+func (m *mockCanvas) PopClip()                                  {}
+func (m *mockCanvas) PushTransform(geometry.Point)              {}
+func (m *mockCanvas) PopTransform()                             {}
 
 func TestDraw_EmptyOps(t *testing.T) {
 	c := &mockCanvas{}

@@ -137,9 +137,16 @@ func paintSelection(canvas widget.Canvas, contentBounds geometry.Rect, st PaintS
 		selStart, selEnd = selEnd, selStart
 	}
 
-	charWidth := defaultFontSize * charWidthRatio
-	x1 := contentBounds.Min.X + float32(selStart)*charWidth
-	x2 := contentBounds.Min.X + float32(selEnd)*charWidth
+	// Determine the display text for measurement.
+	displayText := st.Text
+	if st.InputType == TypePassword {
+		displayText = maskText(len([]rune(st.Text)))
+	}
+	runes := []rune(displayText)
+
+	// Measure actual text width up to selection boundaries for accurate placement.
+	x1 := contentBounds.Min.X + canvas.MeasureText(string(runes[:selStart]), defaultFontSize, false)
+	x2 := contentBounds.Min.X + canvas.MeasureText(string(runes[:selEnd]), defaultFontSize, false)
 
 	// Clamp to content bounds.
 	if x2 > contentBounds.Max.X {
@@ -164,8 +171,16 @@ func paintCursor(canvas widget.Canvas, st PaintState) {
 	}
 
 	content := contentRect(st.Bounds)
-	charWidth := defaultFontSize * charWidthRatio
-	cursorX := content.Min.X + float32(st.CursorPos)*charWidth
+
+	// Determine the display text for measurement.
+	displayText := st.Text
+	if st.InputType == TypePassword {
+		displayText = maskText(len([]rune(st.Text)))
+	}
+
+	// Measure actual text width up to cursor position for accurate placement.
+	textBeforeCursor := string([]rune(displayText)[:st.CursorPos])
+	cursorX := content.Min.X + canvas.MeasureText(textBeforeCursor, defaultFontSize, false)
 
 	// Clamp cursor to content area.
 	if cursorX > content.Max.X {
