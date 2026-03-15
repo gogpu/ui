@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Screen-Space Coordinates — TASK-UI-065)
+- **ScreenBounds** (`widget/base.go`) — screen-space coordinate transform for overlay
+  positioning inside ScrollView. Draw-pass transform stamping via `Canvas.TransformOffset()`
+  + `widget.StampScreenOrigin()`. Dropdown/Popover use `ScreenBounds()` for correct
+  positioning. Enterprise pattern (Flutter localToGlobal / Qt mapToGlobal). 72 files.
+
 ### Fixed (Collapsible)
 - **Event forwarding** — Collapsible now properly forwards events to content widgets
   when expanded. Previously mouse clicks on content children were not dispatched.
