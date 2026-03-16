@@ -11,7 +11,9 @@
 
 <p align="center">
   <a href="https://github.com/gogpu/ui/actions"><img src="https://github.com/gogpu/ui/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://app.codecov.io/gh/gogpu/ui"><img src="https://codecov.io/gh/gogpu/ui/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://app.codecov.io/gh/gogpu/ui"><img src="https://codecov.io/gh/gogpu/ui/branch/main/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://goreportcard.com/report/github.com/gogpu/ui"><img src="https://goreportcard.com/badge/github.com/gogpu/ui" alt="Go Report Card"></a>
+  <a href="https://pkg.go.dev/github.com/gogpu/ui"><img src="https://pkg.go.dev/badge/github.com/gogpu/ui.svg" alt="Go Reference"></a>
   <a href="https://github.com/gogpu/ui/releases/latest"><img src="https://img.shields.io/github/v/release/gogpu/ui?style=flat&label=version" alt="Version"></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go" alt="Go Version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
