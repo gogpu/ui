@@ -11,11 +11,12 @@
 
 <p align="center">
   <a href="https://github.com/gogpu/ui/actions"><img src="https://github.com/gogpu/ui/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/gogpu/ui"><img src="https://img.shields.io/badge/status-Phase_4_v1.0-blue" alt="Status"></a>
+  <a href="https://app.codecov.io/gh/gogpu/ui"><img src="https://codecov.io/gh/gogpu/ui/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://github.com/gogpu/ui/releases/latest"><img src="https://img.shields.io/github/v/release/gogpu/ui?style=flat&label=version" alt="Version"></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go" alt="Go Version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
-  <a href="https://github.com/gogpu/gogpu/stargazers"><img src="https://img.shields.io/github/stars/gogpu/gogpu?style=flat&labelColor=555&color=yellow" alt="Stars"></a>
-  <a href="https://github.com/gogpu/gogpu/discussions"><img src="https://img.shields.io/github/discussions/gogpu/gogpu?style=flat&labelColor=555&color=blue" alt="Discussions"></a>
+  <a href="https://github.com/gogpu/ui/stargazers"><img src="https://img.shields.io/github/stars/gogpu/ui?style=flat&labelColor=555&color=yellow" alt="Stars"></a>
+  <a href="https://github.com/orgs/gogpu/discussions"><img src="https://img.shields.io/badge/Discussions-join-blue" alt="Discussions"></a>
 </p>
 
 ---
