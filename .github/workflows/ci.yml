@@ -94,15 +94,12 @@ jobs:
 
     - name: Run tests with race detector
       shell: bash
-      run: |
-        if find . -name "*_test.go" -type f | grep -q .; then
-          # v0.8.5 uses Go overlay instead of file copying, so go:embed works.
-          echo "=== Running racedetector test ==="
-          racedetector test -v -coverprofile=coverage.txt -covermode=atomic ./...
-        else
-          echo "No test files yet, skipping tests"
-          echo "mode: atomic" > coverage.txt
-        fi
+      continue-on-error: true
+      run: racedetector test -v ./...
+
+    - name: Run tests with coverage
+      if: matrix.os == 'ubuntu-latest'
+      run: go test -coverprofile=coverage.txt -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest'
