@@ -1297,3 +1297,160 @@ func TestHitTest_ReverseZOrder(t *testing.T) {
 		t.Error("hitTest should return the topmost (last) child for overlapping widgets")
 	}
 }
+
+// --- Animation scheduling regression tests ---
+//
+// These tests prevent regressions for the bug where needsLayout was
+// unconditionally cleared after layout(), clobbering invalidation
+// requests made by animating widgets during the layout pass.
+// See the animPumper and BeginFrame fixes.
+
+// invalidatingOnLayoutWidget calls ctx.Invalidate() during Layout,
+// simulating what animated widgets (e.g. collapsible) do when they
+// call tickAnimation() inside Layout().
+type invalidatingOnLayoutWidget struct {
+	widget.WidgetBase
+	invalidateOnLayout bool
+}
+
+func newInvalidatingWidget(invalidate bool) *invalidatingOnLayoutWidget {
+	w := &invalidatingOnLayoutWidget{invalidateOnLayout: invalidate}
+	w.SetVisible(true)
+	w.SetEnabled(true)
+	return w
+}
+
+func (w *invalidatingOnLayoutWidget) Layout(ctx widget.Context, c geometry.Constraints) geometry.Size {
+	if w.invalidateOnLayout {
+		ctx.Invalidate()
+	}
+	return c.Constrain(geometry.Sz(100, 50))
+}
+
+func (w *invalidatingOnLayoutWidget) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (w *invalidatingOnLayoutWidget) Event(_ widget.Context, _ event.Event) bool {
+	return false
+}
+
+// TestWindow_Frame_NeedsLayoutPreservedWhenInvalidatedDuringLayout verifies
+// that needsLayout is NOT cleared when a widget calls ctx.Invalidate() during
+// Layout(). This is the KEY regression test for the animation scheduling bug:
+// before the fix, needsLayout was unconditionally set to false after layout(),
+// which meant animations only progressed when external events (mouse move)
+// triggered new frames.
+func TestWindow_Frame_NeedsLayoutPreservedWhenInvalidatedDuringLayout(t *testing.T) {
+	wp := &mockWindowProvider{width: 800, height: 600, scale: 1.0}
+	a := New(WithWindowProvider(wp))
+	w := a.Window()
+
+	root := newInvalidatingWidget(true) // Will call Invalidate during Layout
+	w.SetRoot(root)
+
+	w.Frame()
+
+	// After Frame, needsLayout should still be true because the widget
+	// re-invalidated during layout (simulating an active animation).
+	if !w.NeedsLayout() {
+		t.Error("needsLayout should be preserved when widget invalidates during layout; " +
+			"this was the root cause of the animation scheduling bug")
+	}
+}
+
+// TestWindow_Frame_NeedsLayoutClearedWhenNoInvalidation verifies that
+// needsLayout IS cleared normally when no widget invalidates during layout.
+func TestWindow_Frame_NeedsLayoutClearedWhenNoInvalidation(t *testing.T) {
+	wp := &mockWindowProvider{width: 800, height: 600, scale: 1.0}
+	a := New(WithWindowProvider(wp))
+	w := a.Window()
+
+	root := newInvalidatingWidget(false) // Normal widget, no invalidation
+	w.SetRoot(root)
+
+	w.Frame()
+
+	if w.NeedsLayout() {
+		t.Error("needsLayout should be cleared when no widget invalidates during layout")
+	}
+}
+
+// TestWindow_AnimPumper_StartsOnInvalidation verifies that the animation
+// pumper goroutine is started when a widget calls ctx.Invalidate() during
+// a frame (e.g. from tickAnimation). Without the pumper, animations would
+// only progress when the OS sends input events.
+func TestWindow_AnimPumper_StartsOnInvalidation(t *testing.T) {
+	wp := &mockWindowProvider{width: 800, height: 600, scale: 1.0}
+	a := New(WithWindowProvider(wp))
+	w := a.Window()
+
+	root := newInvalidatingWidget(true)
+	w.SetRoot(root)
+
+	// Before first frame, no pumper.
+	if w.animToken != nil {
+		t.Fatal("animToken should be nil before first frame")
+	}
+
+	w.Frame()
+
+	// Widget invalidated during layout, so pumper should start.
+	if w.animToken == nil {
+		t.Error("animToken should be started after frame with invalidation")
+	}
+
+	// Verify RequestRedraw was called (from the invalidation callback).
+	if wp.redrawCount == 0 {
+		t.Error("WindowProvider.RequestRedraw should have been called")
+	}
+}
+
+// TestWindow_AnimPumper_StopsAfterIdleFrames verifies that the animation
+// pumper is stopped after 3+ consecutive frames with no invalidation.
+// This prevents the pumper from running forever after animations complete.
+func TestWindow_AnimPumper_StopsAfterIdleFrames(t *testing.T) {
+	wp := &mockWindowProvider{width: 800, height: 600, scale: 1.0}
+	a := New(WithWindowProvider(wp))
+	w := a.Window()
+
+	root := newInvalidatingWidget(true)
+	w.SetRoot(root)
+
+	// First frame: starts pumper.
+	w.Frame()
+	if w.animToken == nil {
+		t.Fatal("pumper should be running after invalidating frame")
+	}
+
+	// Stop invalidating.
+	root.invalidateOnLayout = false
+
+	// Run frames until pumper stops. The threshold is >3 idle frames.
+	for range 10 {
+		w.Frame()
+		if w.animToken == nil {
+			// Pumper stopped — verify it took more than 3 idle frames.
+			if w.animIdleFrames != 0 {
+				t.Errorf("animIdleFrames should be reset to 0 after stop, got %d", w.animIdleFrames)
+			}
+			return // Success
+		}
+	}
+	t.Error("animToken should become nil after consecutive idle frames")
+}
+
+// TestWindow_AnimPumper_NotStartedWithoutWindowProvider verifies that
+// the animation pumper is NOT created in headless mode (wp==nil).
+// In headless mode there is no window to request redraws from.
+func TestWindow_AnimPumper_NotStartedWithoutWindowProvider(t *testing.T) {
+	a := New() // Headless, no WindowProvider.
+	w := a.Window()
+
+	root := newInvalidatingWidget(true)
+	w.SetRoot(root)
+
+	w.Frame()
+
+	if w.animToken != nil {
+		t.Error("animToken should be nil in headless mode (no WindowProvider)")
+	}
+}

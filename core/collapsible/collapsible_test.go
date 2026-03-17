@@ -525,20 +525,22 @@ func TestAnimation_Expand(t *testing.T) {
 	ctx := widget.NewContext()
 	constraints := geometry.Loose(geometry.Sz(200, 500))
 
-	// Advance 50ms (halfway).
-	ctx.SetNow(ctx.Now().Add(50 * time.Millisecond))
+	// Advance 16ms ticks until animation completes (simulates ~60fps).
+	ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
 	w.Layout(ctx, constraints)
 
 	if w.Progress() <= 0.0 || w.Progress() >= 1.0 {
-		t.Errorf("progress at 50ms = %v, should be between 0 and 1", w.Progress())
+		t.Errorf("progress after 1 tick = %v, should be between 0 and 1", w.Progress())
 	}
 
-	// Advance to 100ms (complete).
-	ctx.SetNow(ctx.Now().Add(50 * time.Millisecond))
-	w.Layout(ctx, constraints)
+	// Run remaining ticks until animation is done.
+	for i := 0; i < 20 && w.IsAnimating(); i++ {
+		ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
+		w.Layout(ctx, constraints)
+	}
 
 	if w.Progress() != 1.0 {
-		t.Errorf("progress at 100ms = %v, want 1.0", w.Progress())
+		t.Errorf("progress after completion = %v, want 1.0", w.Progress())
 	}
 }
 
@@ -558,9 +560,11 @@ func TestAnimation_Collapse(t *testing.T) {
 	ctx := widget.NewContext()
 	constraints := geometry.Loose(geometry.Sz(200, 500))
 
-	// Advance to completion.
-	ctx.SetNow(ctx.Now().Add(100 * time.Millisecond))
-	w.Layout(ctx, constraints)
+	// Run ticks until animation completes.
+	for i := 0; i < 20 && w.IsAnimating(); i++ {
+		ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
+		w.Layout(ctx, constraints)
+	}
 
 	if w.Progress() != 0.0 {
 		t.Errorf("progress after collapse = %v, want 0.0", w.Progress())
@@ -844,6 +848,118 @@ func TestDefaultPainter_NoTitle(t *testing.T) {
 
 	if len(canvas.drawTexts) > 0 {
 		t.Error("should not draw text when title is empty")
+	}
+}
+
+// --- Animation scheduling regression tests ---
+//
+// These tests verify that collapsible animation progresses correctly
+// when driven by repeated Layout() calls with advancing time (BeginFrame),
+// WITHOUT any mouse events. The original bug caused animations to stall
+// unless the user was moving the mouse, because needsLayout was clobbered
+// after layout().
+
+// TestAnimation_ProgressesWithoutMouseEvents is the key regression test
+// for the animation scheduling bug. It verifies that calling Layout()
+// repeatedly with advancing time causes the animation progress to advance
+// from 0.0 toward 1.0, even without any mouse events.
+func TestAnimation_ProgressesWithoutMouseEvents(t *testing.T) {
+	w := collapsible.New(
+		collapsible.Animated(true),
+		collapsible.Duration(100*time.Millisecond),
+		collapsible.Content(&mockWidget{preferredSize: geometry.Sz(200, 100)}),
+	)
+
+	// Start collapsed, then toggle to start expanding animation.
+	w.Toggle()
+
+	if !w.IsAnimating() {
+		t.Fatal("should be animating after toggle")
+	}
+
+	ctx := widget.NewContext()
+	constraints := geometry.Loose(geometry.Sz(200, 500))
+	now := ctx.Now()
+
+	// Simulate 10 frames at 16ms intervals (pure timer-driven, no mouse).
+	progresses := make([]float32, 0, 10)
+	for range 10 {
+		now = now.Add(16 * time.Millisecond)
+		ctx.BeginFrame(now)
+		w.Layout(ctx, constraints)
+		progresses = append(progresses, w.Progress())
+	}
+
+	// Progress should be strictly increasing across frames.
+	for i := 1; i < len(progresses); i++ {
+		if progresses[i] <= progresses[i-1] && w.IsAnimating() {
+			t.Errorf("progress did not advance: frame[%d]=%v, frame[%d]=%v",
+				i-1, progresses[i-1], i, progresses[i])
+		}
+	}
+
+	// Should reach near-completion (or fully complete).
+	if progresses[len(progresses)-1] < 0.5 {
+		t.Errorf("animation barely progressed after 10 frames: final progress = %v",
+			progresses[len(progresses)-1])
+	}
+}
+
+// TestAnimation_DeltaTimeClamping_MinimumOneMilli verifies that when
+// DeltaTime is 0 (or very small), tickAnimation clamps to 1ms minimum
+// so animation still makes forward progress.
+func TestAnimation_DeltaTimeClamping_MinimumOneMilli(t *testing.T) {
+	w := collapsible.New(
+		collapsible.Animated(true),
+		collapsible.Duration(100*time.Millisecond),
+		collapsible.Content(&mockWidget{preferredSize: geometry.Sz(200, 100)}),
+	)
+
+	w.Toggle()
+	initialProgress := w.Progress()
+
+	ctx := widget.NewContext()
+	constraints := geometry.Loose(geometry.Sz(200, 500))
+
+	// Call Layout with zero delta time (BeginFrame with same timestamp).
+	now := ctx.Now()
+	ctx.BeginFrame(now)
+	ctx.BeginFrame(now) // dt=0
+	w.Layout(ctx, constraints)
+
+	if w.Progress() <= initialProgress {
+		t.Errorf("progress should advance even with dt=0 (clamped to 1ms minimum): got %v, initial was %v",
+			w.Progress(), initialProgress)
+	}
+}
+
+// TestAnimation_DeltaTimeClamping_MaximumThirtyTwoMilli verifies that
+// when DeltaTime is very large, tickAnimation clamps to 32ms maximum
+// so animation doesn't jump too far in a single frame.
+func TestAnimation_DeltaTimeClamping_MaximumThirtyTwoMilli(t *testing.T) {
+	w := collapsible.New(
+		collapsible.Animated(true),
+		collapsible.Duration(200*time.Millisecond),
+		collapsible.Content(&mockWidget{preferredSize: geometry.Sz(200, 100)}),
+	)
+
+	w.Toggle()
+
+	ctx := widget.NewContext()
+	constraints := geometry.Loose(geometry.Sz(200, 500))
+
+	// Use a large delta (100ms) but tickAnimation should clamp to 32ms.
+	now := ctx.Now()
+	ctx.BeginFrame(now)
+	bigDelta := now.Add(100 * time.Millisecond)
+	ctx.BeginFrame(bigDelta)
+	w.Layout(ctx, constraints)
+
+	// With 200ms duration and 32ms max tick, progress should be at most ~16%.
+	// It definitely should not have completed (which it would at 100ms/200ms = 50%).
+	if w.Progress() > 0.25 {
+		t.Errorf("progress = %v, should be <= 0.25 (32ms max tick for 200ms duration)",
+			w.Progress())
 	}
 }
 

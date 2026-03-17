@@ -85,11 +85,13 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 		} else {
 			w.istate = stateNormal
 		}
-		ctx.Invalidate()
 		if wasPressed && hdr.Contains(e.Position) {
 			w.Toggle()
+			// Invalidate AFTER Toggle so layout recalculates with new expanded state.
+			ctx.Invalidate()
 			return true
 		}
+		ctx.Invalidate()
 		return false // Let content handle release
 
 	default:

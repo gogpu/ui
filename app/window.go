@@ -30,6 +30,11 @@ const (
 //
 // Window is created by [App] and should not be instantiated directly.
 // It is NOT safe for concurrent access.
+// animationStopper can stop a continuous render session.
+type animationStopper interface {
+	Stop()
+}
+
 type Window struct {
 	root      widget.Widget
 	ctx       *widget.ContextImpl
@@ -39,6 +44,13 @@ type Window struct {
 	theme     *theme.Theme
 	overlays  *overlay.Stack
 	focusMgr  *ifocus.Manager
+
+	// animToken is non-nil while continuous rendering is active for animations.
+	animToken animationStopper
+
+	// animIdleFrames counts consecutive frames with no Invalidate call.
+	// Used to stop the animation pumper after animations complete.
+	animIdleFrames int
 
 	// needsLayout indicates that layout should be recalculated.
 	needsLayout bool
@@ -312,8 +324,8 @@ func (w *Window) Frame() {
 	frameStart := time.Now()
 	didLayout := w.needsLayout
 
-	// Update time.
-	w.ctx.SetNow(frameStart)
+	// Begin frame timing. DeltaTime = time since last BeginFrame.
+	w.ctx.BeginFrame(frameStart)
 
 	// Reset cursor for this frame — but not during drag operations.
 	// During drag, the dragging widget (SplitView, Slider) sets cursor
@@ -345,7 +357,12 @@ func (w *Window) Frame() {
 		layoutStart := time.Now()
 		w.layout()
 		layoutDur = time.Since(layoutStart)
-		w.needsLayout = false
+		// Clear needsLayout only if no widget re-invalidated during layout.
+		// Animations call ctx.Invalidate() from tickAnimation() during layout,
+		// which sets needsLayout back to true — we must not clobber that.
+		if !w.ctx.IsInvalidated() {
+			w.needsLayout = false
+		}
 		// Layout changes require full redraw since positions may have shifted.
 		w.needsRedraw = true
 		widget.MarkRedrawInTree(w.root)
@@ -372,6 +389,31 @@ func (w *Window) Frame() {
 
 	// Sync cursor to platform.
 	w.syncCursor()
+
+	// Manage continuous rendering for animations.
+	// If a widget called Invalidate during this frame (e.g., animation tick),
+	// enter continuous (vsync) rendering mode via StartAnimation.
+	// When no more animations are active, stop continuous mode.
+	// Manage animation frame pumping.
+	// Start pumper when any animation is active (Invalidate from tickAnimation).
+	// Keep pumper running for a few extra frames to handle animation completion
+	// and prevent start/stop thrashing from periodic data updates.
+	if w.ctx.IsInvalidated() {
+		w.animIdleFrames = 0
+		if w.animToken == nil && w.wp != nil {
+			w.animToken = newAnimPumper(w.wp)
+		}
+	} else if w.animToken != nil {
+		w.animIdleFrames++
+		// Stop pumper after 3 consecutive idle frames (no Invalidate).
+		// This handles the case where data sim triggers periodic Invalidate
+		// but no animation is running.
+		if w.animIdleFrames > 3 {
+			w.animToken.Stop()
+			w.animToken = nil
+			w.animIdleFrames = 0
+		}
+	}
 
 	// Clear invalidation state.
 	w.ctx.ClearInvalidation()
@@ -792,5 +834,35 @@ func widgetCursorToPlatform(c widget.CursorType) gpucontext.CursorShape {
 		return gpucontext.CursorNone
 	default:
 		return gpucontext.CursorDefault
+	}
+}
+
+// animPumper pumps frames at ~60fps for smooth animation.
+// Stopped when animation completes.
+type animPumper struct {
+	stop chan struct{}
+}
+
+func newAnimPumper(wp gpucontext.WindowProvider) *animPumper {
+	p := &animPumper{stop: make(chan struct{})}
+	go func() {
+		ticker := time.NewTicker(16 * time.Millisecond) // ~60fps
+		defer ticker.Stop()
+		for {
+			select {
+			case <-p.stop:
+				return
+			case <-ticker.C:
+				wp.RequestRedraw()
+			}
+		}
+	}()
+	return p
+}
+
+func (p *animPumper) Stop() {
+	select {
+	case p.stop <- struct{}{}:
+	default:
 	}
 }

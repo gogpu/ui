@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-03-17
+
+### Fixed
+
+- **Animation scheduling** — Fixed critical bug where animations only worked when the user
+  moved the mouse. Root cause: `needsLayout` flag was unconditionally cleared after layout,
+  clobbering the re-invalidation set by `tickAnimation()` during layout. Now checks
+  `IsInvalidated()` before clearing. Affects all animated widgets (collapsible, slider,
+  dialog, tabview, scrollview).
+
+### Added
+
+- **Animation frame pumper** — New `animPumper` goroutine requests redraws at ~60fps while
+  animations are active. Automatically stops after 3 consecutive idle frames. Enables smooth
+  animations in event-driven (on-demand) rendering mode.
+- **BeginFrame timing** — New `ContextImpl.BeginFrame()` method calculates DeltaTime from
+  inter-frame intervals with clamping to [0, 100ms]. Prevents animation jumps after
+  background/resume or debugger pauses.
+- **Collapsible DeltaTime clamping** — `tickAnimation()` clamps dt to [1ms, 32ms] instead
+  of skipping on dt<=0. First frame always advances animation.
+- **13 regression tests** — Animation scheduling (5), BeginFrame timing (5), collapsible
+  animation (3). Key test verifies needsLayout is preserved when widget invalidates during
+  layout.
+
 ## [0.1.2] — 2026-03-16
 
 ### Fixed

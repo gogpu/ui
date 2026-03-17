@@ -309,10 +309,12 @@ func (w *Widget) tickAnimation(ctx widget.Context) {
 	}
 
 	dt := ctx.DeltaTime()
-	if dt <= 0 {
-		return
+	if dt < 1*time.Millisecond {
+		dt = 1 * time.Millisecond
 	}
-
+	if dt > 32*time.Millisecond {
+		dt = 32 * time.Millisecond
+	}
 	w.animCtrl.Tick(dt)
 
 	// Keep requesting redraws while animating.

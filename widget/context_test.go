@@ -155,7 +155,7 @@ func TestContextImpl_Time(t *testing.T) {
 	// Update time
 	time.Sleep(10 * time.Millisecond)
 	newTime := time.Now()
-	ctx.SetNow(newTime)
+	ctx.BeginFrame(newTime)
 
 	// Check new time
 	if ctx.Now() != newTime {
@@ -338,7 +338,7 @@ func TestContextImpl_ThreadSafety(t *testing.T) {
 			defer wg.Done()
 			_ = ctx.Now()
 			_ = ctx.DeltaTime()
-			ctx.SetNow(time.Now())
+			ctx.BeginFrame(time.Now())
 		}()
 	}
 
@@ -441,6 +441,110 @@ func (m *mockThemeProvider) OnSurface() Color {
 		return ColorWhite
 	}
 	return ColorBlack
+}
+
+// --- BeginFrame timing tests ---
+//
+// These tests verify the BeginFrame method that was introduced to separate
+// inter-frame timing from event-time updates (SetNow). Before this fix,
+// DeltaTime was coupled to SetNow, causing incorrect timing when multiple
+// HandleEvent calls happened between frames.
+
+func TestBeginFrame_CalculatesDeltaTime(t *testing.T) {
+	ctx := NewContext()
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// First BeginFrame resets lastFrame so the second call has a known baseline.
+	ctx.BeginFrame(t0)
+
+	t1 := t0.Add(16 * time.Millisecond)
+	ctx.BeginFrame(t1)
+
+	dt := ctx.DeltaTime()
+	if dt != 16*time.Millisecond {
+		t.Errorf("DeltaTime() = %v, want 16ms", dt)
+	}
+	if ctx.Now() != t1 {
+		t.Errorf("Now() = %v, want %v", ctx.Now(), t1)
+	}
+}
+
+func TestBeginFrame_ClampsNegativeDeltaToZero(t *testing.T) {
+	// Time going backward can happen with system clock adjustments.
+	ctx := NewContext()
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 100_000_000, time.UTC) // 100ms
+	t1 := time.Date(2026, 1, 1, 0, 0, 0, 50_000_000, time.UTC)  // 50ms (earlier!)
+
+	ctx.BeginFrame(t0)
+	ctx.BeginFrame(t1)
+
+	if ctx.DeltaTime() != 0 {
+		t.Errorf("DeltaTime() = %v, want 0 (negative delta should be clamped)", ctx.DeltaTime())
+	}
+}
+
+func TestBeginFrame_ClampsLargeDeltaTo100ms(t *testing.T) {
+	// Large delta happens when app resumes from background or debugger pause.
+	// Without clamping, animations would jump by seconds.
+	ctx := NewContext()
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	t1 := t0.Add(5 * time.Second) // 5 seconds gap
+
+	ctx.BeginFrame(t0)
+	ctx.BeginFrame(t1)
+
+	if ctx.DeltaTime() != maxDeltaTime {
+		t.Errorf("DeltaTime() = %v, want %v (large delta should be clamped)", ctx.DeltaTime(), maxDeltaTime)
+	}
+}
+
+func TestBeginFrame_IndependentOfSetNow(t *testing.T) {
+	// DeltaTime should be based on BeginFrame-to-BeginFrame interval,
+	// not affected by SetNow calls in between (which happen during
+	// HandleEvent).
+	ctx := NewContext()
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	tEvent := t0.Add(50 * time.Millisecond) // Simulates HandleEvent timestamp
+	t1 := t0.Add(100 * time.Millisecond)    // Next frame
+
+	ctx.BeginFrame(t0)
+	ctx.SetNow(tEvent) // This should NOT affect DeltaTime calculation
+	ctx.BeginFrame(t1)
+
+	dt := ctx.DeltaTime()
+	if dt != 100*time.Millisecond {
+		t.Errorf("DeltaTime() = %v, want 100ms (should be based on lastFrame, not Now)", dt)
+	}
+}
+
+// --- Invalidation lifecycle tests ---
+//
+// These tests verify that IsInvalidated persists correctly and is only
+// cleared by ClearInvalidation. The animation scheduling fix depends on
+// checking IsInvalidated() after layout to decide whether to clear needsLayout.
+
+func TestIsInvalidated_PersistsUntilClear(t *testing.T) {
+	ctx := NewContext()
+
+	if ctx.IsInvalidated() {
+		t.Error("should not be invalidated initially")
+	}
+
+	ctx.Invalidate()
+	if !ctx.IsInvalidated() {
+		t.Error("should be invalidated after Invalidate()")
+	}
+
+	// Multiple Invalidate calls should not change state.
+	ctx.Invalidate()
+	if !ctx.IsInvalidated() {
+		t.Error("should still be invalidated after second Invalidate()")
+	}
+
+	ctx.ClearInvalidation()
+	if ctx.IsInvalidated() {
+		t.Error("should not be invalidated after ClearInvalidation()")
+	}
 }
 
 func TestContextImpl_Interface(t *testing.T) {

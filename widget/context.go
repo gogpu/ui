@@ -423,14 +423,39 @@ func (c *ContextImpl) SetThemeProvider(tp ThemeProvider) {
 	c.themeProvider = tp
 }
 
+// maxDeltaTime caps the delta to prevent animation jumps when the app
+// resumes from background, after a debug pause, or on the first frame.
+// This is standard practice in game engines and UI frameworks (Flutter
+// clamps to 100ms, Qt handles this internally).
+const maxDeltaTime = 100 * time.Millisecond
+
 // SetNow updates the current time and calculates delta time.
 //
 // Call this at the start of each frame before processing events and layout.
+// DeltaTime is clamped to [0, 100ms] to prevent animation jumps after
+// long pauses (e.g., background/resume, debugger breakpoints).
 func (c *ContextImpl) SetNow(now time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.deltaTime = now.Sub(c.now)
-	c.lastFrame = c.now
+	c.now = now
+}
+
+// BeginFrame updates the frame timing. DeltaTime is calculated from the
+// previous BeginFrame call, not from the last SetNow. This ensures
+// DeltaTime always reflects the inter-frame interval regardless of how
+// many HandleEvent calls happen between frames. See issue #53.
+func (c *ContextImpl) BeginFrame(now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	dt := now.Sub(c.lastFrame)
+	if dt < 0 {
+		dt = 0
+	}
+	if dt > maxDeltaTime {
+		dt = maxDeltaTime
+	}
+	c.deltaTime = dt
+	c.lastFrame = now
 	c.now = now
 }
 
