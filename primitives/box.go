@@ -252,7 +252,12 @@ func (b *BoxWidget) Layout(ctx widget.Context, constraints geometry.Constraints)
 	return b.layoutVertical(ctx, constraints)
 }
 
-// layoutVertical lays out children top-to-bottom (the original behavior).
+// layoutVertical lays out children top-to-bottom.
+//
+// When one or more children are wrapped in [Expanded], a two-pass algorithm
+// is used: fixed children are measured first, then remaining height is divided
+// equally among expanded children. Without any Expanded children, the layout
+// behaves identically to the original sequential algorithm.
 func (b *BoxWidget) layoutVertical(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
 	constraints = b.applyExplicitConstraints(constraints)
 
@@ -265,9 +270,28 @@ func (b *BoxWidget) layoutVertical(ctx widget.Context, constraints geometry.Cons
 		childConstraints.MaxHeight = 0
 	}
 
+	childCount := len(b.children)
+
+	// Count expanded children to decide between single-pass and two-pass.
+	expandedCount := b.countExpanded()
+
+	if expandedCount == 0 {
+		return b.layoutVerticalSimple(ctx, constraints, pad, childConstraints, childCount)
+	}
+
+	return b.layoutVerticalTwoPass(ctx, constraints, pad, childConstraints, childCount, expandedCount)
+}
+
+// layoutVerticalSimple is the original single-pass vertical layout (no Expanded children).
+func (b *BoxWidget) layoutVerticalSimple(
+	ctx widget.Context,
+	constraints geometry.Constraints,
+	pad geometry.Insets,
+	childConstraints geometry.Constraints,
+	childCount int,
+) geometry.Size {
 	var totalHeight float32
 	var maxChildWidth float32
-	childCount := len(b.children)
 
 	for i, child := range b.children {
 		remaining := childConstraints
@@ -304,7 +328,90 @@ func (b *BoxWidget) layoutVertical(ctx widget.Context, constraints geometry.Cons
 	return resultSize
 }
 
+// layoutVerticalTwoPass measures fixed children first, then distributes
+// remaining height equally among Expanded children.
+func (b *BoxWidget) layoutVerticalTwoPass(
+	ctx widget.Context,
+	constraints geometry.Constraints,
+	pad geometry.Insets,
+	childConstraints geometry.Constraints,
+	childCount int,
+	expandedCount int,
+) geometry.Size {
+	// Pass 1: measure fixed (non-expanded) children.
+	fixedSizes := make([]geometry.Size, childCount)
+	var fixedHeight float32
+	var maxChildWidth float32
+
+	for i, child := range b.children {
+		if isExpanded(child) {
+			continue
+		}
+		remaining := childConstraints
+		remaining.MinHeight = 0
+		size := child.Layout(ctx, remaining)
+		fixedSizes[i] = size
+		fixedHeight += size.Height
+		if size.Width > maxChildWidth {
+			maxChildWidth = size.Width
+		}
+	}
+
+	// Calculate gap total and remaining height for expanded children.
+	gapTotal := b.style.Gap * float32(childCount-1)
+	var expandedHeight float32
+	if childConstraints.HasBoundedHeight() {
+		expandedHeight = (childConstraints.MaxHeight - fixedHeight - gapTotal) / float32(expandedCount)
+		if expandedHeight < 0 {
+			expandedHeight = 0
+		}
+	}
+
+	// Pass 2: layout expanded children and position all.
+	var totalHeight float32
+	for i, child := range b.children {
+		var size geometry.Size
+		if isExpanded(child) {
+			ec := geometry.Constraints{
+				MinWidth:  childConstraints.MinWidth,
+				MaxWidth:  childConstraints.MaxWidth,
+				MinHeight: expandedHeight,
+				MaxHeight: expandedHeight,
+			}
+			size = child.Layout(ctx, ec)
+		} else {
+			size = fixedSizes[i]
+		}
+
+		childX := pad.Left
+		childY := pad.Top + totalHeight
+		child.(interface{ SetBounds(geometry.Rect) }).SetBounds(
+			geometry.FromPointSize(geometry.Pt(childX, childY), size),
+		)
+
+		totalHeight += size.Height
+		if i < childCount-1 {
+			totalHeight += b.style.Gap
+		}
+		if size.Width > maxChildWidth {
+			maxChildWidth = size.Width
+		}
+	}
+
+	contentWidth := maxChildWidth + pad.Horizontal()
+	contentHeight := totalHeight + pad.Vertical()
+
+	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
+	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
+	return resultSize
+}
+
 // layoutHorizontal lays out children left-to-right.
+//
+// When one or more children are wrapped in [Expanded], a two-pass algorithm
+// is used: fixed children are measured first, then remaining width is divided
+// equally among expanded children. Without any Expanded children, the layout
+// behaves identically to the original sequential algorithm.
 func (b *BoxWidget) layoutHorizontal(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
 	constraints = b.applyExplicitConstraints(constraints)
 
@@ -317,9 +424,28 @@ func (b *BoxWidget) layoutHorizontal(ctx widget.Context, constraints geometry.Co
 		childConstraints.MaxHeight = 0
 	}
 
+	childCount := len(b.children)
+
+	// Count expanded children to decide between single-pass and two-pass.
+	expandedCount := b.countExpanded()
+
+	if expandedCount == 0 {
+		return b.layoutHorizontalSimple(ctx, constraints, pad, childConstraints, childCount)
+	}
+
+	return b.layoutHorizontalTwoPass(ctx, constraints, pad, childConstraints, childCount, expandedCount)
+}
+
+// layoutHorizontalSimple is the original single-pass horizontal layout (no Expanded children).
+func (b *BoxWidget) layoutHorizontalSimple(
+	ctx widget.Context,
+	constraints geometry.Constraints,
+	pad geometry.Insets,
+	childConstraints geometry.Constraints,
+	childCount int,
+) geometry.Size {
 	var totalWidth float32
 	var maxChildHeight float32
-	childCount := len(b.children)
 
 	for i, child := range b.children {
 		remaining := childConstraints
@@ -332,6 +458,84 @@ func (b *BoxWidget) layoutHorizontal(ctx widget.Context, constraints geometry.Co
 		remaining.MinWidth = 0
 
 		size := child.Layout(ctx, remaining)
+
+		childX := pad.Left + totalWidth
+		childY := pad.Top
+		child.(interface{ SetBounds(geometry.Rect) }).SetBounds(
+			geometry.FromPointSize(geometry.Pt(childX, childY), size),
+		)
+
+		totalWidth += size.Width
+		if i < childCount-1 {
+			totalWidth += b.style.Gap
+		}
+		if size.Height > maxChildHeight {
+			maxChildHeight = size.Height
+		}
+	}
+
+	contentWidth := totalWidth + pad.Horizontal()
+	contentHeight := maxChildHeight + pad.Vertical()
+
+	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
+	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
+	return resultSize
+}
+
+// layoutHorizontalTwoPass measures fixed children first, then distributes
+// remaining width equally among Expanded children.
+func (b *BoxWidget) layoutHorizontalTwoPass(
+	ctx widget.Context,
+	constraints geometry.Constraints,
+	pad geometry.Insets,
+	childConstraints geometry.Constraints,
+	childCount int,
+	expandedCount int,
+) geometry.Size {
+	// Pass 1: measure fixed (non-expanded) children.
+	fixedSizes := make([]geometry.Size, childCount)
+	var fixedWidth float32
+	var maxChildHeight float32
+
+	for i, child := range b.children {
+		if isExpanded(child) {
+			continue
+		}
+		remaining := childConstraints
+		remaining.MinWidth = 0
+		size := child.Layout(ctx, remaining)
+		fixedSizes[i] = size
+		fixedWidth += size.Width
+		if size.Height > maxChildHeight {
+			maxChildHeight = size.Height
+		}
+	}
+
+	// Calculate gap total and remaining width for expanded children.
+	gapTotal := b.style.Gap * float32(childCount-1)
+	var expandedWidth float32
+	if childConstraints.HasBoundedWidth() {
+		expandedWidth = (childConstraints.MaxWidth - fixedWidth - gapTotal) / float32(expandedCount)
+		if expandedWidth < 0 {
+			expandedWidth = 0
+		}
+	}
+
+	// Pass 2: layout expanded children and position all.
+	var totalWidth float32
+	for i, child := range b.children {
+		var size geometry.Size
+		if isExpanded(child) {
+			ec := geometry.Constraints{
+				MinWidth:  expandedWidth,
+				MaxWidth:  expandedWidth,
+				MinHeight: childConstraints.MinHeight,
+				MaxHeight: childConstraints.MaxHeight,
+			}
+			size = child.Layout(ctx, ec)
+		} else {
+			size = fixedSizes[i]
+		}
 
 		childX := pad.Left + totalWidth
 		childY := pad.Top
@@ -542,6 +746,17 @@ func (b *BoxWidget) AccessibilityState() a11y.State {
 // AccessibilityActions returns nil. Containers have no actions.
 func (b *BoxWidget) AccessibilityActions() []a11y.Action {
 	return nil
+}
+
+// countExpanded returns the number of children that are wrapped in [Expanded].
+func (b *BoxWidget) countExpanded() int {
+	var count int
+	for _, child := range b.children {
+		if isExpanded(child) {
+			count++
+		}
+	}
+	return count
 }
 
 // applyExplicitConstraints integrates explicit dimensions and min/max into

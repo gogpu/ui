@@ -12,9 +12,11 @@ type Option func(*config)
 
 // config holds the toolbar's configuration, set at construction time via options.
 type config struct {
-	items   []Item
-	height  float32
-	painter Painter
+	items      []Item
+	height     float32
+	buttonSize float32 // 0 = use default (36px)
+	gap        float32 // 0 = use default (2px); -1 = explicitly 0
+	painter    Painter
 }
 
 // Items sets the toolbar's items.
@@ -29,6 +31,18 @@ func Height(h float32) Option {
 	return func(c *config) {
 		c.height = h
 	}
+}
+
+// ButtonSize sets the icon button size in logical pixels.
+// Default is 36px. JetBrains IDE uses 30px for main toolbar.
+func ButtonSize(px float32) Option {
+	return func(c *config) { c.buttonSize = px }
+}
+
+// Gap sets the spacing between toolbar items in logical pixels.
+// Default is 2px. JetBrains IDE uses 10px for main toolbar.
+func Gap(px float32) Option {
+	return func(c *config) { c.gap = px }
 }
 
 // PainterOpt sets the painter used to render the toolbar.
@@ -111,6 +125,25 @@ const (
 	noFocusIndex           = -1
 )
 
+// resolvedButtonSize returns the effective button size.
+func (w *Widget) resolvedButtonSize() float32 {
+	if w.cfg.buttonSize > 0 {
+		return w.cfg.buttonSize
+	}
+	return buttonItemSize
+}
+
+// resolvedGap returns the effective item gap.
+func (w *Widget) resolvedGap() float32 {
+	if w.cfg.gap < 0 {
+		return 0
+	}
+	if w.cfg.gap > 0 {
+		return w.cfg.gap
+	}
+	return itemGap
+}
+
 // Text-with-icon button width constants.
 const (
 	textButtonMinWidth float32 = 64
@@ -155,7 +188,7 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 	var spacerCount int
 	var gapCount int
 
-	for i, item := range w.cfg.items {
+	for i, item := range w.cfg.items { //nolint:gocritic // Item is read-only here
 		switch item.Kind {
 		case ItemButton:
 			fixedWidth += w.buttonItemWidth(item)
@@ -174,7 +207,8 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 			gapCount++
 		}
 	}
-	fixedWidth += float32(gapCount) * itemGap
+	gap := w.resolvedGap()
+	fixedWidth += float32(gapCount) * gap
 
 	// Calculate spacer width.
 	var spacerW float32
@@ -188,9 +222,9 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 
 	// Second pass: assign bounds.
 	var x float32
-	for i, item := range w.cfg.items {
+	for i, item := range w.cfg.items { //nolint:gocritic // Item is read-only here
 		if i > 0 {
-			x += itemGap
+			x += gap
 		}
 
 		var itemW float32
@@ -207,7 +241,7 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 			}
 		}
 
-		bounds := geometry.NewRect(x, 0, x+itemW, available.Height)
+		bounds := geometry.NewRect(x, 0, itemW, available.Height)
 		w.itemStates[i].bounds = bounds
 
 		// Position custom widgets.
@@ -215,7 +249,7 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 			childH := item.Widget.(interface{ Bounds() geometry.Rect }).Bounds().Height()
 			cy := (available.Height - childH) / 2
 			item.Widget.(interface{ SetBounds(geometry.Rect) }).SetBounds(
-				geometry.NewRect(x, cy, x+itemW, cy+childH),
+				geometry.NewRect(x, cy, itemW, childH),
 			)
 		}
 
@@ -233,7 +267,7 @@ func (w *Widget) buttonItemWidth(item Item) float32 {
 		}
 		return width
 	}
-	return buttonItemSize
+	return w.resolvedButtonSize()
 }
 
 // Draw renders the toolbar background and all items.
@@ -251,7 +285,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 
 	// Draw items with transform offset.
 	canvas.PushTransform(bounds.Min)
-	for i, item := range w.cfg.items {
+	for i, item := range w.cfg.items { //nolint:gocritic
 		itemBounds := w.itemStates[i].bounds
 		if itemBounds.IsEmpty() {
 			continue
@@ -546,9 +580,24 @@ func (w *Widget) hitTest(local geometry.Point) int {
 	return noFocusIndex
 }
 
+// HitTestPoint returns true if the local-space point hits a toolbar item
+// (button, separator, or custom widget). Returns false for empty gaps
+// between items and spacers — allowing the parent to treat gaps as drag area.
+func (w *Widget) HitTestPoint(local geometry.Point) bool {
+	for i, item := range w.cfg.items { //nolint:gocritic
+		if item.Kind == ItemSpacer {
+			continue // spacers are not interactive
+		}
+		if w.itemStates[i].bounds.Contains(local) {
+			return true
+		}
+	}
+	return false
+}
+
 // dispatchToCustomItems dispatches events to custom widget items.
 func (w *Widget) dispatchToCustomItems(ctx widget.Context, e event.Event) bool {
-	for _, item := range w.cfg.items {
+	for _, item := range w.cfg.items { //nolint:gocritic
 		if item.Kind == ItemCustom && item.Widget != nil {
 			if item.Widget.Event(ctx, e) {
 				return true
@@ -561,7 +610,7 @@ func (w *Widget) dispatchToCustomItems(ctx widget.Context, e event.Event) bool {
 // Children returns the custom widget items embedded in the toolbar.
 func (w *Widget) Children() []widget.Widget {
 	var children []widget.Widget
-	for _, item := range w.cfg.items {
+	for _, item := range w.cfg.items { //nolint:gocritic
 		if item.Kind == ItemCustom && item.Widget != nil {
 			children = append(children, item.Widget)
 		}

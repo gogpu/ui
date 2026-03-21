@@ -96,9 +96,13 @@ func (w *Widget) Layout(ctx widget.Context, constraints geometry.Constraints) ge
 // Draw renders the tabview to the canvas.
 // Only the selected tab's content is drawn (lazy).
 func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
-	if w.Bounds().IsEmpty() {
+	bounds := w.Bounds()
+	if bounds.IsEmpty() {
 		return
 	}
+
+	// Push transform for local coordinate space (children use local bounds).
+	canvas.PushTransform(bounds.Min)
 
 	// Update tab states for the painter.
 	selectedIdx := w.cfg.ResolvedSelected()
@@ -117,18 +121,38 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if selectedIdx >= 0 && selectedIdx < len(w.cfg.tabs) {
 		tab := &w.cfg.tabs[selectedIdx]
 		if tab.Content != nil {
-			contentBounds := w.contentBounds(w.Bounds().Size())
+			contentBounds := w.contentBounds(bounds.Size())
 			canvas.PushClip(contentBounds)
 			widget.StampScreenOrigin(tab.Content, canvas)
 			tab.Content.Draw(ctx, canvas)
 			canvas.PopClip()
 		}
 	}
+
+	canvas.PopTransform()
 }
 
 // Event handles an input event and returns true if consumed.
+//
+// Mouse and wheel event positions are translated from parent-local space
+// to TabView-local space before hit-testing and child dispatch, matching
+// the coordinate convention used by [splitview.Widget].
 func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
-	// Forward events to selected tab's content first.
+	// Translate mouse events to local coordinates.
+	if me, ok := e.(*event.MouseEvent); ok {
+		local := *me
+		local.Position = me.Position.Sub(w.Bounds().Min)
+		return w.handleLocalMouseEvent(ctx, &local)
+	}
+
+	// Translate wheel events to local coordinates.
+	if we, ok := e.(*event.WheelEvent); ok {
+		local := *we
+		local.Position = we.Position.Sub(w.Bounds().Min)
+		return w.handleLocalWheelEvent(ctx, &local)
+	}
+
+	// Non-positional events (keyboard, focus) forward to content first, then handle locally.
 	selectedIdx := w.cfg.ResolvedSelected()
 	if selectedIdx >= 0 && selectedIdx < len(w.cfg.tabs) {
 		tab := &w.cfg.tabs[selectedIdx]
@@ -140,6 +164,36 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 	}
 
 	return handleEvent(w, ctx, e)
+}
+
+// handleLocalMouseEvent processes a mouse event already in local coordinates.
+func (w *Widget) handleLocalMouseEvent(ctx widget.Context, me *event.MouseEvent) bool {
+	// Forward to selected tab's content first.
+	selectedIdx := w.cfg.ResolvedSelected()
+	if selectedIdx >= 0 && selectedIdx < len(w.cfg.tabs) {
+		tab := &w.cfg.tabs[selectedIdx]
+		if tab.Content != nil {
+			if tab.Content.Event(ctx, me) {
+				return true
+			}
+		}
+	}
+
+	return handleMouseEvent(w, ctx, me)
+}
+
+// handleLocalWheelEvent dispatches a wheel event (in local coordinates) to children.
+func (w *Widget) handleLocalWheelEvent(ctx widget.Context, we *event.WheelEvent) bool {
+	selectedIdx := w.cfg.ResolvedSelected()
+	if selectedIdx >= 0 && selectedIdx < len(w.cfg.tabs) {
+		tab := &w.cfg.tabs[selectedIdx]
+		if tab.Content != nil {
+			if tab.Content.Event(ctx, we) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Children returns the content widgets of all tabs.
@@ -190,24 +244,26 @@ func (w *Widget) SelectedIndex() int {
 	return w.cfg.ResolvedSelected()
 }
 
-// computeTabLayout calculates tab bar and individual tab bounds.
+// computeTabLayout calculates tab bar and individual tab bounds in local coordinates.
+//
+// All bounds are relative to the widget's own origin (0,0). The Draw method
+// applies PushTransform(bounds.Min) to map local coordinates to parent space.
 func (w *Widget) computeTabLayout(totalSize geometry.Size) {
-	bounds := w.Bounds()
 	tabCount := len(w.cfg.tabs)
 
-	// Tab bar position.
+	// Tab bar position (local coordinates).
 	switch w.cfg.position {
 	case Bottom:
 		w.tabBarBounds = geometry.NewRect(
-			bounds.Min.X,
-			bounds.Min.Y+totalSize.Height-tabBarHeight,
+			0,
+			totalSize.Height-tabBarHeight,
 			totalSize.Width,
 			tabBarHeight,
 		)
 	default: // Top
 		w.tabBarBounds = geometry.NewRect(
-			bounds.Min.X,
-			bounds.Min.Y,
+			0,
+			0,
 			totalSize.Width,
 			tabBarHeight,
 		)
@@ -220,7 +276,7 @@ func (w *Widget) computeTabLayout(totalSize geometry.Size) {
 	// Equal-width tabs.
 	tabWidth := totalSize.Width / float32(tabCount)
 	for i := range w.tabStates {
-		x := w.tabBarBounds.Min.X + float32(i)*tabWidth
+		x := float32(i) * tabWidth
 		w.tabStates[i].Bounds = geometry.NewRect(
 			x,
 			w.tabBarBounds.Min.Y,
@@ -243,22 +299,24 @@ func (w *Widget) computeTabLayout(totalSize geometry.Size) {
 	}
 }
 
-// contentBounds returns the bounds for the content area.
+// contentBounds returns the bounds for the content area in local coordinates.
+//
+// All bounds are relative to the widget's own origin (0,0). The Draw method
+// applies PushTransform(bounds.Min) to map local coordinates to parent space.
 func (w *Widget) contentBounds(totalSize geometry.Size) geometry.Rect {
-	bounds := w.Bounds()
 	contentHeight := totalSize.Height - tabBarHeight
 	switch w.cfg.position {
 	case Bottom:
 		return geometry.NewRect(
-			bounds.Min.X,
-			bounds.Min.Y,
+			0,
+			0,
 			totalSize.Width,
 			contentHeight,
 		)
 	default: // Top
 		return geometry.NewRect(
-			bounds.Min.X,
-			bounds.Min.Y+tabBarHeight,
+			0,
+			tabBarHeight,
 			totalSize.Width,
 			contentHeight,
 		)

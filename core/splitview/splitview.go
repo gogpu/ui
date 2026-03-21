@@ -56,6 +56,8 @@ type config struct {
 	dividerWidth float32
 	collapsible  bool
 
+	fixedFirst float32 // pixel size for first panel (0 = use ratio)
+
 	ratioSignal         state.Signal[float32]
 	readonlyRatioSignal state.ReadonlySignal[float32]
 
@@ -105,6 +107,15 @@ func OrientationOpt(o Orientation) Option {
 // Default is 0.5.
 func InitialRatio(r float32) Option {
 	return func(c *config) { c.ratio = clampRatio(r) }
+}
+
+// FixedFirst sets a fixed pixel size for the first panel.
+// Unlike ratio-based sizing, this keeps the first panel at a constant
+// pixel width (horizontal) or height (vertical) regardless of window size.
+// The second panel fills the remaining space.
+// Set to 0 (default) to use ratio-based sizing.
+func FixedFirst(px float32) Option {
+	return func(c *config) { c.fixedFirst = px }
 }
 
 // MinFirst sets the minimum size (width or height) of the first panel in pixels.
@@ -237,9 +248,29 @@ func (w *Widget) Layout(ctx widget.Context, constraints geometry.Constraints) ge
 	}
 
 	divW := w.cfg.resolvedDividerWidth()
+
+	// If fixedFirst is set, recompute ratio from pixel size each layout pass.
+	// This keeps the first panel at a constant pixel size regardless of window size.
+	if w.cfg.fixedFirst > 0 {
+		totalSpace := size.Width
+		if w.cfg.orientation == Vertical {
+			totalSpace = size.Height
+		}
+		totalSpace -= divW
+		if totalSpace > 0 {
+			w.cfg.ratio = clampRatio(w.cfg.fixedFirst / totalSpace)
+		}
+	}
+
 	ratio := w.effectiveRatio()
 
-	firstRect, secondRect := computePanelRects(size, w.Bounds().Min, ratio, divW, w.cfg.orientation)
+	// Use local origin (0,0) for child placement. The parent positions us
+	// via SetBounds after Layout returns, and Draw applies PushTransform
+	// to map local coordinates to parent space. Using w.Bounds().Min here
+	// is incorrect because Bounds is stale during Layout (parent calls
+	// Layout first, then SetBounds).
+	origin := geometry.Point{}
+	firstRect, secondRect := computePanelRects(size, origin, ratio, divW, w.cfg.orientation)
 
 	w.layoutChild(ctx, w.cfg.first, firstRect)
 	w.layoutChild(ctx, w.cfg.second, secondRect)
@@ -277,8 +308,12 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 
+	// Push transform for local coordinate space (children use local bounds).
+	canvas.PushTransform(bounds.Min)
+
 	// Draw first panel.
 	if w.cfg.first != nil {
+		widget.StampScreenOrigin(w.cfg.first, canvas)
 		w.cfg.first.Draw(ctx, canvas)
 	}
 
@@ -296,18 +331,34 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 
 	// Draw second panel.
 	if w.cfg.second != nil {
+		widget.StampScreenOrigin(w.cfg.second, canvas)
 		w.cfg.second.Draw(ctx, canvas)
 	}
+
+	canvas.PopTransform()
 }
 
 // Event handles input events for divider dragging.
+//
+// Mouse and wheel event positions are translated from parent-local space
+// to SplitView-local space before hit-testing and child dispatch, matching
+// the coordinate convention used by [primitives.BoxWidget].
 func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
-	// Check divider interactions first.
-	if consumed := w.handleDividerEvent(ctx, e); consumed {
-		return true
+	// Translate mouse events to local coordinates.
+	if me, ok := e.(*event.MouseEvent); ok {
+		local := *me
+		local.Position = me.Position.Sub(w.Bounds().Min)
+		return w.handleMouseEvent(ctx, &local)
 	}
 
-	// Then dispatch to children.
+	// Translate wheel events to local coordinates.
+	if we, ok := e.(*event.WheelEvent); ok {
+		local := *we
+		local.Position = we.Position.Sub(w.Bounds().Min)
+		return w.handleWheelEvent(ctx, &local)
+	}
+
+	// Non-positional events (keyboard, focus) broadcast to children.
 	if w.cfg.first != nil {
 		if w.cfg.first.Event(ctx, e) {
 			return true
@@ -322,13 +373,46 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 	return false
 }
 
-// handleDividerEvent processes events related to the divider.
-func (w *Widget) handleDividerEvent(ctx widget.Context, e event.Event) bool {
-	me, ok := e.(*event.MouseEvent)
-	if !ok {
-		return false
+// handleMouseEvent processes a mouse event in local coordinates.
+func (w *Widget) handleMouseEvent(ctx widget.Context, me *event.MouseEvent) bool {
+	// Check divider interactions first.
+	if consumed := w.handleDividerEvent(ctx, me); consumed {
+		return true
 	}
 
+	// Then dispatch to children.
+	if w.cfg.first != nil {
+		if w.cfg.first.Event(ctx, me) {
+			return true
+		}
+	}
+	if w.cfg.second != nil {
+		if w.cfg.second.Event(ctx, me) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// handleWheelEvent dispatches a wheel event (in local coordinates) to children.
+func (w *Widget) handleWheelEvent(ctx widget.Context, we *event.WheelEvent) bool {
+	if w.cfg.first != nil {
+		if w.cfg.first.Event(ctx, we) {
+			return true
+		}
+	}
+	if w.cfg.second != nil {
+		if w.cfg.second.Event(ctx, we) {
+			return true
+		}
+	}
+	return false
+}
+
+// handleDividerEvent processes mouse events related to the divider.
+// The mouse event positions must be in SplitView-local coordinates.
+func (w *Widget) handleDividerEvent(ctx widget.Context, me *event.MouseEvent) bool {
 	switch me.MouseType {
 	case event.MouseMove:
 		return w.handleMouseMove(ctx, me)
@@ -513,12 +597,26 @@ func (w *Widget) clampRatioToConstraints(ratio, totalSpace float32) float32 {
 }
 
 // setRatio updates the split ratio, writes to signal if bound, and fires callback.
+// If fixedFirst is active, the pixel size is updated from the new ratio.
 func (w *Widget) setRatio(ctx widget.Context, ratio float32) {
 	ratio = clampRatio(ratio)
 	current := w.cfg.ResolvedRatio()
 
 	if ratio == current {
 		return
+	}
+
+	// Update fixedFirst pixel size so Layout preserves the dragged position.
+	if w.cfg.fixedFirst > 0 {
+		bounds := w.Bounds()
+		totalSpace := bounds.Width()
+		if w.cfg.orientation == Vertical {
+			totalSpace = bounds.Height()
+		}
+		totalSpace -= w.cfg.resolvedDividerWidth()
+		if totalSpace > 0 {
+			w.cfg.fixedFirst = ratio * totalSpace
+		}
 	}
 
 	// TWO-WAY: write back to signal if bound.
@@ -544,7 +642,10 @@ func (w *Widget) effectiveRatio() float32 {
 	return w.cfg.ResolvedRatio()
 }
 
-// dividerRect returns the current divider rectangle based on layout.
+// dividerRect returns the current divider rectangle in local coordinates.
+//
+// Local coordinates start at (0,0) within the SplitView. The Draw method
+// applies PushTransform(bounds.Min) to map these to parent space.
 func (w *Widget) dividerRect() geometry.Rect {
 	bounds := w.Bounds()
 	if bounds.IsEmpty() {
@@ -558,8 +659,8 @@ func (w *Widget) dividerRect() geometry.Rect {
 		totalSpace := bounds.Width() - divW
 		firstWidth := totalSpace * ratio
 		return geometry.NewRect(
-			bounds.Min.X+firstWidth,
-			bounds.Min.Y,
+			firstWidth,
+			0,
 			divW,
 			bounds.Height(),
 		)
@@ -568,8 +669,8 @@ func (w *Widget) dividerRect() geometry.Rect {
 	totalSpace := bounds.Height() - divW
 	firstHeight := totalSpace * ratio
 	return geometry.NewRect(
-		bounds.Min.X,
-		bounds.Min.Y+firstHeight,
+		0,
+		firstHeight,
 		bounds.Width(),
 		divW,
 	)

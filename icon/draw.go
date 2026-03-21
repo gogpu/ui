@@ -18,30 +18,89 @@ const defaultStrokeWidth float32 = 1.5
 // Draw can be called directly for custom rendering, or is used internally by
 // [IconWidget].
 func Draw(canvas widget.Canvas, data IconData, bounds geometry.Rect, color widget.Color) {
+	if bounds.IsEmpty() {
+		return
+	}
+
+	// Priority 1: Full SVG XML → direct rendering (JetBrains pipeline).
+	// Renders all SVG elements (path, circle, rect) with proper fill/stroke,
+	// fill-rule, linecap, etc. Color override replaces all fill/stroke colors.
+	if len(data.SVGXML) > 0 {
+		if renderer, ok := canvas.(widget.SVGRenderer); ok {
+			renderer.RenderSVG(data.SVGXML, bounds, color)
+			return
+		}
+	}
+
+	// Priority 2: SVG path data → fill rendering.
+	if data.SVGData != "" {
+		if filler, ok := canvas.(widget.SVGFiller); ok {
+			filler.FillSVGPath(data.SVGData, data.ViewBox, bounds, color)
+			return
+		}
+	}
+
+	// Priority 3: PathOp stroke rendering (manual icons, fallback).
 	if len(data.Ops) == 0 || data.ViewBox <= 0 {
+		return
+	}
+	scale, offsetX, offsetY := computeTransform(data.ViewBox, bounds)
+	sw := defaultStrokeWidth
+	if data.StrokeWidth > 0 {
+		sw = data.StrokeWidth
+	}
+	strokeW := sw * scale
+	drawOps(canvas, data.Ops, color, strokeW, scale, offsetX, offsetY)
+}
+
+// DrawMulti renders a multi-color icon onto the canvas within the given bounds.
+//
+// Each [PathGroup] in the icon is drawn with the color mapped by its ColorKey
+// in the palette. If a key is not found in the palette, the group is drawn
+// with [widget.ColorGray] as a fallback.
+func DrawMulti(canvas widget.Canvas, data MultiColorIcon, bounds geometry.Rect, palette Palette) {
+	if len(data.Groups) == 0 || data.ViewBox <= 0 {
 		return
 	}
 	if bounds.IsEmpty() {
 		return
 	}
 
-	bw := bounds.Width()
-	bh := bounds.Height()
-	scale := bw / data.ViewBox
-	if s := bh / data.ViewBox; s < scale {
-		scale = s
-	}
-
-	// Center the icon within bounds.
-	offsetX := bounds.Min.X + (bw-data.ViewBox*scale)/2
-	offsetY := bounds.Min.Y + (bh-data.ViewBox*scale)/2
-
+	scale, offsetX, offsetY := computeTransform(data.ViewBox, bounds)
 	strokeW := defaultStrokeWidth * scale
 
+	for _, group := range data.Groups {
+		color, ok := palette[group.ColorKey]
+		if !ok {
+			color = widget.ColorGray
+		}
+		drawOps(canvas, group.Ops, color, strokeW, scale, offsetX, offsetY)
+	}
+}
+
+// computeTransform calculates the uniform scale factor and centering offsets
+// for rendering a viewBox-based icon within the given bounds.
+func computeTransform(viewBox float32, bounds geometry.Rect) (scale, offsetX, offsetY float32) {
+	bw := bounds.Width()
+	bh := bounds.Height()
+	scale = bw / viewBox
+	if s := bh / viewBox; s < scale {
+		scale = s
+	}
+	offsetX = bounds.Min.X + (bw-viewBox*scale)/2
+	offsetY = bounds.Min.Y + (bh-viewBox*scale)/2
+	return scale, offsetX, offsetY
+}
+
+// drawOps renders a sequence of path operations as stroked lines.
+func drawOps(
+	canvas widget.Canvas, ops []PathOp,
+	color widget.Color, strokeW, scale, offsetX, offsetY float32,
+) {
 	var startX, startY float32 // sub-path start (for Close)
 	var curX, curY float32
 
-	for _, op := range data.Ops {
+	for _, op := range ops {
 		switch op.Cmd {
 		case CmdMoveTo:
 			curX = op.Params[0]*scale + offsetX
@@ -64,6 +123,11 @@ func Draw(canvas widget.Canvas, data IconData, bounds geometry.Rect, color widge
 			// Canvas does not have a native cubic Bezier stroke method.
 			// Approximate with line segments using De Casteljau subdivision.
 			drawCubic(canvas, color, strokeW, scale, offsetX, offsetY,
+				curX, curY, op.Params, &curX, &curY)
+
+		case CmdQuadraticTo:
+			// Approximate quadratic Bezier with line segments.
+			drawQuadratic(canvas, color, strokeW, scale, offsetX, offsetY,
 				curX, curY, op.Params, &curX, &curY)
 
 		case CmdClose:
@@ -120,6 +184,46 @@ func drawCubic(
 		} else {
 			canvas.DrawLine(geometry.Pt(prevX, prevY), geometry.Pt(x, y), color, strokeW)
 		}
+		prevX = x
+		prevY = y
+	}
+
+	*outX = endX
+	*outY = endY
+}
+
+// quadraticSegments is the number of line segments used to approximate a
+// quadratic Bezier curve.
+const quadraticSegments = 8
+
+// drawQuadratic approximates a quadratic Bezier curve with line segments.
+//
+// The params array contains [cx, cy, x, y] in viewbox coordinates.
+// The current point is updated via outX and outY pointers.
+func drawQuadratic(
+	canvas widget.Canvas,
+	color widget.Color,
+	strokeW, scale, offsetX, offsetY float32,
+	curX, curY float32,
+	params [maxParams]float32,
+	outX, outY *float32,
+) {
+	// Transform control/end points to canvas coordinates.
+	cx := params[0]*scale + offsetX
+	cy := params[1]*scale + offsetY
+	endX := params[2]*scale + offsetX
+	endY := params[3]*scale + offsetY
+
+	prevX, prevY := curX, curY
+	for i := 1; i <= quadraticSegments; i++ {
+		t := float32(i) / float32(quadraticSegments)
+		t1 := 1 - t
+
+		// De Casteljau quadratic evaluation: B(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
+		x := t1*t1*curX + 2*t1*t*cx + t*t*endX
+		y := t1*t1*curY + 2*t1*t*cy + t*t*endY
+
+		canvas.DrawLine(geometry.Pt(prevX, prevY), geometry.Pt(x, y), color, strokeW)
 		prevX = x
 		prevY = y
 	}

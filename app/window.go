@@ -303,6 +303,13 @@ func (w *Window) HandleFocusChange(focused bool) {
 
 	e := event.NewFocusEvent(focusType)
 	_ = w.root.Event(w.ctx, e)
+
+	// Request redraw so widgets can update visual state (e.g. titlebar
+	// active/inactive appearance, focus rings).
+	w.needsRedraw = true
+	if w.wp != nil {
+		w.wp.RequestRedraw()
+	}
 }
 
 // Frame performs one complete frame cycle.

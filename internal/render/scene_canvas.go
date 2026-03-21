@@ -415,5 +415,46 @@ func imageToRGBA(img image.Image) *image.RGBA {
 	return rgba
 }
 
+// FillSVGPath fills an SVG path within the given bounds using a temporary gg.Context.
+func (c *SceneCanvas) FillSVGPath(svgData string, viewBox float32, bounds geometry.Rect, color widget.Color) {
+	if svgData == "" || viewBox <= 0 {
+		return
+	}
+
+	bounds = c.applyTransform(bounds)
+	if !c.isVisible(bounds) {
+		return
+	}
+
+	w := int(math.Ceil(float64(bounds.Width())))
+	h := int(math.Ceil(float64(bounds.Height())))
+	if w <= 0 || h <= 0 {
+		return
+	}
+
+	path, err := gg.ParseSVGPath(svgData)
+	if err != nil {
+		return
+	}
+
+	dc := gg.NewContext(w, h)
+	scale := float64(bounds.Width()) / float64(viewBox)
+	scaleY := float64(bounds.Height()) / float64(viewBox)
+	if scaleY < scale {
+		scale = scaleY
+	}
+	dc.Scale(scale, scale)
+	dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	dc.SetFillRule(gg.FillRuleEvenOdd)
+	dc.FillPath(path)
+
+	img := dc.Image()
+	rgba := imageToRGBA(img)
+	scImg := scene.NewImage(w, h)
+	scImg.Data = rgba.Pix
+	c.sc.DrawImage(scImg, scene.TranslateAffine(bounds.Min.X, bounds.Min.Y))
+	_ = dc.Close()
+}
+
 // Verify SceneCanvas implements widget.Canvas.
 var _ widget.Canvas = (*SceneCanvas)(nil)

@@ -160,6 +160,20 @@ type Canvas interface {
 	TransformOffset() geometry.Point
 }
 
+// SVGFiller is an optional interface for canvases that support SVG path fill.
+// Use type assertion to check: if f, ok := canvas.(SVGFiller); ok { ... }
+type SVGFiller interface {
+	// FillSVGPath fills an SVG path within the given bounds.
+	FillSVGPath(svgData string, viewBox float32, bounds geometry.Rect, color Color)
+}
+
+// SVGRenderer is an optional interface for canvases that support full SVG rendering.
+// Full SVG XML is rasterized to bitmap and drawn at the specified bounds.
+type SVGRenderer interface {
+	// RenderSVG renders full SVG XML within the given bounds with color override.
+	RenderSVG(svgXML []byte, bounds geometry.Rect, color Color)
+}
+
 // Color represents an RGBA color with float32 components.
 //
 // Each component is in the range [0, 1], where 0 is minimum intensity

@@ -2,10 +2,12 @@ package render
 
 import (
 	"image"
+	stdcolor "image/color"
 	"math"
 	"sync"
 
 	"github.com/gogpu/gg"
+	"github.com/gogpu/gg/svg"
 	"github.com/gogpu/gg/text"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/internal/render/fonts"
@@ -40,6 +42,8 @@ type Canvas struct {
 // The width and height specify the canvas dimensions in logical pixels.
 // The gg.Context should already be created with matching dimensions.
 func NewCanvas(dc *gg.Context, width, height int) *Canvas {
+	dc.SetLCDLayout(gg.LCDLayoutRGB)
+
 	return &Canvas{
 		dc:             dc,
 		width:          width,
@@ -482,6 +486,61 @@ func (c *Canvas) applyTransformPoint(p geometry.Point) geometry.Point {
 // isVisible returns true if the rectangle intersects with the current clip bounds.
 func (c *Canvas) isVisible(r geometry.Rect) bool {
 	return c.currentClip.Intersects(r)
+}
+
+// FillSVGPath fills an SVG path within the given bounds.
+func (c *Canvas) FillSVGPath(svgData string, viewBox float32, bounds geometry.Rect, color widget.Color) {
+	if svgData == "" || viewBox <= 0 {
+		return
+	}
+
+	bounds = c.applyTransform(bounds)
+	if !c.isVisible(bounds) {
+		return
+	}
+
+	path, err := gg.ParseSVGPath(svgData)
+	if err != nil {
+		return
+	}
+
+	// Scale path to fit bounds.
+	scale := float64(bounds.Width()) / float64(viewBox)
+	scaleY := float64(bounds.Height()) / float64(viewBox)
+	if scaleY < scale {
+		scale = scaleY
+	}
+
+	c.dc.Push()
+	c.dc.Translate(float64(bounds.Min.X), float64(bounds.Min.Y))
+	c.dc.Scale(scale, scale)
+	c.dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
+	c.dc.SetFillRule(gg.FillRuleEvenOdd)
+	c.dc.FillPath(path)
+	c.dc.Pop()
+}
+
+// RenderSVG renders full SVG XML within the given bounds with color override.
+// Uses gg/svg.Document.RenderToWithColor to draw directly into the gg.Context.
+func (c *Canvas) RenderSVG(svgXML []byte, bounds geometry.Rect, color widget.Color) {
+	if len(svgXML) == 0 {
+		return
+	}
+
+	bounds = c.applyTransform(bounds)
+	if !c.isVisible(bounds) {
+		return
+	}
+
+	doc, err := svg.Parse(svgXML)
+	if err != nil {
+		return
+	}
+
+	r8, g8, b8, a8 := color.RGBA8()
+	svgColor := stdcolor.NRGBA{R: r8, G: g8, B: b8, A: a8}
+	doc.RenderToWithColor(c.dc, float64(bounds.Min.X), float64(bounds.Min.Y),
+		float64(bounds.Width()), float64(bounds.Height()), svgColor)
 }
 
 // Verify Canvas implements widget.Canvas.

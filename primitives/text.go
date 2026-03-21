@@ -24,7 +24,6 @@ type TextStyle struct {
 	FontSize   float32
 	Color      widget.Color
 	Bold       bool
-	Italic     bool
 	Align      TextAlign
 	MaxLines   int
 	Overflow   TextOverflow
@@ -129,12 +128,6 @@ func (t *TextWidget) Color(c widget.Color) *TextWidget {
 // Bold enables bold font weight.
 func (t *TextWidget) Bold() *TextWidget {
 	t.style.Bold = true
-	return t
-}
-
-// Italic enables italic font style.
-func (t *TextWidget) Italic() *TextWidget {
-	t.style.Italic = true
 	return t
 }
 

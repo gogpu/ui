@@ -58,8 +58,8 @@ func TestTextDefaultStyle(t *testing.T) {
 	if style.Color != widget.ColorBlack {
 		t.Error("expected default color black")
 	}
-	if style.Bold || style.Italic {
-		t.Error("should not be bold or italic by default")
+	if style.Bold {
+		t.Error("should not be bold by default")
 	}
 	if style.LineHeight != 1.2 {
 		t.Errorf("expected default line height 1.2, got %f", style.LineHeight)
@@ -97,13 +97,6 @@ func TestTextBold(t *testing.T) {
 	tw := primitives.Text("Hello").Bold()
 	if !tw.Style().Bold {
 		t.Error("bold not set")
-	}
-}
-
-func TestTextItalic(t *testing.T) {
-	tw := primitives.Text("Hello").Italic()
-	if !tw.Style().Italic {
-		t.Error("italic not set")
 	}
 }
 
@@ -152,7 +145,6 @@ func TestTextFluentChaining(t *testing.T) {
 		FontSize(18).
 		Color(widget.ColorRed).
 		Bold().
-		Italic().
 		Align(primitives.TextAlignCenter).
 		MaxLines(2).
 		Ellipsis().
@@ -162,8 +154,8 @@ func TestTextFluentChaining(t *testing.T) {
 	if style.FontSize != 18 {
 		t.Error("font size not chained")
 	}
-	if !style.Bold || !style.Italic {
-		t.Error("bold/italic not chained")
+	if !style.Bold {
+		t.Error("bold not chained")
 	}
 	if style.Align != primitives.TextAlignCenter {
 		t.Error("align not chained")

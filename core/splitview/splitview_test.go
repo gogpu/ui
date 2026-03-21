@@ -836,8 +836,15 @@ func TestEvent_DispatchToChildren(t *testing.T) {
 	if !consumed {
 		t.Error("expected event to be consumed by first panel")
 	}
-	if first.lastEvent != click {
-		t.Error("expected first panel to receive the event")
+	// SplitView translates mouse coordinates to local space, so the child
+	// receives a copy of the event (not the original pointer). Check that
+	// the child received a mouse event with the correct translated position.
+	me, ok := first.lastEvent.(*event.MouseEvent)
+	if !ok || me == nil {
+		t.Fatal("expected first panel to receive a mouse event")
+	}
+	if me.Position != click.Position {
+		t.Errorf("expected position %v, got %v", click.Position, me.Position)
 	}
 }
 
