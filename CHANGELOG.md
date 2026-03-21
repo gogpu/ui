@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-03-21
+
+### Added
+
+- **DevTools design system** — Complete JetBrains-inspired theme with 22 component painters
+  (dark/light mode), based on Int UI gray scale and JetBrains IDE styling. New `theme/devtools/`
+  package with full painter set matching Material 3, Fluent, and Cupertino coverage.
+- **Stripe toolbar widget** — New `core/stripe/` package for vertical tool window sidebars.
+  Top/bottom button groups, hover/click/active states, pluggable Painter interface. JetBrains
+  IDE-accurate sizing (40x40 buttons, 20px icons, 59px with labels).
+- **TitleBar widget** — New `core/titlebar/` package for frameless window title bars. Leading/center
+  child zones, window controls (minimize/maximize/close), hit-test delegation for proper drag areas.
+- **SVG icon system** — Full SVG rendering via `gg/svg` package. `FromSVGXML` constructor loads
+  JetBrains expui SVG icons with proper fill, stroke, fill-rule, stroke-linecap, `<circle>`,
+  `<path>` elements. `SVGRenderer` interface on Canvas. 17 expui icons for toolbar and sidebar.
+- **IDE layout example** — New `examples/ide/` demonstrating GoLand-inspired layout: frameless
+  titlebar with toolbar, project tree, editor/terminal tabs, left/right tool window strips,
+  status bar. Uses DevTools theme, SplitView, TabView, TreeView, Stripe, Toolbar.
+- **Toolbar options** — `ButtonSize(px)` and `Gap(px)` for configurable toolbar button sizing.
+  JetBrains defaults: 30x30 buttons, 10px gap.
+- **SplitView FixedFirst** — Pixel-based panel sizing. First panel stays at constant width/height
+  regardless of window resize. Drag updates pixel position.
+- **Expanded widget** — New `primitives.Expanded()` wrapper for flex layout grow behavior.
+- **LCD ClearType** — Subpixel text rendering enabled (`gg.LCDLayoutRGB`).
+- **10 first-frame rendering tests** — Headless tests verifying all widgets render correctly
+  on the very first Frame+DrawTo cycle.
+
+### Fixed
+
+- **TabView coordinate system** — TabView now uses local coordinates with PushTransform in Draw,
+  matching SplitView pattern. Fixes first-frame rendering where tabs appeared at wrong positions.
+- **Window focus redraw** — `HandleFocusChange` now requests redraw, fixing black window after
+  losing and regaining focus in event-driven mode.
+- **Toolbar NewRect width** — Fixed `NewRect(x, 0, x+itemW, h)` → `NewRect(x, 0, itemW, h)`.
+  Each toolbar button was getting progressively wider.
+- **Titlebar hover tracking** — Proper MouseLeave dispatch when cursor moves between toolbar
+  children. Hit-test delegation via `HitTestPoint` interface.
+
+### Changed (Dependencies)
+- **gg** v0.37.3 → **v0.38.0** (SVG renderer, FillPath, ParseSVGPath, LCD ClearType)
+- **gogpu** v0.24.4 → **v0.24.5**
+- **gpucontext** v0.10.0 → **v0.11.0**
+- **wgpu** (indirect) v0.21.3 → **v0.22.1**
+
+### Removed
+
+- **TextWidget.Italic()** — Dead code removed. Canvas.DrawText never rendered italic.
+
 ## [0.1.3] — 2026-03-17
 
 ### Fixed

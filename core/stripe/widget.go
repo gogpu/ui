@@ -174,7 +174,8 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	// Draw buttons in local coordinates.
 	canvas.PushTransform(bounds.Min)
 
-	for i := range w.cfg.topItems {		w.painter.PaintButton(canvas, ButtonPaintState{
+	for i := range w.cfg.topItems {
+		w.painter.PaintButton(canvas, ButtonPaintState{
 			Bounds:    w.topStates[i].bounds,
 			Icon:      w.cfg.topItems[i].Icon,
 			Label:     w.cfg.topItems[i].Label,
@@ -185,7 +186,8 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		})
 	}
 
-	for i := range w.cfg.bottomItems {		w.painter.PaintButton(canvas, ButtonPaintState{
+	for i := range w.cfg.bottomItems {
+		w.painter.PaintButton(canvas, ButtonPaintState{
 			Bounds:    w.bottomStates[i].bounds,
 			Icon:      w.cfg.bottomItems[i].Icon,
 			Label:     w.cfg.bottomItems[i].Label,

@@ -221,10 +221,11 @@ func main() {
 | `core/menu` | MenuBar + ContextMenu: submenus, separators, disabled items, shortcut display | 96%+ |
 | `core/docking` | IDE-style dockable panels: border layout, tabbed groups, Dock/Undock API | 95.3% |
 | `theme/material3` | 21 component painters (all widgets covered) | 97%+ |
+| `theme/devtools` | **JetBrains DevTools**: 22 painters, Int UI gray scale, dark/light, IDE-style | 96%+ |
 | `theme/fluent` | Microsoft Fluent Design: 9 painters, accent colors, inner focus ring, light/dark | 96%+ |
 | `theme/cupertino` | Apple HIG: 9 painters, iOS toggle switch, segmented control, pill buttons | 96%+ |
 | `theme/font` | Font Registry: CSS weight matching (W3C spec), Weight 100-900, Style, Family/Face | 97.7% |
-| `icon` | Vector path icons: 10 built-in Material icons, De Casteljau cubic Bezier, IconWidget | 97.6% |
+| `icon` | SVG icons (JetBrains expui), vector path icons, De Casteljau bezier, gg/svg renderer | 97%+ |
 | `i18n` | Internationalization: Locale, Bundle, Translator, CLDR plural rules, RTL, LocaleSignal | 97.9% |
 | `dnd` | Drag and drop: DragSource/DropTarget interfaces, Manager, 5px threshold, Escape cancel | 99.3% |
 | `uitest` | Testing utilities: MockCanvas, MockContext, event factories, widget helpers, assertions | 93.1% |
@@ -240,8 +241,10 @@ func main() {
 ┌─────────────────────────────────────────────────────────────┐
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
-│  theme/material3/  │  theme/fluent/  │  theme/cupertino/    │
-│  21 Painters ✅    │  9 Painters ✅  │  9 Painters ✅       │
+│  theme/material3/  │  theme/devtools/ │  theme/fluent/      │
+│  21 Painters       │  22 Painters     │  9 Painters         │
+│  theme/cupertino/  │                  │                     │
+│  9 Painters        │                  │                     │
 ├─────────────────────────────────────────────────────────────┤
 │  22 Interactive Widgets (core/)                             │
 │  button, checkbox, radio, textfield, dropdown, slider,      │
@@ -300,7 +303,8 @@ gg → wgpu → naga                   ← internal to gg
 | [`examples/hello`](examples/hello) | Widget demo: checkbox, radio, ListView (1000 items), M3 theme, event-driven GPU rendering |
 | [`examples/signals`](examples/signals) | Reactive signals: TextSignal, ContentSignal, CheckedSignal, SelectedSignal, DisabledSignal |
 | [`examples/taskmanager`](examples/taskmanager) | Full task manager: charts, tables, animations, real-time data |
-| [`examples/gallery`](examples/gallery) | Widget gallery: all 22 widgets, 3 design systems (M3/Fluent/Cupertino), theme switching |
+| [`examples/gallery`](examples/gallery) | Widget gallery: all 22 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
+| [`examples/ide`](examples/ide) | GoLand-inspired IDE layout: DevTools theme, toolbar, tree, tabs, terminal, SVG icons |
 
 Run any example:
 
@@ -646,7 +650,7 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] FocusManager integration in Window (Tab/Shift+Tab navigation)
 - [x] OnTextInput handler (platform character input API)
 - [x] Task Manager example (charts, tables, animations)
-- [x] Widget Gallery example (all widgets, 3 design systems, theme switching)
+- [x] Widget Gallery example (all widgets, 4 design systems, theme switching)
 - [ ] Platform accessibility adapters (UIA, AT-SPI2, NSAccessibility)
 - [ ] Performance optimization pass
 

@@ -22,7 +22,7 @@
 - WebGPU-first rendering via gogpu/wgpu
 - Signals-based state management (coregx/signals)
 - Enterprise features: docking, virtualization, accessibility
-- Three design systems: Material 3, Fluent, Cupertino
+- Four design systems: Material 3, DevTools (JetBrains), Fluent, Cupertino
 
 ---
 
@@ -265,7 +265,7 @@ v1.0.0  → Production (when ready)
 | Dirty Region Tracking | Region collector, merge algorithm, partial repaints |
 | Performance Benchmarks | 36 benchmarks across 5 packages |
 | Task Manager Example | Full-featured demo with charts, tables, animations |
-| Widget Gallery Example | All 22 widgets, 3 design systems, theme switching |
+| Widget Gallery Example | All 22 widgets, 4 design systems, theme switching |
 | Hover Tracking | W3C PointerEventSource, HoverTracker, cursor management |
 | ScreenBounds | Screen-space coordinate transform for overlay positioning |
 | Event Coordinate Transform | ScrollView mouse/wheel coordinate transforms |
