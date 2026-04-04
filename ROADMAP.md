@@ -94,8 +94,8 @@ v1.0.0  → Production (when ready)
 ┌─────────────────────────────────────────────────────────────┐
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
-│  theme/material3   │  theme/fluent     │  theme/cupertino   │
-│  (Complete ✅)     │  (Complete ✅)    │  (Complete ✅)     │
+│  theme/material3  │ theme/devtools │ theme/fluent │ theme/cupertino │
+│  (Complete)       │ (Complete)     │ (Complete)   │ (Complete)      │
 ├─────────────────────────────────────────────────────────────┤
 │  core/button/      │  animation/ ✅    │  core/docking/ ✅  │
 │  core/checkbox/    │  Tween, Spring    │  DockingHost       │

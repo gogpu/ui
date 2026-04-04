@@ -168,12 +168,14 @@ func main() {
 
 	gs := &galleryState{}
 	ps := m3Painters(material3.New(widget.Hex(0x6750A4)))
-	root := buildGallery(gs, ps, func(idx int) {
+	var onThemeChange func(int)
+	onThemeChange = func(idx int) {
 		ps = switchTheme(idx)
-		newRoot := buildGallery(gs, ps, nil)
+		newRoot := buildGallery(gs, ps, onThemeChange)
 		uiApp.SetRoot(newRoot)
 		gogpuApp.RequestRedraw()
-	})
+	}
+	root := buildGallery(gs, ps, onThemeChange)
 	uiApp.SetRoot(root)
 
 	// Start simulated data for charts and progress.

@@ -45,9 +45,11 @@ func Expanded(child widget.Widget) *ExpandedWidget {
 	return e
 }
 
-// IsExpanded returns true. This marker method is used by [BoxWidget] to detect
-// expanded children during its two-pass layout.
+// IsExpanded returns true. Public API for querying expanded state.
 func (e *ExpandedWidget) IsExpanded() bool { return true }
+
+// isLayoutExpander implements the private [layoutExpander] marker interface.
+func (e *ExpandedWidget) isLayoutExpander() {}
 
 // Child returns the wrapped widget.
 func (e *ExpandedWidget) Child() widget.Widget { return e.child }
@@ -158,13 +160,23 @@ func (e *ExpandedWidget) AccessibilityActions() []a11y.Action {
 	return nil
 }
 
-// isExpanded checks if a widget is wrapped in Expanded.
+// layoutExpander is a private marker interface for widgets that participate
+// in flex layout distribution (Expanded, future Flex, Spacer).
+// The unexported method prevents external types from accidentally satisfying
+// this interface — avoiding the duck-typing collision that broke Collapsible
+// (BUG-UI-GALLERY-001: collapsible.IsExpanded() matched the old IsExpanded() check).
+//
+// Pattern: Flutter uses parentData.flex, Compose uses weight modifier,
+// SwiftUI uses concrete Spacer type. We use a private marker interface
+// for extensibility without name collision risk.
+type layoutExpander interface {
+	isLayoutExpander() // unexported — only primitives package can implement
+}
+
+// isExpanded checks if a widget is a flex layout participant (Expanded, Flex, Spacer).
 func isExpanded(w widget.Widget) bool {
-	type expander interface{ IsExpanded() bool }
-	if exp, ok := w.(expander); ok {
-		return exp.IsExpanded()
-	}
-	return false
+	_, ok := w.(layoutExpander)
+	return ok
 }
 
 // Compile-time interface checks.

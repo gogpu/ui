@@ -5,7 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] — 2026-04-05
+
+### Fixed
+
+- **Widget Gallery content invisible** — `isExpanded()` used duck-typing interface
+  `IsExpanded() bool` to detect flex layout wrappers in VBox. `collapsible.Widget`
+  also has `IsExpanded()` for its expand/collapse state, causing VBox to mistakenly
+  treat collapsible sections as flex children and give them `MaxHeight=0`. Replaced
+  with private marker interface `layoutExpander` using unexported method. Prevents
+  any external type from accidentally satisfying the interface.
+  (BUG-UI-GALLERY-001)
+- **Gallery theme switching** — `onThemeChange` callback passed recursively instead
+  of `nil` so dropdown keeps working after theme switch.
+
+### Changed (Dependencies)
+- **gg** v0.38.2 → **v0.38.3**
+- **gogpu** v0.26.0 → **v0.26.1**
+- **wgpu** (indirect) v0.23.0 → **v0.23.9**
+- **naga** (indirect) v0.15.0 → **v0.16.6**
+- **gputypes** (indirect) v0.3.0 → **v0.4.0**
+- **golang.org/x/image** v0.37.0 → **v0.38.0**
+
 ## [0.1.6] — 2026-03-24
+
+### Fixed
+
+- **Examples: software adapter fallback** — All examples now check
+  `AcceleratorCanRenderDirect()` before using GPU-direct SDF rendering.
+  On CPU-only adapters (llvmpipe, SwiftShader), falls back to
+  `canvas.Render(dc.RenderTarget())` universal path via PresentTexture.
 
 ### Changed (Dependencies)
 - **gg** v0.38.1 → **v0.38.2** (GLES clip/scissor fixes)
