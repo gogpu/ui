@@ -87,38 +87,34 @@ func parseSVGToOps(svgPathData string) ([]PathOp, error) {
 	if err != nil {
 		return nil, err
 	}
-	return convertPathElements(path.Elements()), nil
+	return convertPathToOps(path), nil
 }
 
-// convertPathElements converts gg.PathElement values to PathOp operations.
-func convertPathElements(elements []gg.PathElement) []PathOp {
-	ops := make([]PathOp, 0, len(elements))
+// convertPathToOps converts a gg.Path to PathOp operations using zero-alloc iteration.
+func convertPathToOps(path *gg.Path) []PathOp {
+	ops := make([]PathOp, 0, path.NumVerbs())
 
-	for _, elem := range elements {
-		switch e := elem.(type) {
+	path.Iterate(func(verb gg.PathVerb, coords []float64) {
+		switch verb {
 		case gg.MoveTo:
-			ops = append(ops, Move(float32(e.Point.X), float32(e.Point.Y)))
-
+			ops = append(ops, Move(float32(coords[0]), float32(coords[1])))
 		case gg.LineTo:
-			ops = append(ops, Line(float32(e.Point.X), float32(e.Point.Y)))
-
+			ops = append(ops, Line(float32(coords[0]), float32(coords[1])))
 		case gg.CubicTo:
 			ops = append(ops, Cubic(
-				float32(e.Control1.X), float32(e.Control1.Y),
-				float32(e.Control2.X), float32(e.Control2.Y),
-				float32(e.Point.X), float32(e.Point.Y),
+				float32(coords[0]), float32(coords[1]),
+				float32(coords[2]), float32(coords[3]),
+				float32(coords[4]), float32(coords[5]),
 			))
-
 		case gg.QuadTo:
 			ops = append(ops, Quad(
-				float32(e.Control.X), float32(e.Control.Y),
-				float32(e.Point.X), float32(e.Point.Y),
+				float32(coords[0]), float32(coords[1]),
+				float32(coords[2]), float32(coords[3]),
 			))
-
 		case gg.Close:
 			ops = append(ops, ClosePath())
 		}
-	}
+	})
 
 	return ops
 }
