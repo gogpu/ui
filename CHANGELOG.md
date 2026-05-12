@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.21] — 2026-05-12
+
+### Changed
+
+- **gg v0.46.8** — fix CJK `IsCJK` propagation through scene/shaper paths. `ShapedGlyph.IsCJK` field (ADR-027) was never populated — CJK improvements (script-aware hinting, exact-size rasterization, Tier 6 routing) were silently bypassed through scene and UI compositor paths. Fixed in 6 locations: builtin shaper, HarfBuzz shaper, LayoutText, scene encoding, scene GPU/CPU decoders. Zero breaking changes, no UI modifications needed. Closes gg#304.
+
+### Dependencies
+
+- gg v0.46.7 → v0.46.8
+
 ## [0.1.20] — 2026-05-11
 
 ### Added
