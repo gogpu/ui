@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.22] — 2026-05-13
+
+### Fixed
+
+- **gg v0.46.9** — fix Mac Retina rendering (gg#308, @sverrehu). `MarkDirty()` used logical pixel dimensions for texture upload region — on Retina (scale=2.0), only 1/4 of the pixmap was uploaded to the GPU texture. Regression from gg v0.45.4. Includes 3 HiDPI regression tests with `mockHiDPIProvider`.
+
+### Dependencies
+
+- gg v0.46.8 → v0.46.9
+
 ## [0.1.21] — 2026-05-12
 
 ### Changed
