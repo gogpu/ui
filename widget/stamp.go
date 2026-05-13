@@ -74,5 +74,15 @@ func stampCompositorClip(child Widget, canvas Canvas) {
 		Min: localClip.Min.Add(base),
 		Max: localClip.Max.Add(base),
 	}
+
+	// Guard against degenerate rects from zero-area clip intersections
+	// (e.g., widget fully scrolled out of viewport). A zero-area rect at
+	// a non-zero position can confuse downstream culling, so normalize to
+	// an explicit zero rect.
+	if screenClip.Width() <= 0 || screenClip.Height() <= 0 {
+		setter.SetCompositorClip(geometry.Rect{})
+		return
+	}
+
 	setter.SetCompositorClip(screenClip)
 }

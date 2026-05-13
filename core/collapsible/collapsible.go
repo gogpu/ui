@@ -385,9 +385,13 @@ func (a *progressAdapter) Get() float32 {
 }
 
 // Set updates the progress and marks the widget for redraw.
+// During collapse animation, the clip area shrinks each frame.
+// InvalidateScene ensures the enclosing boundary's GPU texture is
+// re-recorded so stale pixels outside the new clip are cleared.
 func (a *progressAdapter) Set(v float32) {
 	a.w.progress = v
 	a.w.SetNeedsRedraw(true)
+	a.w.InvalidateScene()
 }
 
 // Verify Widget implements required interfaces at compile time.

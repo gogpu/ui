@@ -200,3 +200,102 @@ func (c *clipStampCanvas) IsBoundaryRecording() bool { return c.isBoundary }
 
 var _ widget.Canvas = (*clipStampCanvas)(nil)
 var _ widget.BoundaryRecorder = (*clipStampCanvas)(nil)
+
+// TestDrawChild_DegenerateClipNormalizesToZeroRect verifies that when the
+// canvas clip intersection produces a zero-area rect (widget scrolled fully
+// out of viewport), stampCompositorClip normalizes it to an explicit zero
+// rect rather than passing through a degenerate positioned rect.
+func TestDrawChild_DegenerateClipNormalizesToZeroRect(t *testing.T) {
+	tests := []struct {
+		name       string
+		clipBounds geometry.Rect
+		base       geometry.Point
+	}{
+		{
+			name:       "zero width",
+			clipBounds: geometry.Rect{Min: geometry.Pt(100, 200), Max: geometry.Pt(100, 500)},
+			base:       geometry.Pt(0, 0),
+		},
+		{
+			name:       "zero height",
+			clipBounds: geometry.Rect{Min: geometry.Pt(0, 300), Max: geometry.Pt(400, 300)},
+			base:       geometry.Pt(0, 0),
+		},
+		{
+			name:       "negative width",
+			clipBounds: geometry.Rect{Min: geometry.Pt(200, 100), Max: geometry.Pt(100, 400)},
+			base:       geometry.Pt(0, 0),
+		},
+		{
+			name:       "negative height",
+			clipBounds: geometry.Rect{Min: geometry.Pt(0, 500), Max: geometry.Pt(400, 200)},
+			base:       geometry.Pt(0, 0),
+		},
+		{
+			name:       "zero area with non-zero base",
+			clipBounds: geometry.Rect{Min: geometry.Pt(50, 100), Max: geometry.Pt(50, 100)},
+			base:       geometry.Pt(10, 20),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			child := &clipTestWidget{}
+			child.SetVisible(true)
+			child.SetRepaintBoundary(true)
+			child.SetBounds(geometry.NewRect(0, 0, 200, 48))
+
+			canvas := &clipStampCanvas{
+				clipBounds:       tt.clipBounds,
+				transformOffset:  geometry.Pt(0, 0),
+				screenOriginBase: tt.base,
+				isBoundary:       true,
+			}
+
+			widget.DrawChild(child, nil, canvas)
+
+			if !child.HasCompositorClip() {
+				t.Fatal("DrawChild should still set CompositorClip even for degenerate clips")
+			}
+
+			got := child.CompositorClip()
+			want := geometry.Rect{} // explicit zero rect
+			if got != want {
+				t.Errorf("CompositorClip = %v, want zero rect %v", got, want)
+			}
+		})
+	}
+}
+
+// TestDrawChild_ValidClipPassesThrough verifies that a normal positive-area
+// clip rect is passed through unchanged (not zeroed).
+func TestDrawChild_ValidClipPassesThrough(t *testing.T) {
+	child := &clipTestWidget{}
+	child.SetVisible(true)
+	child.SetRepaintBoundary(true)
+	child.SetBounds(geometry.NewRect(0, 0, 200, 48))
+
+	viewportClip := geometry.NewRect(10, 20, 400, 600)
+	base := geometry.Pt(5, 10)
+	canvas := &clipStampCanvas{
+		clipBounds:       viewportClip,
+		transformOffset:  geometry.Pt(0, 0),
+		screenOriginBase: base,
+		isBoundary:       true,
+	}
+
+	widget.DrawChild(child, nil, canvas)
+
+	if !child.HasCompositorClip() {
+		t.Fatal("should have compositor clip")
+	}
+
+	got := child.CompositorClip()
+	want := geometry.Rect{
+		Min: viewportClip.Min.Add(base),
+		Max: viewportClip.Max.Add(base),
+	}
+	if got != want {
+		t.Errorf("CompositorClip = %v, want %v", got, want)
+	}
+}

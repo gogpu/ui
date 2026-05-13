@@ -711,6 +711,50 @@ func TestExpandedReadonlySignal_Mount_CreatesBinding(t *testing.T) {
 	}
 }
 
+// --- Animation Scene Invalidation Tests ---
+
+// TestAnimation_ProgressAdapter_InvalidatesScene verifies that the progress
+// adapter calls InvalidateScene during animation, ensuring the enclosing
+// boundary's GPU texture is re-recorded. Without this, stale pixels from
+// the previous (expanded) frame persist outside the shrinking clip area.
+func TestAnimation_ProgressAdapter_InvalidatesScene(t *testing.T) {
+	content := &mockWidget{preferredSize: geometry.Sz(200, 100)}
+	w := collapsible.New(
+		collapsible.Content(content),
+		collapsible.Expanded(true),
+		collapsible.Animated(true),
+		collapsible.Duration(100*time.Millisecond),
+	)
+	// Make the collapsible a RepaintBoundary so we can observe scene invalidation.
+	w.SetRepaintBoundary(true)
+
+	// Clear the initial dirty state (from SetRepaintBoundary).
+	w.ClearSceneDirty()
+	if w.IsSceneDirty() {
+		t.Fatal("scene should be clean after ClearSceneDirty")
+	}
+
+	// Start collapse animation.
+	w.Toggle()
+
+	// After toggle, SetNeedsRedraw(true) is called which calls
+	// InvalidateScene for boundaries. Clear it to isolate the
+	// progressAdapter.Set path.
+	w.ClearSceneDirty()
+
+	// Simulate one animation tick via Layout.
+	ctx := widget.NewContext()
+	constraints := geometry.Loose(geometry.Sz(200, 500))
+	ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
+	w.Layout(ctx, constraints)
+
+	// progressAdapter.Set should have called InvalidateScene.
+	if !w.IsSceneDirty() {
+		t.Error("animation progress change should invalidate the boundary scene; " +
+			"without this, GPU texture retains stale expanded-size pixels")
+	}
+}
+
 // --- TitleFn Tests ---
 
 func TestTitleFn(t *testing.T) {

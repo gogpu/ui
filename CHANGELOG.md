@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.24] — 2026-05-14
+
+### Fixed
+
+- **Collapsible ghost pixels during animation** ([#101](https://github.com/gogpu/ui/issues/101) Thread B, @AnyCPU) — during collapse animation the clip area shrinks each frame, but the boundary's GPU texture retained stale pixels from the previous (larger) clip. `progressAdapter.Set()` now calls `InvalidateScene()` to force boundary re-recording. 1 line + 44 LOC test.
+- **stampCompositorClip degenerate rects** ([#101](https://github.com/gogpu/ui/issues/101) Thread B') — zero-area or negative-area clip intersections (e.g., widget fully scrolled out of viewport) produced positioned-but-empty rects that defeated downstream `IsEmpty()` culling, allowing stale texture blits. Now normalizes to explicit zero rect. 6 lines + 99 LOC test.
+- **Gallery theme dropdown resets on theme change** ([#101](https://github.com/gogpu/ui/issues/101) Thread G) — `buildGallery()` hardcoded `dropdown.Selected(0)`, losing user's theme selection when tree was rebuilt. Now tracks `galleryState.themeIdx`. 3 lines.
+
+### Dependencies
+
+- gg v0.46.9 → v0.46.11 (SVG HiDPI scale fix, GPU stroke EvenOdd fill rule, nil texture readback guard — [#101](https://github.com/gogpu/ui/issues/101) Threads C, F)
+- wgpu v0.27.3 → v0.27.5 (flaky Windows CI fix, NULL handle guard in TransitionTextures — [#101](https://github.com/gogpu/ui/issues/101))
+- gogpu v0.34.3 → v0.34.6 (macOS PUA filter, Linux EventClose, deferred SetHitTestCallback frameless drag fix — [#101](https://github.com/gogpu/ui/issues/101) Threads A, H)
+- goffi v0.5.0 → v0.5.1 (amd64 struct arg passing, XMM0:XMM1 return, CGO_ENABLED=1 — [#101](https://github.com/gogpu/ui/issues/101) Thread A)
+- golang.org/x/image v0.39.0 → v0.40.0
+- golang.org/x/text v0.36.0 → v0.37.0
+
 ## [0.1.23] — 2026-05-13
 
 ### Added

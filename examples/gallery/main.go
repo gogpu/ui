@@ -146,6 +146,7 @@ type galleryState struct {
 	chart       *linechart.Widget
 	progressBar *progressbar.Widget
 	circularPrg *progress.Widget
+	themeIdx    int // currently selected theme index
 }
 
 // theme option names for the design-system dropdown.
@@ -173,6 +174,7 @@ func main() {
 	ps := m3Painters(m3)
 	var onThemeChange func(int)
 	onThemeChange = func(idx int) {
+		gs.themeIdx = idx
 		ps = switchTheme(idx)
 		uiApp.SetTheme(switchUITheme(idx))
 		newRoot := buildGallery(gs, ps, onThemeChange)
@@ -267,7 +269,7 @@ func buildGallery(gs *galleryState, ps painterSet, onThemeChange func(int)) *scr
 	// Header.
 	themeDropdownOpts := []dropdown.Option{
 		dropdown.Items(themeNames...),
-		dropdown.Selected(0),
+		dropdown.Selected(gs.themeIdx),
 		dropdown.PainterOpt(ps.dropdown),
 	}
 	if onThemeChange != nil {
