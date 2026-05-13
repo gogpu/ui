@@ -86,17 +86,30 @@ func (n *noopAssetLoader) LoadImage(_ string, _ []byte) error {
 // Verify noopAssetLoader implements AssetLoader.
 var _ AssetLoader = (*noopAssetLoader)(nil)
 
+// FontRegisterer is called when a font is loaded via [MemoryAssetLoader]
+// to register it with the rendering pipeline's font registry.
+//
+// The name parameter is the family name (e.g., "NotoSansCJK"), and data
+// is the raw TTF/OTF bytes. Implementations should register the font so
+// that [widget.StyledTextDrawer] can resolve it by name.
+type FontRegisterer func(name string, data []byte) error
+
 // MemoryAssetLoader is a simple in-memory implementation of AssetLoader.
 //
 // It stores all loaded assets in memory and provides methods to
 // retrieve them. This is useful for testing and simple applications.
 //
+// When a [FontRegisterer] is set, LoadFont additionally registers the
+// font with the rendering pipeline so that widgets using
+// [widget.StyledTextDrawer] can resolve custom fonts by family name.
+//
 // MemoryAssetLoader is thread-safe.
 type MemoryAssetLoader struct {
-	mu     sync.RWMutex
-	fonts  map[string][]byte
-	icons  map[string][]byte
-	images map[string][]byte
+	mu             sync.RWMutex
+	fonts          map[string][]byte
+	icons          map[string][]byte
+	images         map[string][]byte
+	fontRegisterer FontRegisterer
 }
 
 // NewMemoryAssetLoader creates a new MemoryAssetLoader.
@@ -108,7 +121,26 @@ func NewMemoryAssetLoader() *MemoryAssetLoader {
 	}
 }
 
+// SetFontRegisterer sets a callback that is invoked when [LoadFont] is
+// called, bridging plugin font loading to the rendering pipeline.
+//
+// Example:
+//
+//	loader := plugin.NewMemoryAssetLoader()
+//	loader.SetFontRegisterer(func(name string, data []byte) error {
+//	    return render.GlobalFontRegistry().Register(name, font.Regular, font.Normal, data)
+//	})
+func (m *MemoryAssetLoader) SetFontRegisterer(fn FontRegisterer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.fontRegisterer = fn
+}
+
 // LoadFont implements AssetLoader.
+//
+// If a [FontRegisterer] has been set via [SetFontRegisterer], LoadFont
+// additionally registers the font with the rendering pipeline so that
+// widgets using [widget.StyledTextDrawer] can render text with it.
 func (m *MemoryAssetLoader) LoadFont(name string, data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -117,6 +149,13 @@ func (m *MemoryAssetLoader) LoadFont(name string, data []byte) error {
 	copied := make([]byte, len(data))
 	copy(copied, data)
 	m.fonts[name] = copied
+
+	// Register with the rendering pipeline if a registerer is set.
+	if m.fontRegisterer != nil {
+		if err := m.fontRegisterer(name, copied); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

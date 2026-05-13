@@ -920,3 +920,144 @@ func TestSceneCanvas_RenderSVG_Scale2_CacheHit(t *testing.T) {
 		t.Error("second RenderSVG call at same scale should produce a cache hit")
 	}
 }
+
+// --- StyledTextDrawer interface ---
+
+func TestSceneCanvas_ImplementsStyledTextDrawer(t *testing.T) {
+	var _ widget.StyledTextDrawer = (*SceneCanvas)(nil)
+}
+
+func TestSceneCanvas_DrawStyledText_DefaultFont(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 200, 100)
+	defer c.Close()
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontSize: 14,
+		Color:    widget.ColorBlack,
+		Align:    widget.TextAlignLeft,
+	}
+
+	// Should not panic -- uses default Inter font.
+	c.DrawStyledText("Hello World", bounds, style)
+
+	if sc.IsEmpty() {
+		t.Error("scene should have content after DrawStyledText")
+	}
+}
+
+func TestSceneCanvas_DrawStyledText_Bold(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 200, 100)
+	defer c.Close()
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontSize: 14,
+		Bold:     true,
+		Color:    widget.ColorBlack,
+		Align:    widget.TextAlignCenter,
+	}
+
+	c.DrawStyledText("Bold Text", bounds, style)
+
+	if sc.IsEmpty() {
+		t.Error("scene should have content after DrawStyledText with bold")
+	}
+}
+
+func TestSceneCanvas_DrawStyledText_Empty(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 200, 100)
+	defer c.Close()
+
+	style := widget.TextStyle{FontSize: 14, Color: widget.ColorBlack}
+	c.DrawStyledText("", geometry.NewRect(10, 10, 180, 30), style)
+
+	if !sc.IsEmpty() {
+		t.Error("scene should be empty after DrawStyledText with empty string")
+	}
+}
+
+func TestSceneCanvas_DrawStyledText_OutsideClip(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 100, 100)
+	defer c.Close()
+
+	// Bounds completely outside the canvas.
+	bounds := geometry.NewRect(500, 500, 100, 30)
+	style := widget.TextStyle{FontSize: 14, Color: widget.ColorBlack}
+
+	c.DrawStyledText("Offscreen", bounds, style)
+
+	if !sc.IsEmpty() {
+		t.Error("scene should be empty after DrawStyledText with offscreen bounds")
+	}
+}
+
+func TestSceneCanvas_DrawStyledText_ExplicitFamily(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 200, 100)
+	defer c.Close()
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontFamily: "Inter",
+		FontSize:   16,
+		Color:      widget.ColorBlack,
+		Align:      widget.TextAlignRight,
+	}
+
+	c.DrawStyledText("Inter Font", bounds, style)
+
+	if sc.IsEmpty() {
+		t.Error("scene should have content after DrawStyledText with Inter family")
+	}
+}
+
+func TestSceneCanvas_DrawStyledText_UnknownFamily(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 200, 100)
+	defer c.Close()
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontFamily: "NonExistentFont",
+		FontSize:   14,
+		Color:      widget.ColorBlack,
+	}
+
+	// Unknown family should fall back to Inter.
+	c.DrawStyledText("Fallback", bounds, style)
+
+	if sc.IsEmpty() {
+		t.Error("scene should have content after DrawStyledText with unknown family (fallback)")
+	}
+}
+
+func TestSceneCanvas_MeasureStyledText_Default(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 200, 100)
+	defer c.Close()
+
+	style := widget.TextStyle{FontSize: 14, Color: widget.ColorBlack}
+	w := c.MeasureStyledText("Hello", style)
+
+	if w <= 0 {
+		t.Errorf("MeasureStyledText(Hello) = %f, want > 0", w)
+	}
+}
+
+func TestSceneCanvas_MeasureStyledText_Empty(t *testing.T) {
+	sc := scene.NewScene()
+	c := NewSceneCanvas(sc, 200, 100)
+	defer c.Close()
+
+	style := widget.TextStyle{FontSize: 14}
+	w := c.MeasureStyledText("", style)
+
+	if w != 0 {
+		t.Errorf("MeasureStyledText('') = %f, want 0", w)
+	}
+}

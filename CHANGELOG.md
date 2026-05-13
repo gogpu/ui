@@ -5,11 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.22] — 2026-05-13
+## [0.1.23] — 2026-05-13
+
+### Added
+
+- **Custom font loading pipeline** (TASK-UI-CJK-001, gg#304) — plugins can now load custom fonts via `ctx.Assets.LoadFont("name", data)` and they are used for rendering. Follows Flutter/Qt6/Iced universal pattern: global `FontRegistry` singleton with CSS weight matching and Inter fallback.
+- **`FontRegistry`** (`internal/render/fontregistry.go`) — process-global, thread-safe (RWMutex) font registry. Pre-registers embedded Inter. Caches `*text.FontSource` by (family, weight, style). CSS weight matching via `theme/font.Registry`.
+- **`StyledTextDrawer`** optional interface (`widget/canvas.go`) — `DrawStyledText(text, bounds, TextStyle)` + `MeasureStyledText(text, TextStyle)`. Implemented by both Canvas and SceneCanvas. Uses type assertion pattern consistent with `ArcStroker`, `SVGFiller`, `DeviceScaler`.
+- **`TextWidget.FontFamily()`** builder method (`primitives/text.go`) — routes to `StyledTextDrawer` when custom font family set, falls back to regular `DrawText` with Inter.
+- **Plugin → Registry wiring** — `MemoryAssetLoader.LoadFont()` auto-registers fonts in `GlobalFontRegistry()`. `NewDefaultPluginContext()` creates real `MemoryAssetLoader` instead of noop.
+- **47 new tests** across fontregistry, canvas, scene_canvas, plugin, primitives, uitest packages.
 
 ### Fixed
 
-- **gg v0.46.9** — fix Mac Retina rendering (gg#308, @sverrehu). `MarkDirty()` used logical pixel dimensions for texture upload region — on Retina (scale=2.0), only 1/4 of the pixmap was uploaded to the GPU texture. Regression from gg v0.45.4. Includes 3 HiDPI regression tests with `mockHiDPIProvider`.
+- **gg v0.46.9** — fix Mac Retina rendering (gg#308, @sverrehu). `MarkDirty()` used logical pixel dimensions for texture upload region — on Retina (scale=2.0), only 1/4 of the pixmap was uploaded to the GPU texture. Regression from gg v0.45.4. Includes 3 HiDPI regression tests.
 
 ### Dependencies
 

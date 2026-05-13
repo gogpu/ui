@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 	"testing"
 )
@@ -296,3 +297,60 @@ func TestMemoryAssetLoaderNilData(t *testing.T) {
 		t.Errorf("Expected empty data, got %v", data)
 	}
 }
+
+// TestMemoryAssetLoaderFontRegisterer tests that LoadFont calls the registerer.
+func TestMemoryAssetLoaderFontRegisterer(t *testing.T) {
+	loader := NewMemoryAssetLoader()
+
+	var registeredName string
+	var registeredData []byte
+	loader.SetFontRegisterer(func(name string, data []byte) error {
+		registeredName = name
+		registeredData = data
+		return nil
+	})
+
+	fontData := []byte("fake-font-data")
+	if err := loader.LoadFont("TestFont", fontData); err != nil {
+		t.Fatalf("LoadFont failed: %v", err)
+	}
+
+	if registeredName != "TestFont" {
+		t.Errorf("registerer name = %q, want TestFont", registeredName)
+	}
+	if !bytes.Equal(registeredData, fontData) {
+		t.Error("registerer data should match loaded font data")
+	}
+}
+
+// TestMemoryAssetLoaderFontRegisterer_Error tests that registerer errors propagate.
+func TestMemoryAssetLoaderFontRegisterer_Error(t *testing.T) {
+	loader := NewMemoryAssetLoader()
+	loader.SetFontRegisterer(func(_ string, _ []byte) error {
+		return errForTesting
+	})
+
+	err := loader.LoadFont("Bad", []byte("data"))
+	if err == nil {
+		t.Fatal("LoadFont should propagate registerer error")
+	}
+
+	// Font should still be stored in memory (store happens before register).
+	_, ok := loader.GetFont("Bad")
+	if !ok {
+		t.Error("Font data should still be stored despite registerer error")
+	}
+}
+
+// TestMemoryAssetLoaderFontRegisterer_NilRegisterer tests no panic without registerer.
+func TestMemoryAssetLoaderFontRegisterer_NilRegisterer(t *testing.T) {
+	loader := NewMemoryAssetLoader()
+	// No SetFontRegisterer call -- should not panic.
+
+	if err := loader.LoadFont("Test", []byte("data")); err != nil {
+		t.Fatalf("LoadFont without registerer should succeed: %v", err)
+	}
+}
+
+// errForTesting is a sentinel error for tests.
+var errForTesting = fmt.Errorf("test error")

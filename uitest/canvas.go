@@ -90,6 +90,13 @@ type DrawTextCall struct {
 	Align    widget.TextAlign
 }
 
+// DrawStyledTextCall records a single DrawStyledText invocation.
+type DrawStyledTextCall struct {
+	Text   string
+	Bounds geometry.Rect
+	Style  widget.TextStyle
+}
+
 // DrawImageCall records a single DrawImage invocation.
 type DrawImageCall struct {
 	Image image.Image
@@ -147,6 +154,9 @@ type MockCanvas struct {
 
 	// Texts records arguments passed to DrawText.
 	Texts []DrawTextCall
+
+	// StyledTexts records arguments passed to DrawStyledText.
+	StyledTexts []DrawStyledTextCall
 
 	// Images records arguments passed to DrawImage.
 	Images []DrawImageCall
@@ -254,6 +264,19 @@ func (c *MockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 
 	return float32(len([]rune(text))) * fontSize * 0.5
 }
 
+// DrawStyledText records all styled text drawing arguments.
+func (c *MockCanvas) DrawStyledText(text string, bounds geometry.Rect, style widget.TextStyle) {
+	c.StyledTexts = append(c.StyledTexts, DrawStyledTextCall{
+		Text: text, Bounds: bounds, Style: style,
+	})
+}
+
+// MeasureStyledText returns an approximate width for the given text.
+// Uses average character width (0.5 * fontSize) for test predictability.
+func (c *MockCanvas) MeasureStyledText(text string, style widget.TextStyle) float32 {
+	return float32(len([]rune(text))) * style.FontSize * 0.5
+}
+
 // DrawImage records the image and position arguments.
 func (c *MockCanvas) DrawImage(img image.Image, at geometry.Point) {
 	c.Images = append(c.Images, DrawImageCall{Image: img, At: at})
@@ -320,6 +343,7 @@ func (c *MockCanvas) Reset() {
 	c.StrokeArcStyleds = c.StrokeArcStyleds[:0]
 	c.Lines = c.Lines[:0]
 	c.Texts = c.Texts[:0]
+	c.StyledTexts = c.StyledTexts[:0]
 	c.Images = c.Images[:0]
 	c.Clips = c.Clips[:0]
 	c.ClipRoundRects = c.ClipRoundRects[:0]
@@ -336,11 +360,12 @@ func (c *MockCanvas) TotalDrawCalls() int {
 	return len(c.Clears) + len(c.Rects) + len(c.StrokeRects) +
 		len(c.RoundRects) + len(c.StrokeRoundRects) +
 		len(c.Circles) + len(c.StrokeCircles) + len(c.StrokeArcs) +
-		len(c.StrokeArcStyleds) + len(c.Lines) + len(c.Texts) + len(c.Images)
+		len(c.StrokeArcStyleds) + len(c.Lines) + len(c.Texts) + len(c.StyledTexts) + len(c.Images)
 }
 
 // Compile-time interface checks.
 var (
-	_ widget.Canvas     = (*MockCanvas)(nil)
-	_ widget.ArcStroker = (*MockCanvas)(nil)
+	_ widget.Canvas           = (*MockCanvas)(nil)
+	_ widget.ArcStroker       = (*MockCanvas)(nil)
+	_ widget.StyledTextDrawer = (*MockCanvas)(nil)
 )

@@ -1,6 +1,6 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.1.20 (Enterprise Render Pipeline + Layer Tree Compositor)
+> **Version:** 0.1.23 (Custom Font Pipeline + Mac Retina Fix + CJK)
 > **Updated:** May 2026
 > **Go Version:** 1.25+
 
@@ -283,13 +283,17 @@ v1.0.0  → Production (when ready)
 | ScreenBounds | Screen-space coordinate transform for overlay positioning |
 | Event Coordinate Transform | ScrollView mouse/wheel coordinate transforms |
 | Inter Font Unicode | Full Unicode Inter 4.1 (Cyrillic, Greek, Vietnamese) |
+| **Custom Font Loading Pipeline** | **FontRegistry (global singleton, CSS weight matching), StyledTextDrawer optional interface, Plugin→Registry wiring, TextWidget.FontFamily()** |
+| **Mac Retina Fix** | **gg v0.46.9 MarkDirty() logical→physical pixel fix (gg#308, @sverrehu)** |
+| **CJK IsCJK Propagation** | **gg v0.46.8 ShapedGlyph.IsCJK through scene/shaper paths (gg#304)** |
 
 **Remaining:**
 
 | Task | Description | Priority |
 |------|-------------|----------|
-| **Damage-aware compositor** | **LoadOpLoad + partial blit (gg-level). Spinner GPU 8% → <3%** | **P0** |
-| **Parent chain fix** | **BoxWidget SetParent → correct propagateDirtyUpward** | **P1** |
+| **GPU spinner <3%** | **scheduler.SetOnDirty needsRedraw lifecycle optimization** | **P0** |
+| **ListView hover rebuild** | **Painter pattern: hover = repaint, not widget rebuild (~15 LOC)** | **P1** |
+| **Texture GC** | **Prune orphaned boundaryTextures entries (~20 LOC)** | **P1** |
 | Accessibility adapters | Platform-specific AT-SPI / UIA adapters | P1 |
 | RichText widget | Styled text with inline formatting, links | P2 |
 | NumberField widget | Numeric input with increment/decrement, ranges | P2 |
@@ -348,16 +352,16 @@ Single-pass compositor (Flutter OffsetLayer / Chrome cc pattern):
 - **Pumper isolation**: ScheduleAnimationFrame only pumper trigger, data tickers don't restart 30fps
 - **34 integration tests**: multi-frame lifecycle, visibility matrix, damage rects, recording order
 
-> **Note:** `ui/compositor/` package (Layer Tree: OffsetLayer, PictureLayer, ClipRectLayer,
-> OpacityLayer, Compositor) is fully implemented and tested but **NOT connected to
-> production pipeline**. Phase 7 per-boundary GPU textures replaced it — direct texture
-> caching + blit is simpler. Layer Tree remains for future animated transforms/opacity.
+### Phase 4: Layer Tree + Damage-Aware Compositor (ADR-007 Phase D, ADR-030) ✅ Done
 
-### Phase 4: Damage-Aware Compositor — Next
-
-- **LoadOpLoad**: gg-level optimization — preserve previous framebuffer, blit only dirty regions
-- **Partial present**: PresentWithDamage sends dirty rects to OS compositor
-- **Expected result**: spinner GPU 8% → <3% (only 48×48 blit instead of full-screen)
+- **Layer Tree compositor in production** — `compositor/` drives render loop (OffsetLayer, PictureLayer, ClipRectLayer, OpacityLayer)
+- **Persistent Layer Tree** — `UpdateLayerTree()` reuses layers (97.9% fewer allocs, 613→13)
+- **O(1) frame skip** — flat dirty boundary set replaces O(n) tree walk (45× faster)
+- **Multi-rect damage** — per-draw dynamic scissor, ring buffer, 16-rect merge threshold
+- **LoadOpLoad** — preserve previous framebuffer, blit only damage rects
+- **Partial present** — `PresentWithDamage` sends dirty rects through full stack
+- **Overlay boundary pipeline** — dropdown/dialog content via same Layer Tree
+- **Remaining:** scheduler.SetOnDirty lifecycle → spinner GPU 10% → <3%
 
 ### Phase 5: Vello Compute Integration — Future
 
@@ -367,11 +371,11 @@ Full Vello 9-stage compute pipeline for GPU-accelerated path rendering:
 
 ### Performance Targets
 
-| Metric | Phase 2 | Phase 3 ✅ | Phase 4 | Phase 5 |
-|--------|---------|-----------|---------|---------|
-| GPU % (static UI) | 8% | **0%** | 0% | 0% |
-| GPU % (spinner) | 8% | **8%** | <3% | <1% |
-| GPU % (spinner offscreen) | 8% | **0%** | 0% | 0% |
+| Metric | Phase 2 | Phase 3 ✅ | Phase 4 ✅ | Phase 5 |
+|--------|---------|-----------|-----------|---------|
+| GPU % (static UI) | 8% | **0%** | **0%** | 0% |
+| GPU % (spinner) | 8% | 8% | **10%** (48×48 scissor) | <1% |
+| GPU % (spinner offscreen) | 8% | **0%** | **0%** | 0% |
 | GPU readback | 0 | 0 | 0 | 0 |
 
 ---
@@ -434,13 +438,13 @@ Full Vello 9-stage compute pipeline for GPU-accelerated path rendering:
 
 | Dependency | Version | Purpose | Status |
 |------------|---------|---------|--------|
-| gogpu/gg | v0.46.4 | 2D rendering + scene.Scene | ✅ Integrated |
+| gogpu/gg | v0.46.9 | 2D rendering + scene.Scene | ✅ Integrated |
 | gogpu/gpucontext | v0.18.0 | Shared interfaces | ✅ Integrated |
-| gogpu/gogpu | v0.34.0 | Windowing (examples) | ✅ Integrated |
+| gogpu/gogpu | v0.34.3 | Windowing (examples) | ✅ Integrated |
 | coregx/signals | v0.1.0 | State management | ✅ Integrated |
 | golang.org/x/image | v0.39.0 | Inter font (standard) | ✅ Integrated |
 
-**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.5.0, gogpu/wgpu v0.27.1, gogpu/naga v0.17.13, golang.org/x/text v0.36.0
+**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.5.0, gogpu/wgpu v0.27.3, gogpu/naga v0.17.13, golang.org/x/text v0.36.0
 
 ---
 

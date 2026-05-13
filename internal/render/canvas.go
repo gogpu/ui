@@ -513,6 +513,73 @@ func (c *Canvas) MeasureText(s string, fontSize float32, bold bool) float32 {
 	return float32(w)
 }
 
+// DrawStyledText draws text within the given bounding rectangle using
+// a font resolved from the global [FontRegistry]. This enables rendering
+// with custom fonts (CJK, icon fonts, etc.) loaded via the plugin system.
+//
+// If the FontFamily is empty or not found, the default Inter font is used.
+func (c *Canvas) DrawStyledText(s string, bounds geometry.Rect, style widget.TextStyle) {
+	if s == "" {
+		return
+	}
+
+	bounds = c.applyTransform(bounds)
+	if !c.isVisible(bounds) {
+		return
+	}
+
+	source := c.resolveStyledFont(style)
+	if source == nil {
+		return
+	}
+
+	face := source.Face(float64(style.FontSize))
+	c.dc.SetFont(face)
+	c.dc.SetRGBA(float64(style.Color.R), float64(style.Color.G), float64(style.Color.B), float64(style.Color.A))
+
+	// Calculate baseline Y by centering text vertically within bounds.
+	metrics := face.Metrics()
+	textHeight := metrics.Ascent + metrics.Descent
+	baselineY := math.Round(float64(bounds.Min.Y) + (float64(bounds.Height())-textHeight)/2 + metrics.Ascent)
+
+	// Calculate x position based on alignment.
+	w, _ := c.dc.MeasureString(s)
+	available := float64(bounds.Width())
+	x := float64(bounds.Min.X)
+	if w < available {
+		x += (available - w) * style.Align.Float64()
+	}
+	x = math.Round(x)
+
+	c.dc.DrawString(s, x, baselineY)
+}
+
+// MeasureStyledText returns the width in pixels of the given text string
+// when rendered with the specified [widget.TextStyle]. The font is resolved
+// from the global [FontRegistry].
+func (c *Canvas) MeasureStyledText(s string, style widget.TextStyle) float32 {
+	if s == "" {
+		return 0
+	}
+
+	source := c.resolveStyledFont(style)
+	if source == nil {
+		return float32(len([]rune(s))) * style.FontSize * 0.5
+	}
+
+	face := source.Face(float64(style.FontSize))
+	c.dc.SetFont(face)
+	w, _ := c.dc.MeasureString(s)
+	return float32(w)
+}
+
+// resolveStyledFont resolves a [text.FontSource] from a [widget.TextStyle]
+// using the global [FontRegistry]. Falls back to the default Inter font
+// when the family is empty or not found.
+func (c *Canvas) resolveStyledFont(style widget.TextStyle) *text.FontSource {
+	return resolveStyledFontSource(style)
+}
+
 // DrawImage draws an image at the specified position.
 //
 // The image is composited using source-over blending via gg.DrawImage.
@@ -716,3 +783,6 @@ var _ widget.Canvas = (*Canvas)(nil)
 
 // Verify Canvas implements widget.ArcStroker.
 var _ widget.ArcStroker = (*Canvas)(nil)
+
+// Verify Canvas implements widget.StyledTextDrawer.
+var _ widget.StyledTextDrawer = (*Canvas)(nil)

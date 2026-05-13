@@ -321,6 +321,74 @@ type TextModeController interface {
 	TextMode() TextMode
 }
 
+// TextStyle specifies font properties for styled text rendering.
+//
+// TextStyle is used with [StyledTextDrawer] to render text with custom fonts
+// loaded through the plugin system or font registry. When FontFamily is empty,
+// the default embedded Inter font is used.
+//
+// Example:
+//
+//	style := widget.TextStyle{
+//	    FontFamily: "NotoSansCJK",
+//	    FontSize:   16,
+//	    Bold:       true,
+//	    Color:      widget.ColorBlack,
+//	    Align:      widget.TextAlignLeft,
+//	}
+type TextStyle struct {
+	// FontFamily is the font family name (e.g., "Inter", "NotoSansCJK").
+	// Empty string falls back to the default embedded font.
+	FontFamily string
+
+	// FontSize is the font size in logical pixels.
+	FontSize float32
+
+	// Bold selects bold weight (700). When false, regular weight (400) is used.
+	Bold bool
+
+	// Italic selects italic style. When false, normal style is used.
+	Italic bool
+
+	// Color is the text color.
+	Color Color
+
+	// Align controls horizontal text alignment within bounds.
+	Align TextAlign
+}
+
+// StyledTextDrawer is an optional interface for canvases that support
+// rendering text with custom fonts from the font registry.
+//
+// Use type assertion to check availability:
+//
+//	if sd, ok := canvas.(widget.StyledTextDrawer); ok {
+//	    sd.DrawStyledText("Hello", bounds, widget.TextStyle{
+//	        FontFamily: "NotoSansCJK",
+//	        FontSize:   16,
+//	        Color:      widget.ColorBlack,
+//	    })
+//	    width := sd.MeasureStyledText("Hello", widget.TextStyle{
+//	        FontFamily: "NotoSansCJK",
+//	        FontSize:   16,
+//	    })
+//	}
+//
+// Widgets that need custom font support should check for this interface
+// and fall back to [Canvas.DrawText] when it is not available. This follows
+// the same optional interface pattern as [ArcStroker], [SVGFiller], and
+// [TextModeController].
+type StyledTextDrawer interface {
+	// DrawStyledText draws text within the given bounding rectangle using
+	// the font specified in the TextStyle. The font is resolved from the
+	// global font registry using CSS weight matching.
+	DrawStyledText(text string, bounds geometry.Rect, style TextStyle)
+
+	// MeasureStyledText returns the width in pixels of the given text
+	// when rendered with the specified TextStyle.
+	MeasureStyledText(text string, style TextStyle) float32
+}
+
 // Color represents an RGBA color with float32 components.
 //
 // Each component is in the range [0, 1], where 0 is minimum intensity

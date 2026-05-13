@@ -165,7 +165,7 @@
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `internal/render/` | Canvas, SceneCanvas, Renderer backed by gg | `Canvas`, `SceneCanvas`, `Renderer`, `SoftwareTarget`, `RenderConfig` |
+| `internal/render/` | Canvas, SceneCanvas, FontRegistry, Renderer backed by gg | `Canvas`, `SceneCanvas`, `FontRegistry`, `Renderer`, `SoftwareTarget`, `RenderConfig` |
 | `internal/layout/` | Layout engines | `FlexContainer`, `VStack`, `HStack`, `GridContainer`, `Engine` |
 | `internal/focus/` | Focus manager implementation | `Manager`, `Shortcut`, `DrawFocusRing`, traversal helpers |
 | `internal/dirty/` | Dirty region tracking | `Tracker`, `Collector`, merge algorithm, partial repaints |
@@ -302,6 +302,31 @@ Key design decisions:
 - `TransformOffset` returns the current cumulative transform offset (used by `StampScreenOrigin` for ScreenBounds)
 - Clip and transform use push/pop stacks (not Save/Restore)
 - PushTransform applies a translation offset (not a full matrix)
+
+### Custom Font Support (StyledTextDrawer)
+
+Canvas supports custom fonts via the optional `StyledTextDrawer` interface:
+
+```go
+// widget/canvas.go
+type TextStyle struct {
+    FontFamily string
+    FontSize   float32
+    Bold       bool
+    Italic     bool
+    Color      Color
+    Align      TextAlign
+}
+
+type StyledTextDrawer interface {
+    DrawStyledText(text string, bounds geometry.Rect, style TextStyle)
+    MeasureStyledText(text string, style TextStyle) float32
+}
+```
+
+Both `Canvas` and `SceneCanvas` implement `StyledTextDrawer`. Widgets use type assertion (`if sd, ok := canvas.(widget.StyledTextDrawer); ok { ... }`), consistent with `ArcStroker`, `SVGFiller`, `DeviceScaler`, and `TextModeController`.
+
+Font resolution uses a global `FontRegistry` (process-singleton, RWMutex) with CSS weight matching and Inter fallback. Plugins register fonts via `ctx.Assets.LoadFont("name", data)` which auto-registers in the global registry. This follows the universal pattern from Flutter (`FontCollection`), Qt6 (`QFontDatabase`), and Iced (`FontSystem`).
 
 ### Focusable Interface
 
@@ -879,7 +904,9 @@ Key functions:
 - Manages clip stack and transform stack internally
 - Clip intersection computed manually; visibility checked per draw call
 - Transform is translation-only (offset accumulation)
-- Text rendering uses Inter font (Regular/Bold) via `gg/text.FontSource`
+- Text rendering uses Inter font by default (Regular/Bold) via `gg/text.FontSource`
+- Custom fonts resolved via global `FontRegistry` (CSS weight matching, `*text.FontSource` caching)
+- Implements `StyledTextDrawer` for custom font rendering alongside standard `DrawText`
 - Color conversion: `widget.Color` (float32) to `gg.RGBA` (float64) via `ToGGColor`/`FromGGColor`
 
 ### Renderer
@@ -1370,7 +1397,7 @@ Implements `widget.Widget`, `a11y.Accessible`, and `widget.Lifecycle` (for signa
 
 ### TextWidget
 
-Renders text with configurable font size, color, bold, and alignment.
+Renders text with configurable font size, color, bold, alignment, and optional font family. The `FontFamily(name)` builder method routes to `StyledTextDrawer` for custom font rendering when available, with Inter fallback.
 
 ### ImageWidget
 
@@ -1395,7 +1422,8 @@ type Plugin interface {
 - `Manager` handles registration, dependency resolution, and initialization order
 - `PluginContext` provides access to widget registry, theme registry, and asset loader
 - `Dependency` declares required plugins with version constraints
-- `AssetLoader` handles asset management for plugins
+- `AssetLoader` handles asset management for plugins (fonts, icons, images)
+- `MemoryAssetLoader.LoadFont()` auto-registers fonts in the global `FontRegistry` — loaded fonts are immediately available to all widgets via `StyledTextDrawer`
 
 ---
 
@@ -1413,7 +1441,7 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.46.7 |
+| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.46.9 |
 | `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.18.0 |
 | `github.com/gogpu/gogpu` | Application framework, windowing (examples only) | v0.34.3 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
@@ -1497,4 +1525,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of May 11, 2026 (v0.1.20 — Layer Tree compositor, O(1) frame skip, persistent tree, multi-rect damage, overlay boundary pipeline, software backend e2e tests, ~120 new tests).*
+*This document reflects the actual codebase as of May 13, 2026 (v0.1.23 — custom font loading pipeline, FontRegistry, StyledTextDrawer, Mac Retina fix, CJK IsCJK fix).*

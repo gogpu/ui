@@ -467,6 +467,132 @@ func TestCanvas_TextModeController(t *testing.T) {
 	}
 }
 
+func TestCanvas_ImplementsStyledTextDrawer(t *testing.T) {
+	canvas := newTestCanvas(100, 100)
+
+	var _ widget.StyledTextDrawer = canvas
+	_, ok := widget.Canvas(canvas).(widget.StyledTextDrawer)
+	if !ok {
+		t.Fatal("Canvas should implement widget.StyledTextDrawer")
+	}
+}
+
+func TestCanvas_DrawStyledText_DefaultFont(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontSize: 14,
+		Color:    widget.ColorBlack,
+		Align:    widget.TextAlignLeft,
+	}
+
+	// Should not panic -- uses default Inter font.
+	canvas.DrawStyledText("Hello World", bounds, style)
+}
+
+func TestCanvas_DrawStyledText_BoldFont(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontSize: 14,
+		Bold:     true,
+		Color:    widget.ColorBlack,
+		Align:    widget.TextAlignCenter,
+	}
+
+	// Should not panic -- uses Inter Bold.
+	canvas.DrawStyledText("Bold Text", bounds, style)
+}
+
+func TestCanvas_DrawStyledText_EmptyString(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{FontSize: 14, Color: widget.ColorBlack}
+
+	// Empty string should be a no-op.
+	canvas.DrawStyledText("", bounds, style)
+}
+
+func TestCanvas_DrawStyledText_OutsideClip(t *testing.T) {
+	canvas := newTestCanvas(100, 100)
+
+	// Bounds completely outside the canvas.
+	bounds := geometry.NewRect(500, 500, 100, 30)
+	style := widget.TextStyle{FontSize: 14, Color: widget.ColorBlack}
+
+	// Should be culled silently.
+	canvas.DrawStyledText("Offscreen", bounds, style)
+}
+
+func TestCanvas_DrawStyledText_ExplicitFamily(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontFamily: "Inter",
+		FontSize:   16,
+		Color:      widget.ColorBlack,
+		Align:      widget.TextAlignRight,
+	}
+
+	// Should resolve Inter by name.
+	canvas.DrawStyledText("Inter Font", bounds, style)
+}
+
+func TestCanvas_DrawStyledText_UnknownFamily(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	bounds := geometry.NewRect(10, 10, 180, 30)
+	style := widget.TextStyle{
+		FontFamily: "NonExistentFont",
+		FontSize:   14,
+		Color:      widget.ColorBlack,
+	}
+
+	// Unknown family should fall back to Inter, not panic.
+	canvas.DrawStyledText("Fallback", bounds, style)
+}
+
+func TestCanvas_MeasureStyledText_Default(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	style := widget.TextStyle{FontSize: 14, Color: widget.ColorBlack}
+	w := canvas.MeasureStyledText("Hello", style)
+
+	if w <= 0 {
+		t.Errorf("MeasureStyledText(Hello) = %f, want > 0", w)
+	}
+}
+
+func TestCanvas_MeasureStyledText_Empty(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	style := widget.TextStyle{FontSize: 14}
+	w := canvas.MeasureStyledText("", style)
+
+	if w != 0 {
+		t.Errorf("MeasureStyledText('') = %f, want 0", w)
+	}
+}
+
+func TestCanvas_MeasureStyledText_BoldWider(t *testing.T) {
+	canvas := newTestCanvas(200, 100)
+
+	regular := widget.TextStyle{FontSize: 14}
+	bold := widget.TextStyle{FontSize: 14, Bold: true}
+
+	wRegular := canvas.MeasureStyledText("Hello World", regular)
+	wBold := canvas.MeasureStyledText("Hello World", bold)
+
+	// Both should be positive.
+	if wRegular <= 0 || wBold <= 0 {
+		t.Errorf("widths should be > 0: regular=%f, bold=%f", wRegular, wBold)
+	}
+}
+
 func BenchmarkCanvas_Clear(b *testing.B) {
 	canvas := newTestCanvas(800, 600)
 	color := widget.ColorWhite

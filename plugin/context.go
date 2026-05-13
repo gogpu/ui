@@ -1,9 +1,11 @@
 package plugin
 
 import (
+	"github.com/gogpu/ui/internal/render"
 	"github.com/gogpu/ui/layout"
 	"github.com/gogpu/ui/registry"
 	"github.com/gogpu/ui/theme"
+	"github.com/gogpu/ui/theme/font"
 )
 
 // PluginContext provides access to UI registries for plugin initialization.
@@ -95,16 +97,30 @@ func NewPluginContext(
 		ctx.Layouts = layout.GlobalRegistry()
 	}
 	if ctx.Assets == nil {
-		ctx.Assets = &noopAssetLoader{}
+		loader := NewMemoryAssetLoader()
+		loader.SetFontRegisterer(func(name string, data []byte) error {
+			return render.GlobalFontRegistry().Register(name, font.Regular, font.Normal, data)
+		})
+		ctx.Assets = loader
 	}
 
 	return ctx
 }
 
-// NewDefaultPluginContext creates a PluginContext with global registries.
+// NewDefaultPluginContext creates a PluginContext with global registries
+// and a [MemoryAssetLoader] wired to the global font registry.
+//
+// Fonts loaded via [AssetLoader.LoadFont] are automatically registered
+// with the rendering pipeline's [render.GlobalFontRegistry], making them
+// available to widgets that use [widget.StyledTextDrawer] (e.g.,
+// [primitives.TextWidget] with [primitives.TextWidget.FontFamily]).
 //
 // This is the standard context used when initializing plugins through
 // the global plugin manager.
 func NewDefaultPluginContext() *PluginContext {
-	return NewPluginContext(nil, nil, nil, nil)
+	loader := NewMemoryAssetLoader()
+	loader.SetFontRegisterer(func(name string, data []byte) error {
+		return render.GlobalFontRegistry().Register(name, font.Regular, font.Normal, data)
+	})
+	return NewPluginContext(nil, nil, nil, loader)
 }

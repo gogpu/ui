@@ -2,14 +2,79 @@ package primitives_test
 
 import (
 	"fmt"
+	"image"
 	"testing"
 
+	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
+)
+
+// styledMockCanvas extends mockCanvas with StyledTextDrawer support.
+// Used to test TextWidget.FontFamily rendering path.
+type styledMockCanvas struct {
+	drawTextCount       int
+	drawStyledTextCount int
+	lastText            string
+	lastTextColor       widget.Color
+	lastStyledText      string
+	lastStyle           widget.TextStyle
+}
+
+func (c *styledMockCanvas) Clear(_ widget.Color)                                  {}
+func (c *styledMockCanvas) DrawRect(_ geometry.Rect, _ widget.Color)              {}
+func (c *styledMockCanvas) FillRectDirect(_ geometry.Rect, _ widget.Color)        {}
+func (c *styledMockCanvas) StrokeRect(_ geometry.Rect, _ widget.Color, _ float32) {}
+func (c *styledMockCanvas) DrawRoundRect(_ geometry.Rect, _ widget.Color, _ float32) {
+}
+func (c *styledMockCanvas) StrokeRoundRect(_ geometry.Rect, _ widget.Color, _ float32, _ float32) {
+}
+func (c *styledMockCanvas) DrawCircle(_ geometry.Point, _ float32, _ widget.Color) {}
+func (c *styledMockCanvas) StrokeCircle(_ geometry.Point, _ float32, _ widget.Color, _ float32) {
+}
+func (c *styledMockCanvas) StrokeArc(_ geometry.Point, _ float32, _, _ float64, _ widget.Color, _ float32) {
+}
+func (c *styledMockCanvas) DrawLine(_, _ geometry.Point, _ widget.Color, _ float32) {}
+func (c *styledMockCanvas) DrawText(text string, _ geometry.Rect, _ float32, color widget.Color, _ bool, _ widget.TextAlign) {
+	c.drawTextCount++
+	c.lastTextColor = color
+	c.lastText = text
+}
+func (c *styledMockCanvas) MeasureText(text string, fontSize float32, _ bool) float32 {
+	return float32(len([]rune(text))) * fontSize * 0.5
+}
+func (c *styledMockCanvas) DrawImage(_ image.Image, _ geometry.Point)    {}
+func (c *styledMockCanvas) PushClip(_ geometry.Rect)                     {}
+func (c *styledMockCanvas) PushClipRoundRect(_ geometry.Rect, _ float32) {}
+func (c *styledMockCanvas) PopClip()                                     {}
+func (c *styledMockCanvas) PushTransform(_ geometry.Point)               {}
+func (c *styledMockCanvas) PopTransform()                                {}
+func (c *styledMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
+func (c *styledMockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
+func (c *styledMockCanvas) ClipBounds() geometry.Rect {
+	return geometry.NewRect(0, 0, 10000, 10000)
+}
+func (c *styledMockCanvas) ReplayScene(_ *scene.Scene) {}
+
+// StyledTextDrawer implementation.
+func (c *styledMockCanvas) DrawStyledText(text string, _ geometry.Rect, style widget.TextStyle) {
+	c.drawStyledTextCount++
+	c.lastStyledText = text
+	c.lastStyle = style
+}
+
+func (c *styledMockCanvas) MeasureStyledText(text string, style widget.TextStyle) float32 {
+	return float32(len([]rune(text))) * style.FontSize * 0.5
+}
+
+// Compile-time interface checks.
+var (
+	_ widget.Canvas           = (*styledMockCanvas)(nil)
+	_ widget.StyledTextDrawer = (*styledMockCanvas)(nil)
 )
 
 // --- Text construction ---
@@ -645,5 +710,130 @@ func TestTextWidget_Unmount_CleansBindings(t *testing.T) {
 
 	if sched.PendingCount() != 0 {
 		t.Error("signal change after unmount should not mark widget dirty")
+	}
+}
+
+// --- FontFamily tests ---
+
+func TestTextFontFamily_Setter(t *testing.T) {
+	tw := primitives.Text("CJK").FontFamily("NotoSansCJK")
+	if tw.Style().FontFamily != "NotoSansCJK" {
+		t.Errorf("FontFamily = %q, want NotoSansCJK", tw.Style().FontFamily)
+	}
+}
+
+func TestTextFontFamily_Default(t *testing.T) {
+	tw := primitives.Text("Hello")
+	if tw.Style().FontFamily != "" {
+		t.Errorf("default FontFamily = %q, want empty string", tw.Style().FontFamily)
+	}
+}
+
+func TestTextFontFamily_Draw_UsesStyledTextDrawer(t *testing.T) {
+	tw := primitives.Text("CJK Text").FontFamily("NotoSansCJK").FontSize(16)
+	ctx := widget.NewContext()
+	canvas := &styledMockCanvas{}
+
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 100)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawStyledTextCount != 1 {
+		t.Errorf("DrawStyledText called %d times, want 1", canvas.drawStyledTextCount)
+	}
+	if canvas.drawTextCount != 0 {
+		t.Errorf("DrawText called %d times, want 0 (should use styled path)", canvas.drawTextCount)
+	}
+	if canvas.lastStyle.FontFamily != "NotoSansCJK" {
+		t.Errorf("FontFamily = %q, want NotoSansCJK", canvas.lastStyle.FontFamily)
+	}
+	if canvas.lastStyle.FontSize != 16 {
+		t.Errorf("FontSize = %f, want 16", canvas.lastStyle.FontSize)
+	}
+}
+
+func TestTextFontFamily_Draw_FallsBackWhenNotSupported(t *testing.T) {
+	tw := primitives.Text("CJK Text").FontFamily("NotoSansCJK").FontSize(16)
+	ctx := widget.NewContext()
+	// Use the regular mockCanvas which does NOT implement StyledTextDrawer.
+	canvas := &mockCanvas{}
+
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 100)))
+	tw.Draw(ctx, canvas)
+
+	// Should fall back to regular DrawText.
+	if canvas.drawTextCount != 1 {
+		t.Errorf("DrawText called %d times, want 1 (fallback path)", canvas.drawTextCount)
+	}
+}
+
+func TestTextItalic_Draw_UsesStyledTextDrawer(t *testing.T) {
+	tw := primitives.Text("Italic").Italic().FontSize(14)
+	ctx := widget.NewContext()
+	canvas := &styledMockCanvas{}
+
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 100)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawStyledTextCount != 1 {
+		t.Errorf("DrawStyledText called %d times, want 1 for italic text", canvas.drawStyledTextCount)
+	}
+	if !canvas.lastStyle.Italic {
+		t.Error("Italic should be true in TextStyle")
+	}
+}
+
+func TestTextNoFontFamily_Draw_UsesRegularPath(t *testing.T) {
+	tw := primitives.Text("Regular").FontSize(14)
+	ctx := widget.NewContext()
+	canvas := &styledMockCanvas{}
+
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 100)))
+	tw.Draw(ctx, canvas)
+
+	// Without FontFamily or Italic, should use regular DrawText.
+	if canvas.drawTextCount != 1 {
+		t.Errorf("DrawText called %d times, want 1 for regular text", canvas.drawTextCount)
+	}
+	if canvas.drawStyledTextCount != 0 {
+		t.Errorf("DrawStyledText called %d times, want 0 for regular text", canvas.drawStyledTextCount)
+	}
+}
+
+func TestTextFontFamily_FluentChaining(t *testing.T) {
+	tw := primitives.Text("Test").
+		FontFamily("CustomFont").
+		FontSize(18).
+		Bold().
+		Italic().
+		Color(widget.ColorRed)
+
+	s := tw.Style()
+	if s.FontFamily != "CustomFont" {
+		t.Errorf("FontFamily = %q, want CustomFont", s.FontFamily)
+	}
+	if s.FontSize != 18 {
+		t.Errorf("FontSize = %f, want 18", s.FontSize)
+	}
+	if !s.Bold {
+		t.Error("Bold should be true")
+	}
+	if !s.Italic {
+		t.Error("Italic should be true")
+	}
+}
+
+func TestTextFontFamily_Draw_PassesBoldFlag(t *testing.T) {
+	tw := primitives.Text("Bold CJK").FontFamily("NotoSansCJK").Bold().FontSize(14)
+	ctx := widget.NewContext()
+	canvas := &styledMockCanvas{}
+
+	_ = tw.Layout(ctx, geometry.Loose(geometry.Sz(200, 100)))
+	tw.Draw(ctx, canvas)
+
+	if canvas.drawStyledTextCount != 1 {
+		t.Fatalf("DrawStyledText called %d times, want 1", canvas.drawStyledTextCount)
+	}
+	if !canvas.lastStyle.Bold {
+		t.Error("Bold should be passed through TextStyle")
 	}
 }

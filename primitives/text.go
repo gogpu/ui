@@ -24,10 +24,17 @@ type TextStyle struct {
 	FontSize   float32
 	Color      widget.Color
 	Bold       bool
+	Italic     bool
 	Align      TextAlign
 	MaxLines   int
 	Overflow   TextOverflow
 	LineHeight float32
+
+	// FontFamily specifies a custom font family name (e.g., "NotoSansCJK").
+	// When empty (the default), the embedded Inter font is used.
+	// Custom fonts must be registered via the plugin system or font registry
+	// before they can be referenced here.
+	FontFamily string
 }
 
 // TextWidget displays static or reactive text content.
@@ -131,6 +138,28 @@ func (t *TextWidget) Bold() *TextWidget {
 	return t
 }
 
+// Italic enables italic font style.
+func (t *TextWidget) Italic() *TextWidget {
+	t.style.Italic = true
+	return t
+}
+
+// FontFamily sets a custom font family name.
+//
+// The font must be registered via the plugin system's [plugin.AssetLoader]
+// or directly via the font registry before it can be used. When set, the
+// widget will use [widget.StyledTextDrawer] to render text with the custom
+// font, falling back to the standard [widget.Canvas.DrawText] with Inter
+// if the canvas does not support styled text.
+//
+// Example:
+//
+//	label := primitives.Text("CJK").FontFamily("NotoSansCJK").FontSize(18)
+func (t *TextWidget) FontFamily(name string) *TextWidget {
+	t.style.FontFamily = name
+	return t
+}
+
 // Align sets horizontal text alignment.
 func (t *TextWidget) Align(a TextAlign) *TextWidget {
 	t.style.Align = a
@@ -198,6 +227,11 @@ func (t *TextWidget) Layout(_ widget.Context, constraints geometry.Constraints) 
 //  1. Explicit color set via [TextWidget.Color] (always wins)
 //  2. ThemeProvider's OnSurface color (if a theme is active)
 //  3. [widget.ColorBlack] (fallback when no theme is set)
+//
+// When a custom [TextWidget.FontFamily] or [TextWidget.Italic] is set
+// and the canvas supports [widget.StyledTextDrawer], the styled text
+// path is used to render with the custom font. Otherwise, the standard
+// [widget.Canvas.DrawText] is used with the default embedded font.
 func (t *TextWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if !t.IsVisible() {
 		return
@@ -214,6 +248,22 @@ func (t *TextWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	}
 
 	color := t.resolveColor(ctx)
+
+	// Use StyledTextDrawer path when custom font family or italic is set.
+	if t.style.FontFamily != "" || t.style.Italic {
+		if sd, ok := canvas.(widget.StyledTextDrawer); ok {
+			sd.DrawStyledText(text, bounds, widget.TextStyle{
+				FontFamily: t.style.FontFamily,
+				FontSize:   t.style.FontSize,
+				Bold:       t.style.Bold,
+				Italic:     t.style.Italic,
+				Color:      color,
+				Align:      t.style.Align,
+			})
+			return
+		}
+	}
+
 	canvas.DrawText(text, bounds, t.style.FontSize, color, t.style.Bold, t.style.Align)
 }
 

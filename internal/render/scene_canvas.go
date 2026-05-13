@@ -10,6 +10,7 @@ import (
 	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/gg/text"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/theme/font"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -388,6 +389,93 @@ func (c *SceneCanvas) MeasureText(s string, fontSize float32, bold bool) float32
 	return float32(len([]rune(s))) * fontSize * 0.5
 }
 
+// DrawStyledText draws text within the given bounding rectangle using
+// a font resolved from the global [FontRegistry]. This enables rendering
+// with custom fonts (CJK, icon fonts, etc.) loaded via the plugin system.
+//
+// If the FontFamily is empty or not found, the default Inter font is used.
+func (c *SceneCanvas) DrawStyledText(s string, bounds geometry.Rect, style widget.TextStyle) {
+	if s == "" {
+		return
+	}
+
+	bounds = c.applyTransform(bounds)
+	if !c.isVisible(bounds) {
+		return
+	}
+
+	if bounds.Width() <= 0 || bounds.Height() <= 0 {
+		return
+	}
+
+	source := resolveStyledFontSource(style)
+	if source == nil {
+		return
+	}
+
+	face := source.Face(float64(style.FontSize))
+
+	// Calculate baseline Y by centering text vertically within bounds.
+	metrics := face.Metrics()
+	textHeight := metrics.Ascent + metrics.Descent
+	baselineY := math.Round(float64(bounds.Min.Y) + (float64(bounds.Height())-textHeight)/2 + metrics.Ascent)
+
+	// Calculate x position based on alignment.
+	tw, _ := text.Measure(s, face)
+	available := float64(bounds.Width())
+	x := float64(bounds.Min.X)
+	if tw < available {
+		x += (available - tw) * style.Align.Float64()
+	}
+	x = math.Round(x)
+
+	// Record text as vector glyph outlines into the scene.
+	brush := scene.SolidBrush(ToGGColor(style.Color))
+	_ = c.sc.DrawText(s, face, float32(x), float32(baselineY), brush)
+}
+
+// MeasureStyledText returns the width in pixels of the given text string
+// when rendered with the specified [widget.TextStyle]. The font is resolved
+// from the global [FontRegistry].
+func (c *SceneCanvas) MeasureStyledText(s string, style widget.TextStyle) float32 {
+	if s == "" {
+		return 0
+	}
+
+	source := resolveStyledFontSource(style)
+	if source != nil {
+		face := source.Face(float64(style.FontSize))
+		w, _ := text.Measure(s, face)
+		return float32(w)
+	}
+
+	// Fallback: approximate with average character width.
+	return float32(len([]rune(s))) * style.FontSize * 0.5
+}
+
+// resolveStyledFontSource resolves a [text.FontSource] from a [widget.TextStyle]
+// using the global [FontRegistry]. Shared by Canvas and SceneCanvas.
+func resolveStyledFontSource(style widget.TextStyle) *text.FontSource {
+	reg := GlobalFontRegistry()
+
+	family := style.FontFamily
+	if family == "" {
+		family = defaultFontFamily
+	}
+
+	weight := font.Regular
+	if style.Bold {
+		weight = font.Bold
+	}
+
+	fontStyle := font.Normal
+	if style.Italic {
+		fontStyle = font.Italic
+	}
+
+	return reg.Resolve(family, weight, fontStyle)
+}
+
 // DrawImage draws an image at the specified position.
 func (c *SceneCanvas) DrawImage(img image.Image, at geometry.Point) {
 	if img == nil {
@@ -729,3 +817,6 @@ var _ widget.SVGFiller = (*SceneCanvas)(nil)
 
 // Verify SceneCanvas implements widget.SVGRenderer.
 var _ widget.SVGRenderer = (*SceneCanvas)(nil)
+
+// Verify SceneCanvas implements widget.StyledTextDrawer.
+var _ widget.StyledTextDrawer = (*SceneCanvas)(nil)
