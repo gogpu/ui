@@ -440,11 +440,11 @@ Full Vello 9-stage compute pipeline for GPU-accelerated path rendering:
 |------------|---------|---------|--------|
 | gogpu/gg | v0.46.11 | 2D rendering + scene.Scene | ✅ Integrated |
 | gogpu/gpucontext | v0.18.0 | Shared interfaces | ✅ Integrated |
-| gogpu/gogpu | v0.34.8 | Windowing (examples) | ✅ Integrated |
+| gogpu/gogpu | v0.35.0 | Windowing, Browser/WASM (examples) | ✅ Integrated |
 | coregx/signals | v0.1.0 | State management | ✅ Integrated |
 | golang.org/x/image | v0.39.0 | Inter font (standard) | ✅ Integrated |
 
-**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.5.0, gogpu/wgpu v0.27.5, gogpu/naga v0.17.14, goffi v0.5.1, golang.org/x/text v0.37.0
+**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.5.0, gogpu/wgpu v0.28.1, gogpu/naga v0.17.14, goffi v0.5.1, golang.org/x/text v0.37.0
 
 ---
 
