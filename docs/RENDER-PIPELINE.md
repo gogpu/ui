@@ -24,7 +24,8 @@ User interaction (click, hover, signal change)
 Before doing any work, the render loop checks:
 
 ```go
-if !w.HasDirtyBoundaries() && !w.NeedsRedraw() && !w.NeedsAnimationFrame() {
+needsAnyWork := rl.fullRedrawNeeded || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
+if !needsAnyWork {
     return  // nothing changed — 0% GPU
 }
 ```
