@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.28] — 2026-05-16
+
+### Dependencies
+
+- gg v0.47.0 → v0.47.1 (text batch coalescing perf + HiDPI warning — ADR-031, gg#322, gg#324)
+- gogpu v0.35.0 → v0.36.0 (unified XKB text input, AltGr/Level3 international layouts — gogpu#233, ADR-029)
+
 ## [0.1.27] — 2026-05-16
 
 ### Dependencies
