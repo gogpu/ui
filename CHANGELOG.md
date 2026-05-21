@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scroll redraw artifacts on Linux** ([#111](https://github.com/gogpu/ui/issues/111), @celer) — damage ring buffer `[3]` insufficient for 4-buffer swapchains. Increased to `[4]` and fill ALL slots after full render.
 - **ListView flash on theme change** ([#116](https://github.com/gogpu/ui/issues/116), @celer) — orphaned boundary textures after `SetRoot` never released. Added `gcOrphanedTextures` — walks Layer Tree, deletes entries not in live set.
 - **M4 MacBook HiDPI rendering** ([#123](https://github.com/gogpu/ui/issues/123), @nzanghi-tst) — HiDPI damage rects not scaled for Retina displays. Fixed via gg v0.47.4 deps bump.
+- **macOS LCD text artifacts** — `desktop.go` unconditionally forced `LCDLayoutRGB`, overriding correct `SubpixelNone` detected by platform on macOS (since Mojave). Removed override; `ggcanvas.New()` handles per-platform detection.
+- **Memory leak on SetRoot** — cached scenes not released during `UnmountTree`; `hoveredWidget`/`capturedWidget` pinned old widget tree. Added `ClearCachedScene` in unmount + nil refs in `SetRoot`.
 
 ### Added
 
