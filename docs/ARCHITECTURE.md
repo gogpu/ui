@@ -92,7 +92,7 @@
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `widget/` | Core widget abstractions | `Widget`, `WidgetBase`, `Context`, `Canvas`, `Focusable`, `Lifecycle`, `SchedulerRef`, `ThemeProvider`, `Color` |
+| `widget/` | Core widget abstractions | `Widget`, `WidgetBase`, `Context`, `Canvas`, `Focusable`, `PointerCapturer` (ADR-031), `Lifecycle`, `SchedulerRef`, `ThemeProvider`, `Color` |
 | `event/` | Input event types | `MouseEvent`, `KeyEvent`, `FocusEvent`, `WheelEvent`, `Modifiers` |
 | `geometry/` | Geometric primitives | `Point`, `Size`, `Rect`, `Constraints`, `Insets` |
 
@@ -145,7 +145,7 @@
 | `overlay/` | Overlay/popup infrastructure | `Stack`, `Container`, `Position` |
 | `focus/` | Focus management (public API) | `Manager`, `Shortcut`, `DrawFocusRing` |
 | `layout/` | Layout tree and algorithms | `NodeID`, `NodeLayout`, `Result`, `Algorithm` |
-| `state/` | Reactive state with push-pull lifecycle | `Signal`, `ReadonlySignal`, `Computed`, `Effect`, `Binding`, `Scheduler` |
+| `state/` | Reactive state with push-pull lifecycle | `Signal`, `ReadonlySignal`, `Computed`, `Effect`, `Binding`, `BindToSchedulerFunc`, `Scheduler` |
 | `theme/` | Base theme system | `Theme`, `ColorPalette`, `Typography`, `SpacingScale`, `ShadowStyles`, `RadiusScale` |
 | `theme/font/` | Font registry (CSS weight matching, W3C spec) | `Registry`, `Family`, `Face`, `Weight`, `Style` |
 | `a11y/` | Accessibility | `Accessible`, `Node`, `NodeID`, `Role`, `State`, `Action`, `Tree` |

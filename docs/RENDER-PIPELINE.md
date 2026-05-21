@@ -154,6 +154,7 @@ Widget state change
               4. PaintBoundaryLayers → re-record dirty scenes
               5. PaintOverlayBoundaries
               6. UpdateLayerTree (persistent)
+              6b. gcOrphanedTextures (cleanup after SetRoot)
               7. renderBoundaryTextures → GPU textures (MSAA)
               8. compositeTextures → blit to surface (non-MSAA)
               9. Scrim + debug overlay
@@ -164,7 +165,7 @@ Widget state change
 
 | Type | Location | Purpose |
 |------|----------|---------|
-| `renderLoop` | `desktop/desktop.go` | Frame state, texture cache, damage ring buffer |
+| `renderLoop` | `desktop/desktop.go` | Frame state, texture cache, 4-slot damage ring, texture GC |
 | `boundaryTexEntry` | `desktop/desktop.go` | Per-boundary GPU texture + metadata |
 | `OffsetLayerImpl` | `compositor/layer.go` | Layer Tree node with position |
 | `PictureLayerImpl` | `compositor/layer.go` | Leaf node with scene + cache key |
