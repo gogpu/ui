@@ -856,9 +856,8 @@ func (rl *renderLoop) initCanvas(w, h int) bool {
 		log.Printf("desktop: ggcanvas.New: %v", err)
 		return false
 	}
-	// Set LCD subpixel layout once on the main canvas context.
-	// NOT in NewCanvas — calling SetLCDLayout on offscreen contexts
-	// triggers GlyphMaskEngine atlas.Clear(), breaking GPU text.
-	rl.canvas.Context().SetLCDLayout(gg.LCDLayoutRGB)
+	// LCD subpixel layout is set by ggcanvas.New() based on
+	// PlatformProvider.SubpixelLayout() (RGB on Windows/Linux,
+	// None on macOS since Mojave). Do not override here.
 	return true
 }
