@@ -107,11 +107,12 @@ type renderLoop struct {
 	boundaryDamageLogical []image.Rectangle // dirty boundary rects (LOGICAL pixels for debug overlay)
 
 	// Ring buffer for N-buffered swapchain damage accumulation (ADR-030).
-	// With double buffering, buffer B from 2 frames ago needs accumulated
+	// With double/triple/quad buffering, previous buffers need accumulated
 	// damage. actualDamage = union of last N frames' damage rects.
+	// Size 4 covers Linux 4-buffer swapchains (Wayland triple + mailbox).
 	// Multi-rect: each slot stores the full rect list (not a union), enabling
 	// per-draw dynamic scissor for distant dirty regions.
-	damageRingRects  [3][]image.Rectangle
+	damageRingRects  [4][]image.Rectangle
 	damageRingIdx    int
 	prevOverlayCount int
 
@@ -315,6 +316,11 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 		app.AppendOverlaysToLayerTree(layerTree, overlayWidgets, rl.layerTree)
 	}
 
+	// GC orphaned boundary textures (#116): after SetRoot (theme change),
+	// old widget tree keys no longer in Layer Tree. Delete stale entries
+	// to prevent texture leaks and flash artifacts during transitions.
+	rl.gcOrphanedTextures(layerTree)
+
 	// Render dirty boundaries into offscreen textures (walk Layer Tree).
 	// Reset per-frame damage tracking for damage-aware blit (TASK-UI-OPT-003).
 	if rl.boundaryTextures == nil {
@@ -445,15 +451,17 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 		if err := rl.canvas.Render(dc.RenderTarget()); err != nil {
 			log.Printf("desktop: canvas.Render: %v", err)
 		}
-		// Store full window in ring buffer so next N damage-aware frames
-		// know that the ENTIRE screen changed. Without this, swapchain
-		// buffer B (from 2 frames ago) has stale content outside damage
-		// rect → flickering on areas that changed during full blit.
+		// Fill ALL ring buffer slots with fullWindow so every swapchain
+		// buffer (up to 4 on Linux Wayland) knows the entire screen
+		// changed. Without this, buffer N-1 from a previous frame has
+		// stale content outside damage rect → scroll artifacts (#111).
 		if damageBlitEnabled {
 			sw, sh := dc.RenderTarget().SurfaceSize()
-			fullWindow := image.Rect(0, 0, int(sw), int(sh))
-			rl.damageRingRects[rl.damageRingIdx] = []image.Rectangle{fullWindow}
-			rl.damageRingIdx = (rl.damageRingIdx + 1) % len(rl.damageRingRects)
+			fullWindowRect := []image.Rectangle{image.Rect(0, 0, int(sw), int(sh))}
+			for i := range rl.damageRingRects {
+				rl.damageRingRects[i] = fullWindowRect
+			}
+			rl.damageRingIdx = 0
 		}
 	}
 
@@ -784,6 +792,44 @@ func (rl *renderLoop) blitPictureLayer(pic *compositor.PictureLayerImpl, cc *gg.
 
 	default:
 		cc.DrawGPUTexture(entry.texture, x, y, bw, bh)
+	}
+}
+
+// gcOrphanedTextures removes boundary texture entries whose keys are no
+// longer present in the Layer Tree. After SetRoot (e.g., theme change),
+// old widget tree keys become orphaned — new widgets have new keys.
+// Without GC, stale textures leak and can flash during transitions (#116).
+func (rl *renderLoop) gcOrphanedTextures(tree compositor.Layer) {
+	if len(rl.boundaryTextures) == 0 {
+		return
+	}
+	liveKeys := make(map[uint64]bool, len(rl.boundaryTextures))
+	collectLiveKeys(tree, liveKeys)
+	for key, entry := range rl.boundaryTextures {
+		if !liveKeys[key] {
+			if entry.release != nil {
+				entry.release()
+			}
+			delete(rl.boundaryTextures, key)
+		}
+	}
+}
+
+// collectLiveKeys walks the Layer Tree and records all BoundaryCacheKeys
+// from PictureLayerImpl nodes. Used by gcOrphanedTextures to identify
+// which texture entries are still referenced by the current widget tree.
+func collectLiveKeys(layer compositor.Layer, keys map[uint64]bool) {
+	if layer == nil {
+		return
+	}
+	if pic, ok := layer.(*compositor.PictureLayerImpl); ok {
+		keys[pic.BoundaryCacheKey()] = true
+		return
+	}
+	if cl, ok := layer.(compositor.ContainerLayer); ok {
+		for _, child := range cl.Children() {
+			collectLiveKeys(child, keys)
+		}
 	}
 }
 

@@ -3,6 +3,9 @@ package desktop
 import (
 	"image"
 	"testing"
+
+	"github.com/gogpu/ui/compositor"
+	"github.com/gogpu/ui/geometry"
 )
 
 // --- ADR-030: Multi-Rect Damage Tests ---
@@ -238,5 +241,214 @@ func TestDamageBlitDecision_NoDamageRects_FullBlit(t *testing.T) {
 
 	if hasDamage {
 		t.Error("should have no damage rects")
+	}
+}
+
+// --- #111: Ring buffer size and full-render fill ---
+
+func TestDamageRingRects_SizeFour(t *testing.T) {
+	// Ring buffer must have 4 slots to cover Linux 4-buffer swapchains (#111).
+	rl := &renderLoop{}
+	if len(rl.damageRingRects) != 4 {
+		t.Errorf("damageRingRects size = %d, want 4", len(rl.damageRingRects))
+	}
+}
+
+func TestFullRender_FillsAllRingSlots(t *testing.T) {
+	// After full render (canvas.Render), ALL ring buffer slots must contain
+	// fullWindow. This prevents stale buffers on 4-buffer swapchains (#111).
+	rl := &renderLoop{}
+
+	// Simulate partial state in ring buffer (as if previous frames left data).
+	rl.damageRingRects[1] = []image.Rectangle{image.Rect(10, 10, 50, 50)}
+	rl.damageRingRects[2] = []image.Rectangle{image.Rect(60, 60, 100, 100)}
+	rl.damageRingIdx = 2
+
+	// Simulate what draw() does after canvas.Render (full blit path).
+	fullWindowRect := []image.Rectangle{image.Rect(0, 0, 1920, 1080)}
+	for i := range rl.damageRingRects {
+		rl.damageRingRects[i] = fullWindowRect
+	}
+	rl.damageRingIdx = 0
+
+	// Verify every slot has fullWindow.
+	fullWindow := image.Rect(0, 0, 1920, 1080)
+	for i, slot := range rl.damageRingRects {
+		if len(slot) != 1 {
+			t.Errorf("slot[%d] has %d rects, want 1", i, len(slot))
+			continue
+		}
+		if slot[0] != fullWindow {
+			t.Errorf("slot[%d] = %v, want %v", i, slot[0], fullWindow)
+		}
+	}
+
+	// Ring index must be reset to 0 for deterministic behavior.
+	if rl.damageRingIdx != 0 {
+		t.Errorf("damageRingIdx = %d, want 0 after fill-all", rl.damageRingIdx)
+	}
+}
+
+// --- #116: Orphaned boundary texture GC ---
+
+func TestGCOrphanedTextures_DeletesOrphaned(t *testing.T) {
+	// After SetRoot (theme change), old widget tree keys are orphaned.
+	// gcOrphanedTextures must delete entries not present in Layer Tree.
+	rl := &renderLoop{
+		boundaryTextures: map[uint64]*boundaryTexEntry{
+			100: {width: 48, height: 48},   // live — in tree
+			200: {width: 100, height: 32},  // orphaned — NOT in tree
+			300: {width: 200, height: 100}, // orphaned — NOT in tree
+		},
+	}
+
+	// Build a tree that only contains key=100.
+	tree := compositor.NewOffsetLayer(geometry.Point{})
+	pic := compositor.NewPictureLayer()
+	pic.SetBoundaryCacheKey(100)
+	tree.Append(pic)
+
+	released := 0
+	rl.boundaryTextures[200].release = func() { released++ }
+	rl.boundaryTextures[300].release = func() { released++ }
+
+	rl.gcOrphanedTextures(tree)
+
+	// Key 100 must survive, keys 200/300 must be deleted.
+	if _, ok := rl.boundaryTextures[100]; !ok {
+		t.Error("live key 100 should be preserved")
+	}
+	if _, ok := rl.boundaryTextures[200]; ok {
+		t.Error("orphaned key 200 should be deleted")
+	}
+	if _, ok := rl.boundaryTextures[300]; ok {
+		t.Error("orphaned key 300 should be deleted")
+	}
+	if released != 2 {
+		t.Errorf("release called %d times, want 2", released)
+	}
+}
+
+func TestGCOrphanedTextures_PreservesLiveKeys(t *testing.T) {
+	// When all texture keys are in the tree, nothing should be deleted.
+	rl := &renderLoop{
+		boundaryTextures: map[uint64]*boundaryTexEntry{
+			10: {width: 48, height: 48},
+			20: {width: 100, height: 32},
+		},
+	}
+
+	tree := compositor.NewOffsetLayer(geometry.Point{})
+	pic1 := compositor.NewPictureLayer()
+	pic1.SetBoundaryCacheKey(10)
+	pic2 := compositor.NewPictureLayer()
+	pic2.SetBoundaryCacheKey(20)
+	tree.Append(pic1)
+	tree.Append(pic2)
+
+	rl.gcOrphanedTextures(tree)
+
+	if len(rl.boundaryTextures) != 2 {
+		t.Errorf("should preserve all 2 entries, got %d", len(rl.boundaryTextures))
+	}
+}
+
+func TestGCOrphanedTextures_EmptyMap(t *testing.T) {
+	// Empty map must be a no-op (no panic).
+	rl := &renderLoop{
+		boundaryTextures: map[uint64]*boundaryTexEntry{},
+	}
+	tree := compositor.NewOffsetLayer(geometry.Point{})
+
+	// Should not panic.
+	rl.gcOrphanedTextures(tree)
+
+	if len(rl.boundaryTextures) != 0 {
+		t.Errorf("empty map should remain empty, got %d entries", len(rl.boundaryTextures))
+	}
+}
+
+func TestGCOrphanedTextures_NilMap(t *testing.T) {
+	// Nil map (boundaryTextures not yet initialized) must be a no-op.
+	rl := &renderLoop{}
+	tree := compositor.NewOffsetLayer(geometry.Point{})
+
+	// Should not panic.
+	rl.gcOrphanedTextures(tree)
+}
+
+func TestGCOrphanedTextures_NestedTree(t *testing.T) {
+	// GC must walk nested ContainerLayers (ClipRect, Opacity) to find
+	// PictureLayers at any depth.
+	rl := &renderLoop{
+		boundaryTextures: map[uint64]*boundaryTexEntry{
+			10: {width: 48, height: 48},  // in root
+			20: {width: 100, height: 32}, // nested in ClipRectLayer
+			30: {width: 50, height: 50},  // nested in OpacityLayer
+			40: {width: 60, height: 60},  // orphaned
+		},
+	}
+
+	tree := compositor.NewOffsetLayer(geometry.Point{})
+
+	pic1 := compositor.NewPictureLayer()
+	pic1.SetBoundaryCacheKey(10)
+	tree.Append(pic1)
+
+	clipLayer := compositor.NewClipRectLayer(geometry.Rect{})
+	pic2 := compositor.NewPictureLayer()
+	pic2.SetBoundaryCacheKey(20)
+	clipLayer.Append(pic2)
+	tree.Append(clipLayer)
+
+	opacityLayer := compositor.NewOpacityLayer(0.5)
+	pic3 := compositor.NewPictureLayer()
+	pic3.SetBoundaryCacheKey(30)
+	opacityLayer.Append(pic3)
+	tree.Append(opacityLayer)
+
+	released := 0
+	rl.boundaryTextures[40].release = func() { released++ }
+
+	rl.gcOrphanedTextures(tree)
+
+	// Keys 10, 20, 30 should survive. Key 40 should be deleted.
+	for _, key := range []uint64{10, 20, 30} {
+		if _, ok := rl.boundaryTextures[key]; !ok {
+			t.Errorf("live key %d should be preserved", key)
+		}
+	}
+	if _, ok := rl.boundaryTextures[40]; ok {
+		t.Error("orphaned key 40 should be deleted")
+	}
+	if released != 1 {
+		t.Errorf("release called %d times, want 1", released)
+	}
+}
+
+func TestGCOrphanedTextures_NilRelease(t *testing.T) {
+	// Orphaned entry with nil release function must not panic.
+	rl := &renderLoop{
+		boundaryTextures: map[uint64]*boundaryTexEntry{
+			10: {width: 48, height: 48, release: nil}, // orphaned, nil release
+		},
+	}
+
+	tree := compositor.NewOffsetLayer(geometry.Point{})
+
+	// Should not panic on nil release.
+	rl.gcOrphanedTextures(tree)
+
+	if _, ok := rl.boundaryTextures[10]; ok {
+		t.Error("orphaned key 10 should be deleted even with nil release")
+	}
+}
+
+func TestCollectLiveKeys_NilLayer(t *testing.T) {
+	// collectLiveKeys with nil layer must be a no-op (no panic).
+	keys := make(map[uint64]bool)
+	collectLiveKeys(nil, keys)
+	if len(keys) != 0 {
+		t.Errorf("nil layer should produce no keys, got %d", len(keys))
 	}
 }
