@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Dependencies
+
+- gg v0.47.1 → v0.47.2 (Draw() per-frame state reset — ADR-032, gg#330)
+- gogpu v0.36.0 → v0.37.0 (key repeat gogpu#240, ScrollPhase/IsMomentum, HiDPI logical sizing, X11 XkbStateNotify fix — ADR-030/031/032/033)
+- gpucontext v0.18.0 → v0.19.0
+
 ## [0.1.28] — 2026-05-16
 
 ### Dependencies
