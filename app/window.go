@@ -320,6 +320,16 @@ func (w *Window) SetRoot(root widget.Widget) {
 	w.needsRedraw = true
 	w.needsFullRepaint = true
 
+	// Clear references to old tree widgets to prevent pinning the
+	// entire unmounted tree in memory via parent/children links.
+	w.hoveredWidget = nil
+	w.capturedWidget = nil
+
+	// Clear references to old tree widgets to prevent pinning the
+	// entire unmounted tree in memory via parent/children links.
+	w.hoveredWidget = nil
+	w.capturedWidget = nil
+
 	// Update focus manager with new root so Tab navigation
 	// traverses the correct widget tree.
 	w.focusMgr.SetRoot(root)

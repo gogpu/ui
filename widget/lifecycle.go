@@ -83,6 +83,12 @@ func UnmountTree(w Widget) {
 		setter.SetParent(nil)
 	}
 
+	// Clear cached scene to release scene memory (prevents leak after SetRoot).
+	type sceneClearer interface{ ClearCachedScene() }
+	if sc, ok := w.(sceneClearer); ok {
+		sc.ClearCachedScene()
+	}
+
 	// Clear mounted state.
 	if base, ok := w.(interface{ SetMounted(bool) }); ok {
 		base.SetMounted(false)

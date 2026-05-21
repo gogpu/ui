@@ -143,6 +143,14 @@ func (w *WidgetBase) SetCachedScene(s *scene.Scene) {
 	w.cachedScene = s
 }
 
+// ClearCachedScene releases the cached scene to free memory.
+// Called during UnmountTree to prevent leaking scene data after SetRoot.
+func (w *WidgetBase) ClearCachedScene() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.cachedScene = nil
+}
+
 // ClearSceneDirty resets the sceneDirty flag after the boundary has been
 // re-recorded. Called by the render system after a successful record pass.
 func (w *WidgetBase) ClearSceneDirty() {
