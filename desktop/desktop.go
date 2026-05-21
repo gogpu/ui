@@ -856,8 +856,8 @@ func (rl *renderLoop) initCanvas(w, h int) bool {
 		log.Printf("desktop: ggcanvas.New: %v", err)
 		return false
 	}
-	// LCD subpixel layout is set by ggcanvas.New() based on
-	// PlatformProvider.SubpixelLayout() (RGB on Windows/Linux,
-	// None on macOS since Mojave). Do not override here.
+	// LCD subpixel layout is auto-detected by ggcanvas.New() via
+	// PlatformProvider.SubpixelLayout() (ADR-024). The gpuContextAdapter
+	// delegates PlatformProvider to App since gogpu BUG-ADAPTER-001 fix.
 	return true
 }

@@ -18,6 +18,7 @@ type App struct {
 	window    *Window
 	theme     *theme.Theme
 	scheduler *state.Scheduler
+	pp        gpucontext.PlatformProvider
 }
 
 // Option configures an App during creation.
@@ -107,6 +108,7 @@ func New(opts ...Option) *App {
 
 	a := &App{
 		theme: t,
+		pp:    cfg.pp,
 	}
 
 	// Create scheduler that marks dirty widgets for retained-mode rendering
@@ -144,6 +146,11 @@ func (a *App) Window() *Window {
 // Theme returns the App's current theme.
 func (a *App) Theme() *theme.Theme {
 	return a.theme
+}
+
+// PlatformProvider returns the platform provider, or nil if not set.
+func (a *App) PlatformProvider() gpucontext.PlatformProvider {
+	return a.pp
 }
 
 // SetTheme changes the App's theme.
