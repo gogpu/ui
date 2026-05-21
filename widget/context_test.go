@@ -691,6 +691,79 @@ func TestContextImpl_DirtyTracker_ThreadSafety(t *testing.T) {
 	wg.Wait()
 }
 
+// --- PointerCapturer Tests (ADR-031) ---
+
+func TestContextImpl_PointerCapturer_Interface(t *testing.T) {
+	ctx := NewContext()
+	var capturer PointerCapturer = ctx
+	_ = capturer // Compile-time check: ContextImpl implements PointerCapturer.
+}
+
+func TestContextImpl_CapturePointer_NoCallback(t *testing.T) {
+	ctx := NewContext()
+	w := newMockWidget()
+	// Should not panic even without a callback wired (headless mode).
+	ctx.CapturePointer(w)
+	ctx.ReleasePointer(w)
+}
+
+func TestContextImpl_CapturePointer_CallbackFires(t *testing.T) {
+	ctx := NewContext()
+	w := newMockWidget()
+
+	var captured Widget
+	ctx.SetOnCapturePointer(func(wgt Widget) {
+		captured = wgt
+	})
+
+	ctx.CapturePointer(w)
+	if captured != w {
+		t.Error("CapturePointer should invoke the callback with the widget")
+	}
+}
+
+func TestContextImpl_ReleasePointer_CallbackFires(t *testing.T) {
+	ctx := NewContext()
+	w := newMockWidget()
+
+	var released Widget
+	ctx.SetOnReleasePointer(func(wgt Widget) {
+		released = wgt
+	})
+
+	ctx.ReleasePointer(w)
+	if released != w {
+		t.Error("ReleasePointer should invoke the callback with the widget")
+	}
+}
+
+func TestContextImpl_PointerCapturer_ThreadSafety(t *testing.T) {
+	ctx := NewContext()
+	w1 := newMockWidget()
+	w2 := newMockWidget()
+
+	ctx.SetOnCapturePointer(func(_ Widget) {})
+	ctx.SetOnReleasePointer(func(_ Widget) {})
+
+	var wg sync.WaitGroup
+	const numGoroutines = 100
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if i%2 == 0 {
+				ctx.CapturePointer(w1)
+			} else {
+				ctx.ReleasePointer(w2)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	// If we get here without deadlock or panic, the test passes.
+}
+
 func BenchmarkContextImpl_IsFocused(b *testing.B) {
 	ctx := NewContext()
 	widget := newMockWidget()

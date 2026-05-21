@@ -69,6 +69,12 @@ func handleMousePress(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 	w.interaction = stateDragging
 	ctx.SetCursor(widget.CursorPointer)
 
+	// ADR-031: Capture pointer so mouse events are delivered directly
+	// during drag, even when the cursor moves outside widget bounds.
+	if pc, ok := ctx.(widget.PointerCapturer); ok {
+		pc.CapturePointer(w)
+	}
+
 	// Set value based on click position.
 	newValue := valueFromPosition(w, e.Position)
 	setValue(w, ctx, newValue)
@@ -83,6 +89,14 @@ func handleMouseRelease(w *Widget, ctx widget.Context, e *event.MouseEvent) bool
 	}
 
 	wasDragging := w.interaction == stateDragging
+
+	// ADR-031: Release pointer capture explicitly. The Window also
+	// auto-releases on MouseRelease when all buttons are up, but
+	// explicit release is cleaner and handles edge cases.
+	if pc, ok := ctx.(widget.PointerCapturer); ok {
+		pc.ReleasePointer(w)
+	}
+
 	if w.Bounds().Contains(e.Position) {
 		w.interaction = stateHover
 	} else {

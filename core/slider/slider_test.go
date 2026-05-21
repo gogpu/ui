@@ -184,6 +184,100 @@ func TestEvent_KeyboardNavigation(t *testing.T) {
 	}
 }
 
+// --- Pointer Capture Tests (ADR-031) ---
+
+// mockPointerCapturerCtx wraps a context to track capture/release calls.
+type mockPointerCapturerCtx struct {
+	widget.Context
+	captured widget.Widget
+}
+
+func (m *mockPointerCapturerCtx) CapturePointer(w widget.Widget) {
+	m.captured = w
+}
+
+func (m *mockPointerCapturerCtx) ReleasePointer(w widget.Widget) {
+	if m.captured == w {
+		m.captured = nil
+	}
+}
+
+func TestEvent_MousePress_CapturesPointer(t *testing.T) {
+	s := slider.New(slider.Min(0), slider.Max(100), slider.Value(50))
+	s.SetBounds(geometry.NewRect(0, 0, 200, 30))
+
+	inner := widget.NewContext()
+	ctx := &mockPointerCapturerCtx{Context: inner}
+
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(100, 15), geometry.Pt(100, 15), event.ModNone)
+	consumed := s.Event(ctx, press)
+
+	if !consumed {
+		t.Error("mouse press should be consumed")
+	}
+	if ctx.captured != s {
+		t.Error("slider should capture pointer on mouse press")
+	}
+}
+
+func TestEvent_MouseRelease_ReleasesPointer(t *testing.T) {
+	s := slider.New(slider.Min(0), slider.Max(100), slider.Value(50))
+	s.SetBounds(geometry.NewRect(0, 0, 200, 30))
+
+	inner := widget.NewContext()
+	ctx := &mockPointerCapturerCtx{Context: inner}
+
+	// Press first to enter dragging state.
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(100, 15), geometry.Pt(100, 15), event.ModNone)
+	s.Event(ctx, press)
+
+	if ctx.captured != s {
+		t.Fatal("precondition: slider should be captured")
+	}
+
+	// Release.
+	release := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		geometry.Pt(100, 15), geometry.Pt(100, 15), event.ModNone)
+	s.Event(ctx, release)
+
+	if ctx.captured != nil {
+		t.Error("slider should release pointer on mouse release")
+	}
+}
+
+func TestEvent_DragOutsideBounds_ContinuesWithCapture(t *testing.T) {
+	var lastValue float32
+	s := slider.New(
+		slider.Min(0), slider.Max(100), slider.Value(50),
+		slider.OnChange(func(v float32) { lastValue = v }),
+	)
+	s.SetBounds(geometry.NewRect(0, 0, 200, 30))
+
+	inner := widget.NewContext()
+	ctx := &mockPointerCapturerCtx{Context: inner}
+
+	// Press inside to start drag.
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(100, 15), geometry.Pt(100, 15), event.ModNone)
+	s.Event(ctx, press)
+
+	// Move well past the right edge (x=500, far outside bounds 0-200).
+	// With pointer capture, the slider still processes this event.
+	move := event.NewMouseEvent(event.MouseMove, event.ButtonNone, event.ButtonStateLeft,
+		geometry.Pt(500, 15), geometry.Pt(500, 15), event.ModNone)
+	consumed := s.Event(ctx, move)
+
+	if !consumed {
+		t.Error("move during drag should be consumed even outside bounds")
+	}
+	// Value should be clamped to max (100) since position is past right edge.
+	if lastValue != 100 {
+		t.Errorf("value = %v, want 100 (clamped at max)", lastValue)
+	}
+}
+
 // --- Signal Binding Tests ---
 
 func TestValueSignal_ReadFromSignal(t *testing.T) {

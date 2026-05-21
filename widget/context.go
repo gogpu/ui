@@ -239,6 +239,52 @@ type ImageCacheProvider interface {
 	ImageCache() ImageCacheRef
 }
 
+// PointerCapturer is an optional interface implemented by Context
+// implementations that support mouse capture during drag operations.
+//
+// When a widget captures the pointer, all subsequent mouse events (Move,
+// Release, Press) are delivered directly to it, bypassing tree hit-testing.
+// This is essential for drag operations (slider thumb, splitview divider,
+// scrollbar thumb, text selection) where the mouse may move outside the
+// widget's bounds during the gesture.
+//
+// The capture auto-releases on MouseRelease when all buttons are up,
+// preventing stale captures. Widgets should also call ReleasePointer
+// explicitly when the drag operation ends.
+//
+// Enterprise references:
+//   - Win32: SetCapture(HWND) / ReleaseCapture()
+//   - Qt: QWidget::grabMouse() / releaseMouse()
+//   - Flutter: GestureArena implicit capture
+//   - GTK4: gtk_gesture_set_state(CLAIMED)
+//
+// This uses the established "interface extension via type assertion" pattern
+// (same as DirtyBoundaryRegistrar, AnimationScheduler, ImageCacheProvider)
+// to avoid adding methods to the Context interface (which would be a breaking
+// change for all implementors).
+//
+// Example usage in a widget's Event handler:
+//
+//	case event.MousePress:
+//	    if cap, ok := ctx.(widget.PointerCapturer); ok {
+//	        cap.CapturePointer(w)
+//	    }
+//	case event.MouseRelease:
+//	    if cap, ok := ctx.(widget.PointerCapturer); ok {
+//	        cap.ReleasePointer(w)
+//	    }
+type PointerCapturer interface {
+	// CapturePointer requests exclusive mouse event delivery for the widget.
+	// While captured, MouseMove, MouseRelease, and MousePress events are
+	// delivered directly to this widget without tree hit-testing.
+	// Only one widget can have capture at a time.
+	CapturePointer(w Widget)
+
+	// ReleasePointer releases the pointer capture. This is a no-op if the
+	// given widget does not currently hold the capture.
+	ReleasePointer(w Widget)
+}
+
 // CursorType represents the type of mouse cursor to display.
 type CursorType uint8
 
@@ -390,6 +436,16 @@ type ContextImpl struct {
 	// flat dirty boundary set for O(1) frame skip decisions.
 	// This is the Flutter _nodesNeedingPaint.add() equivalent.
 	onRegisterDirtyBoundary func(key uint64)
+
+	// onCapturePointer is called when a widget requests pointer capture
+	// during drag operations (ADR-031). The Window wires this callback
+	// to set capturedWidget. When set, mouse events are delivered directly
+	// to the captured widget, bypassing tree hit-testing.
+	onCapturePointer func(w Widget)
+
+	// onReleasePointer is called when a widget releases pointer capture.
+	// The Window wires this callback to clear capturedWidget.
+	onReleasePointer func(w Widget)
 }
 
 // NewContext creates a new ContextImpl with default settings.
@@ -842,6 +898,51 @@ func (c *ContextImpl) SetOnRegisterDirtyBoundary(callback func(key uint64)) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.onRegisterDirtyBoundary = callback
+}
+
+// CapturePointer requests exclusive mouse event delivery for the widget.
+// Events (Move, Release, Press) are delivered directly to the captured
+// widget, bypassing tree hit-testing. Only one widget can be captured.
+// Auto-releases on MouseRelease when all buttons are up (handled by Window).
+//
+// If no callback is wired (headless tests), this is a no-op.
+func (c *ContextImpl) CapturePointer(w Widget) {
+	c.mu.RLock()
+	cb := c.onCapturePointer
+	c.mu.RUnlock()
+	if cb != nil {
+		cb(w)
+	}
+}
+
+// ReleasePointer releases pointer capture for the given widget.
+// This is a no-op if the widget does not hold the capture or if no
+// callback is wired (headless tests).
+func (c *ContextImpl) ReleasePointer(w Widget) {
+	c.mu.RLock()
+	cb := c.onReleasePointer
+	c.mu.RUnlock()
+	if cb != nil {
+		cb(w)
+	}
+}
+
+// SetOnCapturePointer sets the callback for CapturePointer.
+// The Window wires this during initialization so that widgets can request
+// exclusive mouse delivery during drag operations (ADR-031).
+func (c *ContextImpl) SetOnCapturePointer(callback func(w Widget)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onCapturePointer = callback
+}
+
+// SetOnReleasePointer sets the callback for ReleasePointer.
+// The Window wires this during initialization so that widgets can release
+// pointer capture when drag operations end.
+func (c *ContextImpl) SetOnReleasePointer(callback func(w Widget)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onReleasePointer = callback
 }
 
 // Verify ContextImpl implements Context.

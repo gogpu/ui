@@ -1795,3 +1795,184 @@ func (w *hoverCursorWidget) Event(ctx widget.Context, e event.Event) bool {
 	}
 	return false
 }
+
+// --- Pointer Capture Tests (ADR-031) ---
+
+// captureTrackingWidget records mouse events and can capture the pointer.
+type captureTrackingWidget struct {
+	widget.WidgetBase
+	events      []*event.MouseEvent
+	captureOnce bool // capture pointer on first MousePress
+}
+
+func newCaptureWidget(bounds geometry.Rect) *captureTrackingWidget {
+	w := &captureTrackingWidget{}
+	w.SetVisible(true)
+	w.SetEnabled(true)
+	w.SetBounds(bounds)
+	w.SetScreenOrigin(bounds.Min)
+	return w
+}
+
+func (w *captureTrackingWidget) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+	return c.Constrain(w.Bounds().Size())
+}
+
+func (w *captureTrackingWidget) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (w *captureTrackingWidget) Event(ctx widget.Context, e event.Event) bool {
+	me, ok := e.(*event.MouseEvent)
+	if !ok {
+		return false
+	}
+	w.events = append(w.events, me)
+
+	if w.captureOnce && me.MouseType == event.MousePress {
+		if pc, ok := ctx.(widget.PointerCapturer); ok {
+			pc.CapturePointer(w)
+		}
+		w.captureOnce = false
+	}
+
+	return true
+}
+
+func TestWindow_PointerCapture_DirectDelivery(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	// Widget at (10,10)-(110,50). Pointer capture should deliver events
+	// even when mouse is outside these bounds.
+	cw := newCaptureWidget(geometry.NewRect(10, 10, 110, 50))
+	root := newHoverContainer(cw)
+	w.SetRoot(root)
+
+	// Set capture via context (simulating what a real widget does on press).
+	w.ctx.CapturePointer(cw)
+
+	// Move OUTSIDE widget bounds — should be delivered via capture.
+	move := event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, event.ButtonStateLeft,
+		geometry.Pt(300, 300), geometry.Pt(300, 300), event.ModNone,
+	)
+	w.HandleEvent(move)
+
+	if len(cw.events) != 1 {
+		t.Fatalf("expected 1 event after move outside bounds, got %d", len(cw.events))
+	}
+	if cw.events[0].MouseType != event.MouseMove {
+		t.Errorf("expected MouseMove, got %v", cw.events[0].MouseType)
+	}
+
+	// Move again further out — still captured.
+	move2 := event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, event.ButtonStateLeft,
+		geometry.Pt(600, 600), geometry.Pt(600, 600), event.ModNone,
+	)
+	w.HandleEvent(move2)
+
+	if len(cw.events) != 2 {
+		t.Fatalf("expected 2 events after second move, got %d", len(cw.events))
+	}
+}
+
+func TestWindow_PointerCapture_AutoRelease(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	cw := newCaptureWidget(geometry.NewRect(10, 10, 110, 50))
+	cw.captureOnce = true
+	root := newHoverContainer(cw)
+	w.SetRoot(root)
+
+	// Press inside widget — triggers capture.
+	press := event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(50, 30), geometry.Pt(50, 30), event.ModNone,
+	)
+	w.HandleEvent(press)
+
+	// Release outside bounds — auto-releases capture (Buttons==0).
+	release := event.NewMouseEvent(
+		event.MouseRelease, event.ButtonLeft, 0, // all buttons up
+		geometry.Pt(300, 300), geometry.Pt(300, 300), event.ModNone,
+	)
+	w.HandleEvent(release)
+
+	// Capture should be cleared.
+	if w.capturedWidget != nil {
+		t.Error("capturedWidget should be nil after MouseRelease with all buttons up")
+	}
+
+	// Subsequent move should NOT go to the captured widget.
+	cw.events = nil
+	move := event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, 0,
+		geometry.Pt(300, 300), geometry.Pt(300, 300), event.ModNone,
+	)
+	w.HandleEvent(move)
+
+	// The move event should go through normal dispatch, not to cw
+	// (since (300,300) is outside cw's bounds).
+	for _, ev := range cw.events {
+		if ev.MouseType == event.MouseMove {
+			t.Error("move event should not be delivered to widget after capture release")
+		}
+	}
+}
+
+func TestWindow_PointerCapture_ReleaseWrongWidget(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	cw1 := newCaptureWidget(geometry.NewRect(10, 10, 110, 50))
+	cw2 := newCaptureWidget(geometry.NewRect(10, 60, 110, 100))
+	root := newHoverContainer(cw1, cw2)
+	w.SetRoot(root)
+
+	// Capture cw1 via the context callback.
+	w.ctx.CapturePointer(cw1)
+
+	if w.capturedWidget != cw1 {
+		t.Fatal("precondition: cw1 should be captured")
+	}
+
+	// Release cw2 — should be a no-op (wrong widget).
+	w.ctx.ReleasePointer(cw2)
+
+	if w.capturedWidget != cw1 {
+		t.Error("releasing a different widget should not clear the capture")
+	}
+
+	// Release cw1 — should clear.
+	w.ctx.ReleasePointer(cw1)
+
+	if w.capturedWidget != nil {
+		t.Error("capturedWidget should be nil after releasing the correct widget")
+	}
+}
+
+func TestWindow_PointerCapture_OverlaysPriority(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	cw := newCaptureWidget(geometry.NewRect(10, 10, 110, 50))
+	root := newHoverContainer(cw)
+	w.SetRoot(root)
+
+	// Capture the widget.
+	w.ctx.CapturePointer(cw)
+
+	// Overlay events still take priority over capture (the capture
+	// short-circuit is AFTER the overlay check in HandleEvent).
+	// We just verify that with no overlays, captured events work.
+	move := event.NewMouseEvent(
+		event.MouseMove, event.ButtonNone, event.ButtonStateLeft,
+		geometry.Pt(500, 500), geometry.Pt(500, 500), event.ModNone,
+	)
+	w.HandleEvent(move)
+
+	if len(cw.events) != 1 {
+		t.Errorf("expected 1 event delivered via capture, got %d", len(cw.events))
+	}
+}
