@@ -175,3 +175,49 @@ func TestBindStringSignal(t *testing.T) {
 		t.Errorf("invalidated count = %d, want 1", got)
 	}
 }
+
+func TestBindToSchedulerFunc(t *testing.T) {
+	sig := state.NewSignal(0.5)
+	w := &mockWidget{name: "bar"}
+	var dirtyCount int
+	sched := state.NewScheduler(func(_ []widget.Widget) { dirtyCount++ })
+
+	// Only dirty when value > 0.5.
+	binding := state.BindToSchedulerFunc(sig.AsReadonly(), func(v float64) bool {
+		return v > 0.5
+	}, w, sched)
+	defer binding.Unbind()
+
+	sig.Set(0.3) // below threshold, should NOT dirty
+	if sched.PendingCount() != 0 {
+		t.Errorf("predicate returned false, pending = %d, want 0", sched.PendingCount())
+	}
+
+	sig.Set(0.8) // above threshold, SHOULD dirty
+	if sched.PendingCount() != 1 {
+		t.Errorf("predicate returned true, pending = %d, want 1", sched.PendingCount())
+	}
+}
+
+func TestBindToSchedulerFunc_Unbind(t *testing.T) {
+	sig := state.NewSignal(1.0)
+	w := &mockWidget{name: "bar"}
+	sched := state.NewScheduler(func(_ []widget.Widget) {})
+
+	binding := state.BindToSchedulerFunc(sig.AsReadonly(), func(_ float64) bool {
+		return true
+	}, w, sched)
+
+	sig.Set(2.0)
+	if sched.PendingCount() == 0 {
+		t.Error("before unbind, signal change should mark dirty")
+	}
+
+	binding.Unbind()
+	sched.Flush()
+
+	sig.Set(3.0)
+	if sched.PendingCount() != 0 {
+		t.Errorf("after unbind, pending = %d, want 0", sched.PendingCount())
+	}
+}

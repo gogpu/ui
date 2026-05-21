@@ -682,6 +682,59 @@ func TestDraw_DisabledWithProgressBarColorScheme(t *testing.T) {
 	}
 }
 
+// --- Signal Deduplication Tests (#112) ---
+
+// TestMount_ValueSignal_DeduplicatesRedraws verifies that when a value signal
+// fires with the same value that was last drawn, the widget is NOT marked
+// dirty. This prevents flicker from redundant redraws (issue #112).
+func TestMount_ValueSignal_DeduplicatesRedraws(t *testing.T) {
+	sig := state.NewSignal[float64](0.5)
+	bar := progressbar.New(progressbar.ValueSignal(sig))
+	bar.SetBounds(geometry.NewRect(0, 0, 200, 30))
+
+	sched := &mockScheduler{}
+	ctx := widget.NewContext()
+	ctx.SetScheduler(sched)
+	bar.Mount(ctx)
+
+	// First Draw populates lastDrawnValue.
+	canvas := &recordingCanvas{}
+	bar.Draw(ctx, canvas)
+
+	// Reset dirty counter.
+	sched.dirtyCount = 0
+
+	// Set signal to the SAME value — should NOT mark dirty.
+	sig.Set(0.5)
+	if sched.dirtyCount != 0 {
+		t.Errorf("setting same value should not mark dirty, got dirtyCount=%d", sched.dirtyCount)
+	}
+
+	// Set to a DIFFERENT value — SHOULD mark dirty.
+	sig.Set(0.8)
+	if sched.dirtyCount == 0 {
+		t.Error("setting different value should mark dirty")
+	}
+}
+
+// TestMount_ValueSignal_FirstSetAlwaysDirties verifies that before the first
+// Draw call, any signal change marks dirty (since no cached value exists yet).
+func TestMount_ValueSignal_FirstSetAlwaysDirties(t *testing.T) {
+	sig := state.NewSignal[float64](0.5)
+	bar := progressbar.New(progressbar.ValueSignal(sig))
+
+	sched := &mockScheduler{}
+	ctx := widget.NewContext()
+	ctx.SetScheduler(sched)
+	bar.Mount(ctx)
+
+	// No Draw yet — any Set should mark dirty.
+	sig.Set(0.5) // same as initial, but never drawn
+	if sched.dirtyCount == 0 {
+		t.Error("before first Draw, any signal change should mark dirty")
+	}
+}
+
 // --- Mock types ---
 
 type mockPainter struct {

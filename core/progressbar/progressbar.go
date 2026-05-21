@@ -29,6 +29,15 @@ type Widget struct {
 
 	// Styling overrides set via fluent methods.
 	padding float32
+
+	// lastDrawnValue caches the value from the most recent Draw call.
+	// Signal bindings compare against this to suppress redundant redraws
+	// when the signal fires with an unchanged value (#112).
+	lastDrawnValue float64
+	// lastDrawnValueSet tracks whether lastDrawnValue has been populated
+	// by at least one Draw call. Zero is a valid progress value, so we
+	// need a separate flag.
+	lastDrawnValueSet bool
 }
 
 // New creates a new progress bar Widget with the given options.
@@ -98,6 +107,8 @@ func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geom
 // Draw renders the progress bar to the canvas.
 func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	value := clampValue(w.cfg.ResolvedValue())
+	w.lastDrawnValue = value
+	w.lastDrawnValueSet = true
 
 	barH := w.cfg.height
 	if barH <= 0 {
@@ -150,18 +161,24 @@ func (w *Widget) Children() []widget.Widget {
 
 // Mount creates signal bindings for push-based invalidation.
 // Implements [widget.Lifecycle].
+//
+// The value signal binding deduplicates notifications: if the signal fires
+// with the same value that was last drawn, the widget is not marked dirty.
+// This prevents flicker from redundant redraws (#112).
 func (w *Widget) Mount(ctx widget.Context) {
 	sched := ctx.Scheduler()
 	if sched == nil {
 		return
 	}
+	// Value signal: deduplicate by comparing against lastDrawnValue.
 	if w.cfg.readonlyValueSignal != nil {
-		b := state.BindToScheduler(w.cfg.readonlyValueSignal, w, sched)
+		b := w.bindValueSignal(w.cfg.readonlyValueSignal, sched)
 		w.AddBinding(b)
 	} else if w.cfg.valueSignal != nil {
-		b := state.BindToScheduler(w.cfg.valueSignal, w, sched)
+		b := w.bindValueSignal(w.cfg.valueSignal, sched)
 		w.AddBinding(b)
 	}
+	// Disabled signal: no deduplication needed (bool changes are infrequent).
 	if w.cfg.readonlyDisabledSignal != nil {
 		b := state.BindToScheduler(w.cfg.readonlyDisabledSignal, w, sched)
 		w.AddBinding(b)
@@ -169,6 +186,19 @@ func (w *Widget) Mount(ctx widget.Context) {
 		b := state.BindToScheduler(w.cfg.disabledSignal, w, sched)
 		w.AddBinding(b)
 	}
+}
+
+// bindValueSignal creates a deduplicating binding for a float64 signal.
+// MarkDirty is only called when the clamped value differs from the last
+// drawn value, preventing flicker from redundant redraws (#112).
+func (w *Widget) bindValueSignal(sig state.ReadonlySignal[float64], sched widget.SchedulerRef) *state.Binding {
+	return state.BindToSchedulerFunc(sig, func(newVal float64) bool {
+		clamped := clampValue(newVal)
+		if w.lastDrawnValueSet && clamped == w.lastDrawnValue {
+			return false // suppress: value unchanged
+		}
+		return true
+	}, w, sched)
 }
 
 // Unmount is called when the progress bar is removed from the widget tree.

@@ -92,3 +92,26 @@ func BindToScheduler[T any](sig ReadonlySignal[T], w widget.Widget, sched widget
 	b.cleanup = unsub
 	return b
 }
+
+// BindToSchedulerFunc creates a [Binding] that marks w as dirty in sched
+// when sig changes AND the predicate returns true.
+//
+// The predicate receives the new signal value and returns true if the widget
+// should be marked dirty. This allows callers to suppress redundant redraws
+// when the signal fires with unchanged values.
+//
+// Example:
+//
+//	binding := state.BindToSchedulerFunc(sig, func(v float64) bool {
+//	    return v != cachedValue  // only dirty when value actually changed
+//	}, myWidget, sched)
+func BindToSchedulerFunc[T any](sig ReadonlySignal[T], shouldDirty func(T) bool, w widget.Widget, sched widget.SchedulerRef) *Binding {
+	b := &Binding{active: true}
+	unsub := sig.SubscribeForever(func(v T) {
+		if shouldDirty(v) {
+			sched.MarkDirty(w)
+		}
+	})
+	b.cleanup = unsub
+	return b
+}
