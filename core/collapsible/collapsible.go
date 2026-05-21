@@ -208,6 +208,15 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	// Draw content if visible (progress > 0).
 	if w.progress > 0 && w.cfg.content != nil {
 		w.drawContent(ctx, canvas, bounds)
+	} else if w.cfg.content != nil {
+		// Collapsed (progress == 0): stamp an empty clip on content so child
+		// boundaries receive a zero-size CompositorClip. This causes
+		// isBoundaryLayerVisible to cull them, preventing stale textures
+		// from being blitted at the old position (#122).
+		emptyClip := geometry.Rect{}
+		canvas.PushClip(emptyClip)
+		widget.DrawChild(w.cfg.content, ctx, canvas)
+		canvas.PopClip()
 	}
 }
 

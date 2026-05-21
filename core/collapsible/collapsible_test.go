@@ -432,7 +432,7 @@ func TestDraw_EmptyBounds(t *testing.T) {
 	}
 }
 
-func TestDraw_Collapsed_NoContent(t *testing.T) {
+func TestDraw_Collapsed_StampsEmptyClip(t *testing.T) {
 	content := &mockWidget{}
 	w := collapsible.New(
 		collapsible.Title("Section"),
@@ -445,8 +445,15 @@ func TestDraw_Collapsed_NoContent(t *testing.T) {
 
 	w.Draw(ctx, canvas)
 
-	if content.drawCalled {
-		t.Error("collapsed content should not be drawn")
+	// When collapsed, DrawChild is called with an empty clip so that child
+	// boundaries receive a zero-size CompositorClip (culled by compositor).
+	// The content still gets Draw called (into the empty clip), which is
+	// expected — the empty clip ensures nothing is actually rendered (#122).
+	if canvas.pushClipCount != 1 {
+		t.Errorf("collapsed should push empty clip for boundary stamping, got %d PushClip", canvas.pushClipCount)
+	}
+	if canvas.popClipCount != 1 {
+		t.Errorf("collapsed should pop clip after stamping, got %d PopClip", canvas.popClipCount)
 	}
 }
 
@@ -1256,5 +1263,78 @@ func TestTitleSignal_ResolvesTitle(t *testing.T) {
 				}
 				return texts
 			}())
+	}
+}
+
+// --- Collapsed Boundary Culling Tests (#122) ---
+
+// TestDraw_Collapsed_EmptyClipOnContent verifies that when the collapsible is
+// fully collapsed (progress=0), an empty clip is stamped on the content via
+// DrawChild. This ensures child RepaintBoundary widgets get a zero-size
+// CompositorClip, which causes isBoundaryLayerVisible to cull them and
+// prevent stale textures from being blitted at the old position (#122).
+func TestDraw_Collapsed_EmptyClipOnContent(t *testing.T) {
+	content := &mockWidget{preferredSize: geometry.Sz(200, 100)}
+	w := collapsible.New(
+		collapsible.Title("Section"),
+		collapsible.Content(content),
+		collapsible.Animated(false),
+	)
+	w.SetBounds(geometry.NewRect(0, 0, 200, 36))
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	w.Draw(ctx, canvas)
+
+	// Collapsed content should have an empty clip pushed and popped.
+	if canvas.pushClipCount != 1 {
+		t.Errorf("collapsed: PushClip called %d times, want 1 (empty clip for boundary stamping)", canvas.pushClipCount)
+	}
+	if canvas.popClipCount != 1 {
+		t.Errorf("collapsed: PopClip called %d times, want 1", canvas.popClipCount)
+	}
+}
+
+// TestDraw_Collapsed_NoContent_NoClip verifies that when there is no content
+// widget, no clip is pushed (no-op path).
+func TestDraw_Collapsed_NoContent_NoClip(t *testing.T) {
+	w := collapsible.New(
+		collapsible.Title("Section"),
+		collapsible.Animated(false),
+	)
+	w.SetBounds(geometry.NewRect(0, 0, 200, 36))
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	w.Draw(ctx, canvas)
+
+	if canvas.pushClipCount != 0 {
+		t.Errorf("no content: PushClip called %d times, want 0", canvas.pushClipCount)
+	}
+}
+
+// TestDraw_Expanded_DrawsContentNormally verifies that when expanded, content
+// is drawn with a proper clip (not the empty clip used in collapsed state).
+func TestDraw_Expanded_DrawsContentNormally(t *testing.T) {
+	content := &mockWidget{preferredSize: geometry.Sz(200, 100)}
+	w := collapsible.New(
+		collapsible.Title("Section"),
+		collapsible.Content(content),
+		collapsible.Expanded(true),
+		collapsible.Animated(false),
+	)
+	ctx := widget.NewContext()
+	w.Layout(ctx, geometry.Loose(geometry.Sz(200, 500)))
+	w.SetBounds(geometry.NewRect(0, 0, 200, 136))
+	canvas := &mockCanvas{}
+
+	w.Draw(ctx, canvas)
+
+	if !content.drawCalled {
+		t.Error("expanded content should be drawn normally")
+	}
+	// Normal expanded path pushes a non-empty clip.
+	if canvas.pushClipCount != 1 {
+		t.Errorf("expanded: PushClip called %d times, want 1", canvas.pushClipCount)
 	}
 }
