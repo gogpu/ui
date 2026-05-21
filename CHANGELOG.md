@@ -26,10 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- gg v0.46.11 → v0.47.4 (pixel-perfect mode, text batch coalescing, Draw() state reset, HiDPI damage scaling)
-- gogpu v0.35.0 → v0.37.11 (key repeat timerfd, Windows ESC fix, keysym-to-Unicode 828 entries, AltGr/Level3, X11 layout switching, diagnostic logging, wgpu v0.28.5)
+- gg v0.46.11 → v0.48.0 (text scissor boundary fix gg#335, text stroke, aliased text, pixel-perfect mode, HiDPI damage scaling)
+- gogpu v0.35.0 → v0.38.0 (PlatformProvider delegation ADR-024, custom menus, key repeat timerfd, Windows ESC, keysym-to-Unicode, AltGr/Level3)
 - gpucontext v0.18.0 → v0.19.0
-- wgpu v0.28.1 → v0.28.5 (macOS software blit, lint cleanup)
+- wgpu v0.28.1 → v0.28.6 (macOS software blit, GLES hidden window, lint cleanup)
 
 ## [0.1.28] — 2026-05-16
 
