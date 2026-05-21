@@ -152,18 +152,20 @@ func m3DrawCheckboxFocusIndicator(canvas widget.Canvas, boxRect geometry.Rect, c
 }
 
 // m3CheckboxBoxRect returns the square box area on the left side of the bounds.
+// Inset by half the border width so centered strokes stay within bounds (#117).
 func m3CheckboxBoxRect(bounds geometry.Rect) geometry.Rect {
 	h := bounds.Height()
 	boxY := bounds.Min.Y + (h-m3CheckboxBoxSize)/2
-	return geometry.NewRect(bounds.Min.X, boxY, m3CheckboxBoxSize, m3CheckboxBoxSize)
+	return geometry.NewRect(bounds.Min.X+m3CheckboxBorderWidth/2, boxY, m3CheckboxBoxSize, m3CheckboxBoxSize)
 }
 
 // m3CheckboxLabelBounds returns the label area to the right of the checkbox box.
 func m3CheckboxLabelBounds(bounds geometry.Rect) geometry.Rect {
+	offset := m3CheckboxBorderWidth / 2
 	return geometry.NewRect(
-		bounds.Min.X+m3CheckboxBoxSize+m3CheckboxLabelGap,
+		bounds.Min.X+offset+m3CheckboxBoxSize+m3CheckboxLabelGap,
 		bounds.Min.Y,
-		bounds.Width()-m3CheckboxBoxSize-m3CheckboxLabelGap,
+		bounds.Width()-offset-m3CheckboxBoxSize-m3CheckboxLabelGap,
 		bounds.Height(),
 	)
 }

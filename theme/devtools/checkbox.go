@@ -132,18 +132,20 @@ func dtDrawDash(canvas widget.Canvas, box geometry.Rect, color widget.Color) {
 }
 
 // dtCheckboxBoxRect returns the checkbox box area.
+// Inset by half the border width so centered strokes stay within bounds (#117).
 func dtCheckboxBoxRect(bounds geometry.Rect) geometry.Rect {
 	h := bounds.Height()
 	boxY := bounds.Min.Y + (h-dtCBBoxSize)/2
-	return geometry.NewRect(bounds.Min.X, boxY, dtCBBoxSize, dtCBBoxSize)
+	return geometry.NewRect(bounds.Min.X+dtCBBorderWidth/2, boxY, dtCBBoxSize, dtCBBoxSize)
 }
 
 // dtCheckboxLabelBounds returns the label area.
 func dtCheckboxLabelBounds(bounds geometry.Rect) geometry.Rect {
+	offset := dtCBBorderWidth / 2
 	return geometry.NewRect(
-		bounds.Min.X+dtCBBoxSize+dtCBLabelGap,
+		bounds.Min.X+offset+dtCBBoxSize+dtCBLabelGap,
 		bounds.Min.Y,
-		bounds.Width()-dtCBBoxSize-dtCBLabelGap,
+		bounds.Width()-offset-dtCBBoxSize-dtCBLabelGap,
 		bounds.Height(),
 	)
 }

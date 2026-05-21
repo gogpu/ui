@@ -142,10 +142,11 @@ func cupApplyCbState(base widget.Color, hovered, pressed bool) widget.Color {
 }
 
 // cupToggleTrackRect returns the pill-shaped track rectangle.
+// Inset by half the border width so centered strokes stay within bounds (#117).
 func cupToggleTrackRect(bounds geometry.Rect) geometry.Rect {
 	h := bounds.Height()
 	trackY := bounds.Min.Y + (h-cupCbTrackHeight)/2
-	return geometry.NewRect(bounds.Min.X, trackY, cupCbTrackWidth, cupCbTrackHeight)
+	return geometry.NewRect(bounds.Min.X+cupCbTrackBorderWidth/2, trackY, cupCbTrackWidth, cupCbTrackHeight)
 }
 
 // cupToggleThumbCenter returns the center point for the thumb knob.
@@ -159,8 +160,9 @@ func cupToggleThumbCenter(trackRect geometry.Rect, on bool) geometry.Point {
 
 // cupToggleLabelBounds returns the label area to the right of the toggle.
 func cupToggleLabelBounds(bounds geometry.Rect) geometry.Rect {
-	labelX := bounds.Min.X + cupCbTrackWidth + cupCbLabelGap
-	labelW := bounds.Width() - cupCbTrackWidth - cupCbLabelGap
+	offset := cupCbTrackBorderWidth / 2
+	labelX := bounds.Min.X + offset + cupCbTrackWidth + cupCbLabelGap
+	labelW := bounds.Width() - offset - cupCbTrackWidth - cupCbLabelGap
 	if labelW < 0 {
 		labelW = 0
 	}

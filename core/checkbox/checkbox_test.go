@@ -908,3 +908,33 @@ func TestNew_WithDisabledReadonlySignal(t *testing.T) {
 		t.Error("disabled checkbox (via readonly signal) should not be focusable")
 	}
 }
+
+// --- Checkbox Box Rect Inset Tests (#117) ---
+
+// TestCheckboxBoxRect_StrokeWithinBounds verifies that the checkbox box is
+// inset by half the border stroke width so that centered strokes never
+// extend outside the widget bounds. This is the fix for issue #117.
+func TestCheckboxBoxRect_StrokeWithinBounds(t *testing.T) {
+	// Draw an unchecked checkbox and verify that the stroked round-rect
+	// stays entirely within the widget bounds.
+	cb := checkbox.New(checkbox.Label("Test"))
+	bounds := geometry.NewRect(0, 0, 200, 40)
+	cb.SetBounds(bounds)
+	ctx := widget.NewContext()
+	canvas := &recordingCanvas{}
+
+	cb.Draw(ctx, canvas)
+
+	if len(canvas.strokeRoundRects) == 0 {
+		t.Fatal("unchecked checkbox should draw a border via StrokeRoundRect")
+	}
+
+	for i, call := range canvas.strokeRoundRects {
+		halfStroke := call.strokeWidth / 2
+		strokeLeft := call.r.Min.X - halfStroke
+		if strokeLeft < bounds.Min.X {
+			t.Errorf("strokeRoundRect[%d]: stroke left edge (%v) extends outside bounds.Min.X (%v)",
+				i, strokeLeft, bounds.Min.X)
+		}
+	}
+}

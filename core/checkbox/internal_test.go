@@ -934,8 +934,15 @@ func TestCheckboxBoxRect(t *testing.T) {
 	if box.Height() != boxSize {
 		t.Errorf("box height = %v, want %v", box.Height(), boxSize)
 	}
-	if box.Min.X != 10 {
-		t.Errorf("box X = %v, want 10", box.Min.X)
+	// Box is inset by borderStrokeWidth/2 so centered strokes stay within bounds (#117).
+	expectedX := float32(10) + borderStrokeWidth/2
+	if box.Min.X != expectedX {
+		t.Errorf("box X = %v, want %v", box.Min.X, expectedX)
+	}
+	// Verify stroke never extends outside widget bounds.
+	strokeLeft := box.Min.X - borderStrokeWidth/2
+	if strokeLeft < bounds.Min.X {
+		t.Errorf("stroke left edge (%v) extends outside bounds.Min.X (%v)", strokeLeft, bounds.Min.X)
 	}
 }
 
@@ -943,7 +950,8 @@ func TestCheckboxLabelBounds(t *testing.T) {
 	bounds := geometry.NewRect(10, 10, 100, 40)
 	label := checkboxLabelBounds(bounds)
 
-	expectedX := float32(10) + boxSize + labelGap
+	offset := borderStrokeWidth / 2
+	expectedX := float32(10) + offset + boxSize + labelGap
 	if label.Min.X != expectedX {
 		t.Errorf("label X = %v, want %v", label.Min.X, expectedX)
 	}

@@ -24,18 +24,21 @@ func drawFocusIndicator(canvas widget.Canvas, boxRect geometry.Rect) {
 }
 
 // checkboxBoxRect returns the square box area on the left side of the bounds.
+// The box is inset by half the border stroke width so that centered strokes
+// never extend outside the widget bounds (#117).
 func checkboxBoxRect(bounds geometry.Rect) geometry.Rect {
 	h := bounds.Height()
 	boxY := bounds.Min.Y + (h-boxSize)/2
-	return geometry.NewRect(bounds.Min.X, boxY, boxSize, boxSize)
+	return geometry.NewRect(bounds.Min.X+borderStrokeWidth/2, boxY, boxSize, boxSize)
 }
 
 // checkboxLabelBounds returns the label area to the right of the checkbox box.
 func checkboxLabelBounds(bounds geometry.Rect) geometry.Rect {
+	offset := borderStrokeWidth / 2
 	return geometry.NewRect(
-		bounds.Min.X+boxSize+labelGap,
+		bounds.Min.X+offset+boxSize+labelGap,
 		bounds.Min.Y,
-		bounds.Width()-boxSize-labelGap,
+		bounds.Width()-offset-boxSize-labelGap,
 		bounds.Height(),
 	)
 }
