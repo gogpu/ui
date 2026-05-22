@@ -190,14 +190,10 @@ func TestPaintButtonOutlined(t *testing.T) {
 		Bounds:  testBounds(),
 	})
 
-	// Should have DrawRoundRect (transparent bg) + StrokeRoundRect (border) + DrawText.
+	// Normal (not hovered): no DrawRoundRect, only StrokeRoundRect (border) + DrawText.
 	roundRects := canvas.methodCalls(methodDrawRoundRect)
-	if len(roundRects) != 1 {
-		t.Errorf("Outlined should draw 1 DrawRoundRect (transparent bg), got %d", len(roundRects))
-	}
-	// The background should be transparent.
-	if roundRects[0].color != widget.ColorTransparent {
-		t.Errorf("Outlined background should be transparent, got %v", roundRects[0].color)
+	if len(roundRects) != 0 {
+		t.Errorf("Outlined normal should draw 0 DrawRoundRect, got %d", len(roundRects))
 	}
 
 	strokes := canvas.methodCalls(methodStrokeRoundRect)
@@ -211,6 +207,29 @@ func TestPaintButtonOutlined(t *testing.T) {
 	}
 	if texts[0].bold {
 		t.Error("Outlined variant text should not be bold")
+	}
+}
+
+func TestPaintButtonOutlinedHovered(t *testing.T) {
+	canvas := &recordCanvas{}
+	painter := material3.ButtonPainter{}
+
+	painter.PaintButton(canvas, button.PaintState{
+		Text:    "Cancel",
+		Variant: button.Outlined,
+		Bounds:  testBounds(),
+		Hovered: true,
+	})
+
+	// Hovered: DrawRoundRect (hover overlay) + StrokeRoundRect (border) + DrawText.
+	roundRects := canvas.methodCalls(methodDrawRoundRect)
+	if len(roundRects) != 1 {
+		t.Errorf("Outlined hovered should draw 1 DrawRoundRect (hover overlay), got %d", len(roundRects))
+	}
+
+	strokes := canvas.methodCalls(methodStrokeRoundRect)
+	if len(strokes) != 1 {
+		t.Errorf("Outlined hovered should draw 1 StrokeRoundRect (border), got %d", len(strokes))
 	}
 }
 
@@ -325,13 +344,16 @@ func TestPaintButtonDisabledOutlined(t *testing.T) {
 		Disabled: true,
 	})
 
-	// Disabled Outlined: transparent background for DrawRoundRect, border stroke, text.
+	// Disabled Outlined: no DrawRoundRect (not hovered), only StrokeRoundRect (border) + DrawText.
 	roundRects := canvas.methodCalls(methodDrawRoundRect)
-	if len(roundRects) != 1 {
-		t.Errorf("disabled outlined should draw 1 DrawRoundRect, got %d", len(roundRects))
+	if len(roundRects) != 0 {
+		t.Errorf("disabled outlined should draw 0 DrawRoundRect, got %d", len(roundRects))
 	}
-	if roundRects[0].color != widget.ColorTransparent {
-		t.Errorf("disabled outlined bg should be transparent, got %v", roundRects[0].color)
+
+	// Border stroke should use DisabledFg color (M3 disabled outlined border).
+	strokes := canvas.methodCalls(methodStrokeRoundRect)
+	if len(strokes) != 1 {
+		t.Errorf("disabled outlined should draw 1 StrokeRoundRect, got %d", len(strokes))
 	}
 }
 
@@ -462,14 +484,15 @@ func TestM3DisabledBackground(t *testing.T) {
 	painter := material3.ButtonPainter{}
 
 	tests := []struct {
-		name        string
-		variant     button.Variant
-		expectEmpty bool // Outlined/TextOnly disabled = transparent
+		name          string
+		variant       button.Variant
+		wantRoundRect int  // expected DrawRoundRect count
+		wantStroke    bool // expect StrokeRoundRect (Outlined border)
 	}{
-		{"Filled disabled", button.Filled, false},
-		{"Outlined disabled", button.Outlined, true},
-		{"TextOnly disabled", button.TextOnly, true},
-		{"Tonal disabled", button.Tonal, false},
+		{"Filled disabled", button.Filled, 1, false},
+		{"Outlined disabled", button.Outlined, 0, true},
+		{"TextOnly disabled", button.TextOnly, 0, false},
+		{"Tonal disabled", button.Tonal, 1, false},
 	}
 
 	for _, tt := range tests {
@@ -483,21 +506,13 @@ func TestM3DisabledBackground(t *testing.T) {
 			})
 
 			roundRects := canvas.methodCalls(methodDrawRoundRect)
-			if tt.variant == button.TextOnly {
-				// TextOnly disabled + not hovered = no background drawn.
-				if len(roundRects) != 0 {
-					t.Errorf("TextOnly disabled should draw 0 DrawRoundRect, got %d", len(roundRects))
-				}
-				return
+			if len(roundRects) != tt.wantRoundRect {
+				t.Errorf("expected %d DrawRoundRect, got %d", tt.wantRoundRect, len(roundRects))
 			}
 
-			if len(roundRects) < 1 {
-				t.Fatalf("expected at least 1 DrawRoundRect, got %d", len(roundRects))
-			}
-
-			bg := roundRects[0].color
-			if tt.expectEmpty && bg != widget.ColorTransparent {
-				t.Errorf("expected transparent background, got %v", bg)
+			strokes := canvas.methodCalls(methodStrokeRoundRect)
+			if tt.wantStroke && len(strokes) != 1 {
+				t.Errorf("expected 1 StrokeRoundRect (border), got %d", len(strokes))
 			}
 		})
 	}

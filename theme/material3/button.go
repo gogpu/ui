@@ -62,7 +62,9 @@ func (p ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState
 	case button.Filled, button.Tonal:
 		canvas.DrawRoundRect(state.Bounds, bg, radius)
 	case button.Outlined:
-		canvas.DrawRoundRect(state.Bounds, widget.ColorTransparent, radius)
+		if state.Hovered || state.Pressed {
+			canvas.DrawRoundRect(state.Bounds, colors.Primary.WithAlpha(0.08), radius)
+		}
 		canvas.StrokeRoundRect(state.Bounds, bg, radius, m3OutlineStrokeWidth)
 	case button.TextOnly:
 		if state.Hovered || state.Pressed {
@@ -130,8 +132,10 @@ func m3VariantBackground(v button.Variant, hovered, pressed bool, colors button.
 // m3DisabledBackground returns the M3 disabled background color for a variant.
 func m3DisabledBackground(v button.Variant, colors button.ButtonColorScheme) widget.Color {
 	switch v {
-	case button.Outlined, button.TextOnly:
+	case button.TextOnly:
 		return widget.ColorTransparent
+	case button.Outlined:
+		return colors.DisabledFg
 	default:
 		return colors.DisabledBg
 	}

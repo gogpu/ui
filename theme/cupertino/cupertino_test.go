@@ -234,17 +234,38 @@ func TestPaintButtonOutlined(t *testing.T) {
 		Bounds:  testBounds(),
 	})
 
+	// Normal (not hovered): no DrawRoundRect, only StrokeRoundRect (border).
 	roundRects := canvas.methodCalls(methodDrawRoundRect)
-	if len(roundRects) != 1 {
-		t.Errorf("Outlined should draw 1 DrawRoundRect (transparent bg), got %d", len(roundRects))
-	}
-	if roundRects[0].color != widget.ColorTransparent {
-		t.Errorf("Outlined background should be transparent, got %v", roundRects[0].color)
+	if len(roundRects) != 0 {
+		t.Errorf("Outlined normal should draw 0 DrawRoundRect, got %d", len(roundRects))
 	}
 
 	strokes := canvas.methodCalls(methodStrokeRoundRect)
 	if len(strokes) != 1 {
 		t.Errorf("Outlined should draw 1 StrokeRoundRect (border), got %d", len(strokes))
+	}
+}
+
+func TestPaintButtonOutlinedHovered(t *testing.T) {
+	canvas := &recordCanvas{}
+	painter := cupertino.ButtonPainter{}
+
+	painter.PaintButton(canvas, button.PaintState{
+		Text:    "Cancel",
+		Variant: button.Outlined,
+		Bounds:  testBounds(),
+		Hovered: true,
+	})
+
+	// Hovered: DrawRoundRect (hover overlay) + StrokeRoundRect (border).
+	roundRects := canvas.methodCalls(methodDrawRoundRect)
+	if len(roundRects) != 1 {
+		t.Errorf("Outlined hovered should draw 1 DrawRoundRect (hover overlay), got %d", len(roundRects))
+	}
+
+	strokes := canvas.methodCalls(methodStrokeRoundRect)
+	if len(strokes) != 1 {
+		t.Errorf("Outlined hovered should draw 1 StrokeRoundRect (border), got %d", len(strokes))
 	}
 }
 
