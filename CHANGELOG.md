@@ -5,31 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.29] — 2026-05-21
+## [0.1.29] — 2026-05-22
 
 ### Fixed
 
+- **Outlined button border invisible** — `DrawRoundRect(transparent)` before `StrokeRoundRect` caused stroke to be lost in GPU SDF pipeline (gg BUG-SDF-001: zero-alpha MSAA coverage interference). Removed dead transparent fill from all 4 painters (M3, DevTools, Fluent, Cupertino). Root cause fixed upstream in gg v0.48.3.
+- **Disabled Outlined button border invisible** — disabled state returned `ColorTransparent` as stroke color. Changed to `DisabledFg` for visible gray border.
+- **Outlined button missing hover overlay** — M3 spec requires 8% primary tint on hover/press. Added conditional fill for Outlined variant (matching existing TextOnly pattern).
 - **Checkbox left-side clipping** ([#117](https://github.com/gogpu/ui/issues/117), @celer) — stroke extended 1px beyond widget bounds in all 5 painters (Default, M3, DevTools, Fluent, Cupertino). Inset box by `borderStrokeWidth/2`.
 - **Progressbar flicker** ([#112](https://github.com/gogpu/ui/issues/112), @celer) — signal-driven redraws fired on every notification even when value unchanged. Added `BindToSchedulerFunc` with deduplication predicate + `lastDrawnValue` cache.
 - **Collapsible content leak** ([#122](https://github.com/gogpu/ui/issues/122), @kolkov) — collapsed content boundaries not culled from compositor. Now stamps empty `CompositorClip` via `DrawChild` when progress=0.
 - **Scroll redraw artifacts on Linux** ([#111](https://github.com/gogpu/ui/issues/111), @celer) — damage ring buffer `[3]` insufficient for 4-buffer swapchains. Increased to `[4]` and fill ALL slots after full render.
 - **ListView flash on theme change** ([#116](https://github.com/gogpu/ui/issues/116), @celer) — orphaned boundary textures after `SetRoot` never released. Added `gcOrphanedTextures` — walks Layer Tree, deletes entries not in live set.
-- **M4 MacBook HiDPI rendering** ([#123](https://github.com/gogpu/ui/issues/123), @nzanghi-tst) — HiDPI damage rects not scaled for Retina displays. Fixed via gg v0.47.4 deps bump.
-- **macOS LCD text artifacts** — `desktop.go` unconditionally forced `LCDLayoutRGB`, overriding correct `SubpixelNone` detected by platform on macOS (since Mojave). Removed override; `ggcanvas.New()` handles per-platform detection.
+- **M4 MacBook HiDPI rendering** ([#123](https://github.com/gogpu/ui/issues/123), @nzanghi-tst) — HiDPI damage rects not scaled for Retina displays. Fixed via gg v0.47.4+ deps bump.
+- **macOS LCD text rendering** — LCD subpixel layout now detected from `PlatformProvider.SubpixelLayout()` via `App.PlatformProvider()` getter (ADR-024). macOS correctly gets `SubpixelNone` (grayscale AA since Mojave), Windows/Linux get `SubpixelRGB` (ClearType).
 - **Memory leak on SetRoot** — cached scenes not released during `UnmountTree`; `hoveredWidget`/`capturedWidget` pinned old widget tree. Added `ClearCachedScene` in unmount + nil refs in `SetRoot`.
 
 ### Added
 
 - **PointerCapturer** (ADR-031, [#110](https://github.com/gogpu/ui/issues/110), @celer) — widget-level mouse capture for drag operations. Slider thumb drag now works when mouse exits widget bounds. Type-assertion extension pattern (Win32 SetCapture / Qt grabMouse). Auto-releases on MouseRelease.
+- **`App.PlatformProvider()`** — public getter for platform provider, enables LCD detection from desktop render loop.
 - **`state.BindToSchedulerFunc`** — generic signal binding with custom predicate for deduplication. Reusable by any widget.
-- **30+ new tests** across checkbox, progressbar, collapsible, desktop, slider, widget, app packages.
+- **40+ new tests** across checkbox, progressbar, collapsible, desktop, slider, widget, app, theme packages.
 
 ### Dependencies
 
-- gg v0.46.11 → v0.48.0 (text scissor boundary fix gg#335, text stroke, aliased text, pixel-perfect mode, HiDPI damage scaling)
-- gogpu v0.35.0 → v0.38.0 (PlatformProvider delegation ADR-024, custom menus, key repeat timerfd, Windows ESC, keysym-to-Unicode, AltGr/Level3)
+- gg v0.46.11 → v0.48.3 (text scissor fix gg#335, zero-alpha SDF skip BUG-SDF-001, stroke expander, pixel-perfect mode, HiDPI damage scaling)
+- gogpu v0.35.0 → v0.39.0 (PlatformProvider delegation ADR-024, app lifecycle ADR-026, custom menus, key repeat timerfd, Windows ESC, keysym-to-Unicode, AltGr/Level3)
 - gpucontext v0.18.0 → v0.19.0
-- wgpu v0.28.1 → v0.28.6 (macOS software blit, GLES hidden window, lint cleanup)
+- wgpu v0.28.1 → v0.28.7 (macOS software blit, GLES hidden window, lint cleanup)
 
 ## [0.1.28] — 2026-05-16
 

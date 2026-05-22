@@ -155,7 +155,7 @@
 | `i18n/` | Internationalization (CLDR plural rules, RTL) | `Locale`, `Bundle`, `Translator`, `LocaleSignal` |
 | `dnd/` | Drag and drop | `DragSource`, `DropTarget`, `Manager`, 5px threshold |
 | `uitest/` | Testing utilities (reusable mocks) | `MockCanvas`, `MockContext`, event factories, assertions |
-| `app/` | Window integration + FocusManager | `App`, `Window`, `EventBridge`, `FrameStats`, `FocusManager` |
+| `app/` | Window integration + FocusManager | `App`, `Window`, `EventBridge`, `FrameStats`, `FocusManager`, `PlatformProvider()` |
 | `registry/` | Widget registry | `Registry`, `Category`, widget/context/canvas type aliases |
 | `plugin/` | Plugin system | `Plugin`, `Manager`, `PluginContext`, `Dependency`, `AssetLoader` |
 | `render/` | Public Canvas factory | `NewCanvas` (wraps internal/render) |
