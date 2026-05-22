@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Dependencies
 
 - gg v0.46.11 → v0.48.3 (text scissor fix gg#335, zero-alpha SDF skip BUG-SDF-001, stroke expander, pixel-perfect mode, HiDPI damage scaling)
-- gogpu v0.35.0 → v0.39.0 (PlatformProvider delegation ADR-024, app lifecycle ADR-026, custom menus, key repeat timerfd, Windows ESC, keysym-to-Unicode, AltGr/Level3)
+- gogpu v0.35.0 → v0.39.0 (PlatformProvider delegation ADR-024, app lifecycle ADR-026, macOS system menu, custom menus, key repeat timerfd, Windows ESC, keysym-to-Unicode, AltGr/Level3)
 - gpucontext v0.18.0 → v0.19.0
 - wgpu v0.28.1 → v0.28.7 (macOS software blit, GLES hidden window, lint cleanup)
 
