@@ -821,7 +821,12 @@ func (w *Widget) drawVisibleRows(ctx widget.Context, canvas widget.Canvas) {
 	selectedRow := w.cfg.ResolvedSelectedRow()
 
 	for row := firstRow; row <= lastRow; row++ {
-		y := float32(row)*w.cfg.rowHeight - scrollY
+		// Content-space Y: the parent ScrollView already applies a
+		// translate(0, -scrollY) transform before calling Draw, so rows must
+		// be placed at their absolute content offset. Subtracting scrollY here
+		// too would double-scroll (rows move 2x, content runs off the end and
+		// shows blank space; hit-testing via rowAtY desyncs from the highlight).
+		y := float32(row) * w.cfg.rowHeight
 		rowBounds := geometry.NewRect(0, y, w.viewportWidth, w.cfg.rowHeight)
 
 		isSelected := w.isRowSelected(row, selectedRow)
