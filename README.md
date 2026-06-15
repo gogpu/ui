@@ -208,7 +208,7 @@ func main() {
 
 | `compositor` | Layer Tree compositor: OffsetLayer, PictureLayer, ClipRectLayer, OpacityLayer — production render pipeline | 95%+ |
 
-**Total: ~189,000+ lines of code | 56+ packages | ~7,200+ tests | 97%+ average coverage**
+**Total: ~198,000+ lines of code | 56+ packages | ~7,300+ tests | 97%+ average coverage**
 
 ---
 
@@ -712,7 +712,7 @@ go get github.com/gogpu/gg@latest
 | [gogpu/wgpu](https://github.com/gogpu/wgpu) | Pure Go WebGPU — Vulkan, Metal, GLES, Software |
 | [gogpu/naga](https://github.com/gogpu/naga) | Shader compiler — WGSL to SPIR-V, MSL, GLSL |
 
-**Total ecosystem: 800K+ lines of Pure Go** — no CGO, no Rust, no C.
+**Total ecosystem: 1.1M+ lines of Pure Go** — zero CGO, Rust optional via `-tags rust` (ADR-038).
 
 ---
 

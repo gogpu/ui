@@ -1,28 +1,33 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.1.23 (Custom Font Pipeline + Mac Retina Fix + CJK)
-> **Updated:** May 2026
+> **Version:** 0.1.30-dev
+> **Updated:** June 2026
 > **Go Version:** 1.25+
 
 ---
 
 ## Vision
 
-**gogpu/ui** is a reference implementation of an enterprise-grade GUI library for Go.
+**gogpu/ui** is the first enterprise-grade GUI toolkit for Go — zero CGO, GPU-accelerated, signal-driven.
+
+Go has waited 17 years for a professional graphics ecosystem. We're building it: 1.1M+ LOC across the gogpu ecosystem, all platforms, native menus and dialogs, triple-backend WebGPU, shader compiler, and a complete GUI toolkit.
 
 **Target applications:**
-- IDEs (GoLand-class)
-- Design tools (Photoshop, Illustrator)
-- CAD applications
-- Chrome/Electron-class applications
-- Professional dashboards
+- **IDEs** — GoLand/VS Code class (docking, tabs, tree, toolbar, menus, code editor)
+- **Design tools** — Photoshop/Figma class (canvas, layers, GPU compute)
+- **CAD/scientific** — 3D viewport, data visualization, GPU-accelerated compute
+- **Professional dashboards** — real-time charts, tables, data grids
+- **Desktop apps** — Chrome/Electron replacement with native performance
 
 **Key differentiators:**
-- Pure Go (zero CGO)
-- WebGPU-first rendering via gogpu/wgpu
-- Signals-based state management (coregx/signals)
-- Enterprise features: docking, virtualization, accessibility
+- Pure Go by default (zero CGO), Rust backend optional via `-tags rust` (ADR-038 triple-backend)
+- WebGPU-first rendering via gogpu/wgpu (Vulkan/Metal/DX12/GLES/Software/Browser)
+- Signals-based reactive state (coregx/signals — hybrid push-pull, zero glitch)
+- Layer Tree compositor with damage-aware blit (Flutter/Chrome patterns)
 - Four design systems: Material 3, DevTools (JetBrains), Fluent, Cupertino
+- Polymorphic Content[C] pattern (CDK — inspired by taiga-family/polymorpheus)
+- Pluggable Painter architecture — design-system-agnostic widgets
+- Enterprise features: docking, virtualization, accessibility, i18n, drag & drop
 
 ---
 
@@ -31,12 +36,15 @@
 | Metric | Value |
 |--------|-------|
 | Packages | 56+ |
-| Go Source Files | ~612 |
-| Test Files | ~200 |
-| Total LOC | ~189,000+ |
-| Test Functions | ~7,200+ |
+| Go Source Files | ~413 |
+| Test Files | ~202 |
+| Total LOC | ~198,000+ |
+| Test Functions | ~7,300+ |
 | Test Coverage | 97%+ |
 | Linter Issues | 0 |
+| Interactive Widgets | 22 |
+| Design Systems | 4 (M3, DevTools, Fluent, Cupertino) |
+| Painters | 61 (21 + 22 + 9 + 9) |
 
 ---
 
@@ -45,24 +53,24 @@
 ### Core Principle: Stay on v0.x.x
 
 ```
-v0.x.x  → Active development (current)
-v1.0.0  → ONLY when API stable for 1+ year
+v0.x.x  → Active development (current — breaking changes OK)
+v1.0.0  → ONLY when API stable for 1+ year (target: Dec 2026)
 v2.0.0  → AVOID (requires /v2 import path)
 ```
 
 ### Version Progression:
 
 ```
-v0.0.x  → Phase 0 Foundation ✅ COMPLETE
-v0.1.0  → Phase 1 MVP ✅ COMPLETE
-v0.1.x  → Phase 1.5 Extensibility ✅ COMPLETE
-v0.2.0  → Phase 2 Beta ✅ COMPLETE
-v0.2.x  → Phase 2.5 Signals Integration ✅ COMPLETE
-v0.3.0  → Phase 3 RC ✅ COMPLETE
-v0.4.0  → Phase 4 v1.0 features (in progress)
+v0.0.x  → Phase 0 Foundation               ✅ COMPLETE
+v0.1.0  → Phase 1 MVP                      ✅ COMPLETE (Mar 2026)
+v0.1.x  → Phase 1.5 Extensibility          ✅ COMPLETE
+v0.2.0  → Phase 2 Beta                     ✅ COMPLETE
+v0.2.x  → Phase 2.5 Signals Integration    ✅ COMPLETE
+v0.3.0  → Phase 3 RC                       ✅ COMPLETE
+v0.4.0  → Phase 4 v1.0 features            IN PROGRESS (~90%)
 v0.9.0  → Pre-1.0 API freeze
 v0.10+  → Stabilization
-v1.0.0  → Production (when ready)
+v1.0.0  → Production (target: Dec 2026)
 ```
 
 ### API Compatibility Patterns:
@@ -73,238 +81,157 @@ v1.0.0  → Production (when ready)
 | **Interface Extension** | Optional capabilities via type assertion |
 | **Config Structs** | New fields with zero-value defaults |
 | **internal/** | Implementation details (can change) |
-| **experimental/** | Unstable features (may change/remove) |
-
-### Repository Strategy: Mono-repo
-
-| Aspect | Multi-repo | Mono-repo (chosen) |
-|--------|------------|-------------------|
-| Versioning | Matrix | Single version |
-| Diamond deps | Possible | Impossible |
-| Atomic changes | Difficult | Easy |
-| v2 risk | High | Low |
-
-**Full policy:** `docs/VERSIONING.md`
+| **Pluggable Painters** | Design system independence |
+| **Content[C]** | Polymorphic content rendering |
 
 ---
 
-## Architecture
+## Completed Phases
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Application                         │
-├─────────────────────────────────────────────────────────────┤
-│  theme/material3  │ theme/devtools │ theme/fluent │ theme/cupertino │
-│  (Complete)       │ (Complete)     │ (Complete)   │ (Complete)      │
-├─────────────────────────────────────────────────────────────┤
-│  core/button/      │  animation/ ✅    │  core/docking/ ✅  │
-│  core/checkbox/    │  Tween, Spring    │  DockingHost       │
-│  core/radio/       │  M3 motion        │  Zone, Panel       │
-│  core/textfield/   │                   │                    │
-│  core/dropdown/    │  transition/ ✅   │  dnd/ ✅           │
-│  core/slider/ ✅   │  Enter/exit       │  Drag & Drop       │
-│  core/dialog/ ✅   │  effects          │                    │
-│  core/scrollview/✅│                   │  uitest/ ✅        │
-│  core/tabview/ ✅  │  internal/        │  Test utilities    │
-│  core/listview/ ✅ │  render/          │                    │
-│  core/gridview/ ✅ │  Canvas +         │  i18n/ ✅          │
-│  core/linechart/ ✅│  SceneCanvas ✅   │  Internationalize  │
-│  core/progressbar/✅│  (tile-parallel  │                    │
-│  core/progress/ ✅ │   scene.Scene)    │  icon/ ✅          │
-│  core/collapsible/✅│                  │  Icon system       │
-│  core/splitview/ ✅│                   │                    │
-│  core/popover/ ✅  │                   │  theme/font/ ✅    │
-│  core/treeview/ ✅ │                   │  Typography        │
-│  core/datatable/ ✅│                   │                    │
-│  core/toolbar/ ✅  │                   │                    │
-│  core/menu/ ✅     │                   │                    │
-│  focus/ overlay/ ✅│                   │                    │
-├─────────────────────────────────────────────────────────────┤
-│  layout/                            │  state/               │
-│  VStack, HStack, Grid, Flexbox      │  coregx/signals       │
-│  (Complete ✅)                      │  (Complete ✅)       │
-├─────────────────────────────────────────────────────────────┤
-│  widget/                            │  event/               │
-│  Widget, WidgetBase, Context        │  Mouse, Keyboard      │
-│  (Complete ✅)                      │  (Complete ✅)       │
-├─────────────────────────────────────────────────────────────┤
-│  geometry/        │  internal/render │  internal/layout     │
-│  Point, Rect      │  Canvas impl     │  Flex, Stack, Grid   │
-│  (Complete ✅)    │  (Complete ✅)   │  (Complete ✅)      │
-├─────────────────────────────────────────────────────────────┤
-│  gogpu/gg          │  gogpu/gogpu    │  coregx/signals      │
-│  2D Graphics ✅    │  Windowing      │  State Management    │
-└─────────────────────────────────────────────────────────────┘
-```
+### Phase 0: Foundation ✅
 
----
+Core packages: geometry, event, widget, internal/render, internal/layout.
 
-## Phases
+### Phase 1: MVP (v0.1.0) ✅
 
-### Phase 0: Foundation ✅ COMPLETE
+Signals integration, basic primitives (Box, Text, Image), public layout API, theme system, window integration.
 
-**Goal:** Core packages for building widgets
+### Phase 1.5: Extensibility ✅
+
+Widget registry, public layout API, theme system + extensions, plugin system with dependency resolution.
+
+### Phase 2: Beta ✅
+
+Interactive widgets (button, checkbox, radio, textfield, dropdown), overlay infrastructure, focus management, Material Design 3 (HCT color science, 21 painters), CDK Content[C] pattern, ThemeScope.
+
+### Phase 2.5: Signals Integration ✅
+
+Push-based reactive state for all widgets. 4-level priority (ReadonlySignal > Signal > Fn > Static). Two-way bindings for stateful widgets.
+
+### Phase 3: Release Candidate ✅
+
+Slider, Dialog, Animation engine (Tween, Spring, M3 motion), ScrollView, TabView, ListView (virtualized), GridView, LineChart, ProgressBar, Collapsible, SplitView, Popover/Tooltip, Transitions, Dirty region tracking.
+
+### Phase 4: Production Features — In Progress (~90%)
 
 **Completed:**
-- geometry — Point, Size, Rect, Constraints, Insets
-- event — MouseEvent, KeyEvent, WheelEvent, FocusEvent, Modifiers
-- widget — Widget interface, WidgetBase, Context, Canvas, Color
-- internal/render — Canvas implementation using gogpu/gg
-- internal/layout — Engine, FlexContainer, VStack, HStack, ZStack, Grid
+
+| Feature | Description |
+|---------|-------------|
+| Circular progress | Determinate arc + indeterminate spinner |
+| TreeView | Hierarchical, expand/collapse, virtualized |
+| DataTable | Sortable columns, fixed header, virtualized rows |
+| Toolbar | Icon buttons, separators, spacers |
+| Menu | MenuBar + ContextMenu, submenus, shortcuts |
+| Docking | IDE-style panels, border layout, tabbed groups |
+| Drag & Drop | DragSource, DropTarget, Manager |
+| DevTools theme | JetBrains Int UI — 22 painters, dark/light |
+| Fluent theme | Microsoft Fluent Design — 9 painters |
+| Cupertino theme | Apple HIG — 9 painters |
+| Font registry | CSS weight matching (W3C spec) |
+| Icon system | SVG icons, 2-level cache, DPI-aware |
+| i18n | Locale, CLDR plural rules, RTL, bundles |
+| Offscreen renderer | Headless widget → *image.RGBA |
+| Layer Tree compositor | Flutter pipeline (ADR-007) |
+| Per-boundary GPU textures | MSAA offscreen, DrawChild skip |
+| Persistent Layer Tree | 97.9% fewer allocs |
+| O(1) frame skip | Flat dirty set, 0% GPU idle |
+| Multi-rect damage | Per-draw scissor, LoadOpLoad |
+| Overlay boundary pipeline | Dropdown/dialog via Layer Tree |
+| Custom font pipeline | FontRegistry, StyledTextDrawer |
+| PointerCapturer | ADR-031, widget-level mouse capture |
+| 34 integration tests | Multi-frame lifecycle, visibility matrix |
+
+**Remaining Phase 4:**
+
+| Task | Priority | Status |
+|------|----------|--------|
+| GPU spinner <3% | P0 | scheduler.SetOnDirty lifecycle |
+| ListView hover rebuild | P1 | Painter pattern: hover = repaint only |
+| Texture GC | P1 | Prune orphaned boundaryTextures |
+| API review + freeze | P0 | Pre-1.0 audit |
 
 ---
 
-### Phase 1: MVP (v0.1.0) ✅ COMPLETE
+## Future Roadmap
 
-**Goal:** Working foundation with basic widgets
+### Phase 5: New Widgets (v0.5.x — Q3 2026)
 
-**Delivered:**
-- Signals integration (coregx/signals)
-- Basic primitives (Box, Text, Image)
-- Public layout API
-- Theme system foundation
-- Window integration (app package via gpucontext interfaces)
+Essential widgets for production applications.
 
----
+| Widget | Description | Complexity | Use Case |
+|--------|-------------|------------|----------|
+| **RichText** | Styled text with bold/italic/links, inline formatting | Medium | Content display, help text |
+| **NumberField** | Numeric input: spinner buttons, range, step | Low | Forms, settings |
+| **ToggleSwitch** | iOS/Material on/off switch with animation | Low | Settings, preferences |
+| **Badge** | Notification badge (dot or count) on any widget | Low | Navigation, status |
+| **Chip** | Filter/action chips (M3 spec) | Low | Tags, filters |
+| **SegmentedControl** | Toggle button group (iOS/Fluent style) | Medium | View switching |
+| **SearchField** | Text input with search icon, clear, suggestions | Medium | Data filtering |
 
-### Phase 1.5: Extensibility Foundation (v0.1.x) ✅ COMPLETE
+### Phase 6: Advanced Widgets (v0.6.x — Q4 2026)
 
-**Goal:** Enable community to create custom widgets, themes, and layouts
+Complex widgets for professional applications.
 
-**Implemented Packages:**
-- `registry/` — Widget factory registration (100% coverage)
-- `layout/` — Public layout API with custom algorithms (89.5% coverage)
-- `theme/` — Theme System + Extensions + Registry (100% coverage)
-- `plugin/` — Plugin bundling with dependency resolution (99.4% coverage)
+| Widget | Description | Complexity | Use Case |
+|--------|-------------|------------|----------|
+| **DatePicker** | Calendar popup, date ranges, locale-aware | High | Forms, scheduling |
+| **TimePicker** | Hour/minute selection, AM/PM, 24h | Medium | Scheduling |
+| **ColorPicker** | Color wheel/palette, HSL/RGB, opacity | High | Design tools |
+| **Accordion** | Mutually exclusive collapsible sections | Low | Settings, FAQ |
+| **Breadcrumb** | Navigation trail with separators | Low | File browser, navigation |
+| **Stepper** | Multi-step wizard with progress | Medium | Onboarding, forms |
+| **Sheet** | Bottom/side sheet overlay (M3 spec) | Medium | Mobile-style panels |
+| **NavigationRail** | Vertical navigation (M3 spec) | Medium | App navigation |
 
----
+### Phase 7: IDE & Professional Widgets (v0.7.x — Q1 2027)
 
-### Phase 2: Beta (v0.2.0) ✅ COMPLETE
+Widgets that enable building professional tools.
 
-**Goal:** Interactive widget library with Material Design 3
+| Widget | Description | Complexity | Use Case |
+|--------|-------------|------------|----------|
+| **CodeEditor** | Syntax-highlighted editing, PieceTable, GPU text | Very High | IDEs, config editors |
+| **Terminal** | Terminal emulator widget, ANSI codes | Very High | IDE terminal, DevOps |
+| **Canvas** | User-controlled drawing surface, pan/zoom | Medium | Design tools, diagrams |
+| **Carousel** | Horizontal scroll with snap points | Medium | Image galleries |
+| **VirtualTable** | DataTable + million-row virtualization | High | Data analysis, logs |
 
-**Implemented Packages:**
-- `core/button/` — Interactive button, 4 variants, 3 sizes, pluggable Painter
-- `core/checkbox/` — Toggleable checkbox, 3 states
-- `core/radio/` — Radio group, vertical/horizontal, arrow key navigation
-- `core/textfield/` — Text input, cursor, selection, clipboard, validation
-- `core/dropdown/` — Dropdown/select, overlay menu, keyboard nav, scroll
-- `overlay/` — Overlay stack, container, position helper
-- `focus/` — Keyboard focus management with Tab/Shift+Tab
-- `theme/material3/` — M3 theme (HCT color science) + widget painters
-- `cdk/` — Component Development Kit, Content[C] pattern
-- `primitives/themescope.go` — Theme override for widget subtrees
+The Code Editor is being designed as a separate `gogpu/editor` module (ADR-028) with PieceTable, GPU text rendering, and syntax highlighting. Enterprise references: VS Code PieceTree, Monaco MVVM, Scintilla, Xi-editor Rope, Zed GPUI, CodeMirror 6, cosmic-text.
 
----
+### Phase 8: Platform Integration (v0.8.x — Q1-Q2 2027)
 
-### Phase 2.5: Signals Integration (v0.2.x) ✅ COMPLETE
+Platform-specific features for native feel.
 
-**Goal:** Push-based reactive state for all widgets
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| **Accessibility adapters** | Windows UIA, Linux AT-SPI2, macOS NSAccessibility | P1 |
+| **System theme detection** | Auto light/dark switching from OS | P1 |
+| **Native file dialogs** | Open/Save/Folder via system dialogs | P1 |
+| **Clipboard rich content** | HTML/RTF clipboard support | P2 |
+| **IME support** | Input method for CJK languages | P2 |
+| **Touch/gesture input** | Pinch, swipe, long press | P2 |
 
-**Key decisions:**
-- `PropertySignal` naming convention: `TextSignal()`, `CheckedSignal()`, etc.
-- Priority: ReadonlySignal > Signal > Fn > Static
-- Two-way binding for stateful widgets (checkbox, radio, textfield, dropdown)
-- One-way for display widgets (button text, labels, primitives)
-
----
-
-### Phase 3: RC (v0.3.0) ✅ COMPLETE
-
-**Goal:** Enterprise features, rendering optimizations, containers
-
-**Completed:**
+### Phase 9: API Freeze & Stabilization (v0.9.x — Q2-Q3 2027)
 
 | Task | Description |
 |------|-------------|
-| Retained-mode SP1 | Dirty tracking, DrawTree, DrawStats, FrameStats |
-| Retained-mode SP2 | RepaintBoundary: per-widget pixel caching |
-| Retained-mode SP3 | scene.Scene integration (tile-parallel rendering, SceneCanvas) |
-| Slider widget | Continuous/discrete, horizontal/vertical, M3 painter |
-| Dialog widget | Modal/modeless, action buttons, focus trapping, M3 painter |
-| Animation engine | Tween, Spring, CubicBezier, M3 tokens, Sequence/Parallel |
-| ScrollView widget | Vertical/horizontal/both, wheel+keyboard+drag, M3 painter |
-| TabView widget | Tab strip, lazy content, closeable tabs, keyboard nav, M3 painter |
-| ListView widget | Virtualized list with recycling, selection, keyboard nav, M3 painter |
-| GridView widget | Virtualized 2D grid with cell recycling |
-| LineChart widget | Data visualization with series, axes, legends |
-| ProgressBar widget | Determinate/indeterminate, linear progress |
-| Progress widget | Circular/spinner progress indicators |
-| Collapsible widget | Expandable/collapsible section with animation |
-| SplitView widget | Resizable split panes (horizontal/vertical) |
-| Popover/Tooltip | Floating content with anchor positioning |
-| Transitions | Enter/exit transition effects for widget animations |
-| Animation Presets | Pre-built animation orchestrations (M3 Motion) |
-| Dirty Region Tracking | Optimized redraw with region-based invalidation |
-| Performance Benchmarks | Comprehensive benchmark suite |
-| HBox direction | Horizontal layout direction in Box |
-| Task Manager Example | Full-featured demo application |
+| API audit | Review every public type, method, option |
+| Breaking change sweep | Last chance for naming/signature fixes |
+| Migration guide | v0.x → v1.0 upgrade path |
+| Documentation polish | Complete godoc, tutorials, cookbook |
+| Performance profiling | Memory, CPU, GPU benchmarks per widget |
+| Fuzz testing | Edge cases in layout, event dispatch, signals |
 
----
+### v1.0.0 — Production Release (Target: Dec 2026 → Hard Deadline: Nov 2027)
 
-### Phase 4: v1.0 — In Progress
-
-**Goal:** Production-ready enterprise library
-
-**Completed:**
-
-| Task | Description |
-|------|-------------|
-| Fluent Theme | Windows Fluent Design System painters for all widgets |
-| Cupertino Theme | Apple HIG design system painters for all widgets |
-| Typography System | Font registry, weights, styles, families |
-| Icon System | Icon registry, drawing, widget |
-| Internationalization | Locale, direction (LTR/RTL), plural rules, bundles |
-| Drag & Drop | Session management, visual feedback, drop targets |
-| Docking System | DockingHost, Zone, Panel for IDE-style layouts |
-| Testing Utilities | Mock canvas, context, event helpers, assertions |
-| TreeView widget | Hierarchical tree with expand/collapse, node management |
-| DataTable widget | Column-based data display with sorting |
-| Toolbar widget | Action bar with items and overflow |
-| Menu widget | Menu bar, context menu, menu items |
-| Dirty Region Tracking | Region collector, merge algorithm, partial repaints |
-| **Layer Tree Compositor (ADR-007)** | **Flutter pipeline: PaintBoundaryLayers → BuildLayerTree → replayLayerTree** |
-| **Per-boundary GPU textures** | **Each RepaintBoundary → own offscreen GPU texture** |
-| **DrawChild skip (Flutter paintChild)** | **Child boundaries SKIPPED during parent recording** |
-| **Compositor scissor clipping** | **Items clipped by ScrollView viewport** |
-| **0% GPU idle (frame skip)** | **Early return when nothing dirty — 0% GPU on static UI** |
-| **Offscreen boundary culling** | **Spinner offscreen → recording skipped → pumper stops** |
-| **34 integration tests** | **Multi-frame lifecycle, visibility matrix, damage rects** |
-| ListView auto RepaintBoundary | Per-item pixel caching for virtualized lists |
-| DrawStats observability | CachedWidgets, DirtyRegionCount, DrawStatsProvider |
-| Tracker.Intersects() fast path | O(regions) spatial check in RepaintBoundary |
-| Centralized ImageCache | LRU eviction (64MB), thread-safe, per-Window lifecycle |
-| Offscreen Renderer | Headless widget → *image.RGBA without GPU/window |
-| Performance Benchmarks | 36 benchmarks across 5 packages |
-| Task Manager Example | Full-featured demo with charts, tables, animations |
-| Widget Gallery Example | All 22 widgets, 4 design systems, theme switching |
-| Modular Compositor Example | Multi-module offscreen rendering (Magic Mirror pattern) |
-| Hover Tracking | W3C PointerEventSource, HoverTracker, cursor management |
-| ScreenBounds | Screen-space coordinate transform for overlay positioning |
-| Event Coordinate Transform | ScrollView mouse/wheel coordinate transforms |
-| Inter Font Unicode | Full Unicode Inter 4.1 (Cyrillic, Greek, Vietnamese) |
-| **Custom Font Loading Pipeline** | **FontRegistry (global singleton, CSS weight matching), StyledTextDrawer optional interface, Plugin→Registry wiring, TextWidget.FontFamily()** |
-| **Mac Retina Fix** | **gg v0.46.9 MarkDirty() logical→physical pixel fix (gg#308, @sverrehu)** |
-| **CJK IsCJK Propagation** | **gg v0.46.8 ShapedGlyph.IsCJK through scene/shaper paths (gg#304)** |
-
-**Remaining:**
-
-| Task | Description | Priority |
-|------|-------------|----------|
-| **GPU spinner <3%** | **scheduler.SetOnDirty needsRedraw lifecycle optimization** | **P0** |
-| **ListView hover rebuild** | **Painter pattern: hover = repaint, not widget rebuild (~15 LOC)** | **P1** |
-| **Texture GC** | **Prune orphaned boundaryTextures entries (~20 LOC)** | **P1** |
-| Accessibility adapters | Platform-specific AT-SPI / UIA adapters | P1 |
-| RichText widget | Styled text with inline formatting, links | P2 |
-| NumberField widget | Numeric input with increment/decrement, ranges | P2 |
-| DatePicker widget | Calendar popup, date range selection | P2 |
-| TimePicker widget | Time selection with hour/minute/AM-PM | P2 |
-| ColorPicker widget | Color wheel, palette, opacity slider | P2 |
-| Accordion widget | Mutually exclusive collapsible sections | P3 |
-| Breadcrumb widget | Navigation breadcrumb trail | P3 |
-| Stepper widget | Multi-step wizard/form progress | P3 |
-| Documentation polish | Comprehensive API docs and guides | P2 |
-| API review | Pre-release API audit and freeze | P0 |
+**Success criteria:**
+- API stable for 6+ months without breaking changes
+- 30+ widgets with all 4 design system painters
+- WCAG 2.1 AA accessibility compliance
+- 60fps with 10,000 widgets
+- <100ms startup time
+- Complete documentation and migration guides
+- Listed in awesome-go ✅ (already achieved)
 
 ---
 
@@ -313,158 +240,132 @@ v1.0.0  → Production (when ready)
 > **Architecture:** Hybrid CPU+GPU — industry standard (Chrome/Skia, Flutter, GTK4, Qt).
 > CPU text atlas + GPU shapes + GPU compositor. Validated by source-level analysis of 8 engines.
 
-### Current State (Intel Iris Xe, v0.1.19)
+### Current Performance (Intel Iris Xe, v0.1.29)
 
-| Metric | Before (v0.1.14) | After v0.1.19 |
-|--------|-------------------|---------------|
+| Metric | Before (v0.1.14) | Current |
+|--------|-------------------|---------|
 | GPU (static UI, no animations) | 8% | **0%** |
-| GPU (spinner visible, 30fps) | 8% | **8%** |
+| GPU (spinner visible, 30fps) | 8% | **10%** |
 | GPU (spinner offscreen) | 8% | **0%** |
 | GPU readback per frame | 0 | 0 |
 | Render passes (idle) | 1 | **0** (frame skip) |
-| Offscreen boundary cost | Always recorded | **Culled** (CompositorClip) |
+| Layer allocs per frame (200 boundaries) | 613 | **13** (persistent tree) |
 
-### Phase 1: Zero-Readback Compositor ✅ Done
+### Completed Rendering Phases
 
-Single-pass compositor (Flutter OffsetLayer / Chrome cc pattern):
-- `FlushPixmap`: CPU pixmap upload without GPU readback
-- `DrawGPUTextureBase`: pixmap as base layer (drawn first)
-- `FlushGPUWithView`: GPU shapes overlay (same render pass)
+| Phase | What | Status |
+|-------|------|--------|
+| Phase 1 | Zero-readback compositor (FlushPixmap, FlushGPUWithView) | ✅ |
+| Phase 2 | Scene composition (RepaintBoundary, GPU SDF, granular invalidation) | ✅ |
+| Phase 3 | Per-boundary GPU textures (MSAA offscreen, DrawChild skip) | ✅ |
+| Phase 4 | Layer Tree + Damage-aware blit (persistent tree, multi-rect scissor, LoadOpLoad) | ✅ |
 
-### Phase 2: Scene Composition Compositor (ADR-007) ✅ Done
+### Future Rendering
 
-- **Scene composition**: full DrawTree every frame via render.Canvas (gg.Context GPU pipeline).
-  RepaintBoundary cache hit = replay cached scene.Scene; miss = re-record.
-  Single FlushGPUWithView render pass per frame. No retained CPU pixmap.
-- **Granular widget invalidation** (INVAL-001): 11 interactive widgets migrated from
-  `ctx.Invalidate()` to `SetNeedsRedraw + InvalidateRect`. ~50 regression tests.
-- **GPU SDF shapes natively**: no RasterizerAnalytic hack, shadows and rounded corners
-  rendered via GPU accelerator.
-- **Upward dirty propagation**: O(depth) to nearest RepaintBoundary, O(1) guard.
-
-### Phase 3: Per-Boundary GPU Textures (ADR-007 Phase 7) ✅ Done
-
-- **Per-boundary GPU textures**: each RepaintBoundary → own offscreen MSAA texture
-- **DrawChild skip**: child boundaries SKIPPED during parent BoundaryRecording (Flutter paintChild)
-- **Compositor scissor clipping**: items clipped by parent viewport (ScrollView)
-- **Frame skip**: early return in desktop.draw when nothing dirty → 0% GPU idle
-- **Offscreen boundary culling**: isBoundaryVisible checks CompositorClip intersection
-- **Pumper isolation**: ScheduleAnimationFrame only pumper trigger, data tickers don't restart 30fps
-- **34 integration tests**: multi-frame lifecycle, visibility matrix, damage rects, recording order
-
-### Phase 4: Layer Tree + Damage-Aware Compositor (ADR-007 Phase D, ADR-030) ✅ Done
-
-- **Layer Tree compositor in production** — `compositor/` drives render loop (OffsetLayer, PictureLayer, ClipRectLayer, OpacityLayer)
-- **Persistent Layer Tree** — `UpdateLayerTree()` reuses layers (97.9% fewer allocs, 613→13)
-- **O(1) frame skip** — flat dirty boundary set replaces O(n) tree walk (45× faster)
-- **Multi-rect damage** — per-draw dynamic scissor, ring buffer, 16-rect merge threshold
-- **LoadOpLoad** — preserve previous framebuffer, blit only damage rects
-- **Partial present** — `PresentWithDamage` sends dirty rects through full stack
-- **Overlay boundary pipeline** — dropdown/dialog content via same Layer Tree
-- **Remaining:** scheduler.SetOnDirty lifecycle → spinner GPU 10% → <3%
-
-### Phase 5: Vello Compute Integration — Future
-
-Full Vello 9-stage compute pipeline for GPU-accelerated path rendering:
-- `internal/gpu/tilecompute/` already exists (CPU reference)
-- GPU dispatch via wgpu compute shaders
+| Phase | What | Target |
+|-------|------|--------|
+| Phase 5 | Spinner GPU <3% (scheduler.SetOnDirty lifecycle) | v0.4.x |
+| Phase 6 | Vello compute GPU path rendering (9-stage compute pipeline) | v0.7.x |
+| Phase 7 | Partial present (VK_KHR_incremental_present, DX12 partial swap) | v0.8.x |
 
 ### Performance Targets
 
-| Metric | Phase 2 | Phase 3 ✅ | Phase 4 ✅ | Phase 5 |
-|--------|---------|-----------|-----------|---------|
-| GPU % (static UI) | 8% | **0%** | **0%** | 0% |
-| GPU % (spinner) | 8% | 8% | **10%** (48×48 scissor) | <1% |
-| GPU % (spinner offscreen) | 8% | **0%** | **0%** | 0% |
-| GPU readback | 0 | 0 | 0 | 0 |
+| Metric | Current | v1.0 Target |
+|--------|---------|-------------|
+| GPU % (static UI) | **0%** | 0% |
+| GPU % (spinner) | 10% | <3% |
+| GPU % (spinner offscreen) | **0%** | 0% |
+| Startup time | ~200ms | <100ms |
+| Memory per widget | ~2KB | <1KB |
+| 10K widgets @ 60fps | — | Target |
 
 ---
 
-## New Widgets Roadmap
+## Ecosystem Integration Roadmap
 
-### Near-term (v0.4.x)
+gogpu/ui is one part of a larger ecosystem. Future integration points:
 
-| Widget | Description | Complexity |
-|--------|-------------|------------|
-| **RichText** | Styled text with bold/italic/links, inline formatting | Medium |
-| **NumberField** | Numeric input: spinner buttons, range clamping, step | Low |
-| **ToggleSwitch** | iOS/Material on/off switch with animation | Low |
-| **Badge** | Notification badge (dot or count) on any widget | Low |
-| **Chip** | Filter/action chips (M3 spec) | Low |
-| **SegmentedControl** | Toggle button group (iOS/Fluent style) | Medium |
+| Integration | Description | Timeline |
+|-------------|-------------|----------|
+| **gogpu/compute** | GPU compute via ComputeProvider (Born ML pattern) | Q3 2026 |
+| **gogpu/editor** | Native code editor widget (ADR-028) | Q4 2026 |
+| **gogpu/g3d** | 3D viewport widget for CAD/games | 2027 |
+| **Browser/WASM** | Run ui in browser via wgpu Browser backend (ADR-038) | Q4 2026 |
+| **compose** | Multi-process widget composition (Unix socket, hot-plug) | Available now |
+| **Born ML** | ML model inference results in ui widgets | Available now |
 
-### Mid-term (v0.5.x)
+### Cascade Release Order
 
-| Widget | Description | Complexity |
-|--------|-------------|------------|
-| **DatePicker** | Calendar popup, date ranges, locale-aware | High |
-| **TimePicker** | Hour/minute selection, AM/PM, 24h formats | Medium |
-| **ColorPicker** | Color wheel/palette, HSL/RGB, opacity | High |
-| **Accordion** | Mutually exclusive collapsible sections | Low |
-| **Breadcrumb** | Navigation breadcrumb with separators | Low |
-| **Stepper** | Multi-step wizard with progress indicator | Medium |
-| **SearchField** | Text input with search icon, clear, suggestions | Medium |
+```
+naga (shader compiler)
+  → wgpu (WebGPU HAL)
+    → gpucontext (interfaces)
+      → gogpu (windowing) + gg (2D graphics)
+        → ui (GUI toolkit)
+```
 
-### Long-term (v0.6.x+)
-
-| Widget | Description | Complexity |
-|--------|-------------|------------|
-| **RichTextEditor** | Editable rich text (ProseMirror-inspired) | Very High |
-| **Sheet** | Bottom/side sheet overlay (M3 spec) | Medium |
-| **NavigationRail** | Vertical navigation (M3 spec) | Medium |
-| **Carousel** | Horizontal scroll with snap points | Medium |
-| **VirtualTable** | DataTable + virtualized rows (10K+ rows) | High |
-| **CodeEditor** | Syntax-highlighted code editing (IDE widget) | Very High |
-| **Terminal** | Terminal emulator widget | Very High |
-| **Canvas** | User-controlled drawing surface | Medium |
+All releases must follow this cascade. Breaking changes in lower layers require coordinated releases.
 
 ---
 
-## Total Scope
+## Design Philosophy
 
-| Phase | Status |
-|-------|--------|
-| Phase 0 (Foundation) | ✅ Complete |
-| Phase 1 (MVP) | ✅ Complete |
-| Phase 1.5 (Extensibility) | ✅ Complete |
-| Phase 2 (Beta) | ✅ Complete |
-| Phase 2.5 (Signals) | ✅ Complete |
-| Phase 3 (RC) | ✅ Complete |
-| Phase 4 (v1.0) | In Progress (~90%) |
+### What We Build On
+
+| Pattern | Source | Our Implementation |
+|---------|--------|-------------------|
+| Layer Tree compositor | Flutter, Chrome, Qt6, Android | `compositor/` package |
+| Pluggable Painters | All design systems (Swing L&F, Qt styles) | Painter interfaces per widget |
+| Polymorphic Content[C] | taiga-family/polymorpheus | `cdk/` package |
+| Signal-driven reactivity | Angular Signals, SolidJS, Preact | `state/` + coregx/signals |
+| Functional Options | Go community best practice | All widget constructors |
+| RepaintBoundary | Flutter RenderObject.isRepaintBoundary | `widget.WidgetBase` property |
+| Damage-aware blit | Chrome DamageTracker, Wayland damage | `desktop/` + gg + wgpu stack |
+
+### What We Don't Do
+
+- **No webview** — native GPU rendering, not HTML/CSS/JS
+- **No CGO** — pure Go, compiles on any platform Go supports
+- **No runtime code generation** — all types resolved at compile time
+- **No global state** — instance-based (Scheduler, FocusManager, App)
+- **No implicit side effects** — explicit lifecycle (Mount/Unmount)
+- **No backend abstraction in ui** — rendering is always gg → wgpu (ADR-009)
 
 ---
 
 ## Dependencies
 
-| Dependency | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| gogpu/gg | v0.46.11 | 2D rendering + scene.Scene | ✅ Integrated |
-| gogpu/gpucontext | v0.18.0 | Shared interfaces | ✅ Integrated |
-| gogpu/gogpu | v0.35.0 | Windowing, Browser/WASM (examples) | ✅ Integrated |
-| coregx/signals | v0.1.0 | State management | ✅ Integrated |
-| golang.org/x/image | v0.39.0 | Inter font (standard) | ✅ Integrated |
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| gogpu/gg | v0.48.9 | 2D rendering + scene.Scene |
+| gogpu/gogpu | v0.41.14 | Windowing, input (examples) |
+| gogpu/gpucontext | v0.19.0 | Shared interfaces |
+| coregx/signals | v0.1.0 | Reactive state management |
+| golang.org/x/image | v0.41.0 | Inter font (standard) |
 
-**Indirect:** go-text/typesetting v0.3.4, gogpu/gputypes v0.5.0, gogpu/wgpu v0.28.1, gogpu/naga v0.17.14, goffi v0.5.1, golang.org/x/text v0.37.0
+**Indirect:** gogpu/wgpu v0.29.15, gogpu/naga v0.17.15, gogpu/gputypes v0.5.0, go-text/typesetting v0.3.4
 
 ---
 
-## Success Criteria
+## Community & Contributions
 
-### Performance
-- 60fps with 10,000 widgets
-- <100ms startup time
-- <1KB memory per widget
-- 0% GPU on static UI ✅
+### How to Contribute
 
-### Quality
-- 80%+ test coverage (current: 97%+)
-- WCAG 2.1 AA compliance
-- Zero known critical bugs
+- **Test** — run examples on different GPUs and platforms, report issues
+- **API feedback** — suggest improvements to widget APIs
+- **Widgets** — implement new widgets following the Painter pattern
+- **Design systems** — create painters for your design system
+- **Documentation** — improve godoc, write tutorials
+- **Spread the word** — articles, talks, social media
 
-### Ecosystem
-- 20+ example applications
-- Complete API documentation
-- Migration guides from Fyne/Gio
+### Community Projects Using ui
+
+| Project | Author | Description |
+|---------|--------|-------------|
+| KiGo | @AgentNemo00 | Visual programming tool |
+| PupSeek IDE | private | AI-powered IDE |
+| Petri Net IDE | @paulie-g | Process modeling tool |
+| f4 | @unxed | Text editor |
 
 ---
 
@@ -475,9 +376,11 @@ Full Vello 9-stage compute pipeline for GPU-accelerated path rendering:
 | gogpu Organization | https://github.com/gogpu |
 | UI Repository | https://github.com/gogpu/ui |
 | Discussions | https://github.com/orgs/gogpu/discussions/18 |
+| awesome-go listing | https://github.com/avelino/awesome-go |
 | Kanban Tasks | `docs/dev/kanban/` |
 | Research | `docs/dev/research/` |
+| ADRs | `docs/dev/architecture/` |
 
 ---
 
-*This roadmap is updated as the project evolves.*
+*This roadmap evolves with the project. Last updated: June 2026.*

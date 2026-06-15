@@ -1441,13 +1441,13 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.46.11 |
-| `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.18.0 |
-| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.35.0 |
+| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.48.9 |
+| `github.com/gogpu/gpucontext` | Window/Platform provider interfaces | v0.19.0 |
+| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.41.14 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
-| `golang.org/x/image` | Font rendering infrastructure | v0.39.0 |
+| `golang.org/x/image` | Font rendering infrastructure | v0.41.0 |
 
-**Indirect:** gogpu/wgpu v0.28.1, gogpu/naga v0.17.14, gogpu/gputypes v0.5.0, goffi v0.5.1, go-text/typesetting v0.3.4, golang.org/x/text v0.37.0
+**Indirect:** gogpu/wgpu v0.29.15, gogpu/naga v0.17.15, gogpu/gputypes v0.5.0, go-text/typesetting v0.3.4, golang.org/x/text v0.36.0
 
 Go version: **1.25.0**
 
@@ -1525,4 +1525,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of May 13, 2026 (v0.1.23 — custom font loading pipeline, FontRegistry, StyledTextDrawer, Mac Retina fix, CJK IsCJK fix).*
+*This document reflects the actual codebase as of June 15, 2026 (v0.1.29 — PointerCapturer ADR-031, Layer Tree compositor, damage-aware blit, 12 bug fixes, 4 design systems with 61 painters).*
