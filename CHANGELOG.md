@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.31] — 2026-06-15
+
+### Dependencies
+
+- gg v0.48.9 → v0.48.10 (BUG-BACKDROP-001: Vello backdrop prefix sum boundary fix, wgpu opaque handles)
+- gogpu v0.41.14 → v0.42.0 (GPU struct tokens — zero unsafe.Pointer, gpucontext interfaces → opaque structs)
+- gpucontext v0.19.0 → v0.21.0 (Device/Queue/Adapter/Surface/Instance → opaque struct tokens)
+- wgpu v0.29.15 → v0.30.1 (opaque handles, DeviceFromHandle/DeviceToHandle type-safe helpers)
+
 ## [0.1.30] — 2026-06-15
 
 ### Changed

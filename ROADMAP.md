@@ -337,13 +337,13 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| gogpu/gg | v0.48.9 | 2D rendering + scene.Scene |
-| gogpu/gogpu | v0.41.14 | Windowing, input (examples) |
-| gogpu/gpucontext | v0.19.0 | Shared interfaces |
+| gogpu/gg | v0.48.10 | 2D rendering + scene.Scene |
+| gogpu/gogpu | v0.42.0 | Windowing, input (examples) |
+| gogpu/gpucontext | v0.21.0 | Shared interfaces (opaque struct tokens) |
 | coregx/signals | v0.1.0 | Reactive state management |
 | golang.org/x/image | v0.41.0 | Inter font (standard) |
 
-**Indirect:** gogpu/wgpu v0.29.15, gogpu/naga v0.17.15, gogpu/gputypes v0.5.0, go-text/typesetting v0.3.4
+**Indirect:** gogpu/wgpu v0.30.1, gogpu/naga v0.17.15, gogpu/gputypes v0.5.0, go-text/typesetting v0.3.4
 
 ---
 
