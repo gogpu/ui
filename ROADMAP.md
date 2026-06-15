@@ -337,7 +337,7 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| gogpu/gg | v0.48.10 | 2D rendering + scene.Scene |
+| gogpu/gg | v0.48.11 | 2D rendering + scene.Scene |
 | gogpu/gogpu | v0.42.0 | Windowing, input (examples) |
 | gogpu/gpucontext | v0.21.0 | Shared interfaces (opaque struct tokens) |
 | coregx/signals | v0.1.0 | Reactive state management |

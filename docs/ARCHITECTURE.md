@@ -1441,7 +1441,7 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.48.10 |
+| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.48.11 |
 | `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.21.0 |
 | `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.42.0 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
