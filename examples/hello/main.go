@@ -124,7 +124,7 @@ func buildUI(m3 *material3.Theme) *primitives.BoxWidget {
 		primitives.Box(buildListView(m3)).
 			Height(300).
 			Rounded(8).
-			Background(widget.RGBA8(250, 250, 250, 255)).
+			Background(widget.RGBA8(255, 255, 255, 255)).
 			BorderStyle(1, widget.RGBA8(218, 218, 218, 255)),
 	).
 		Padding(32).
