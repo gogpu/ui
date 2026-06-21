@@ -93,14 +93,12 @@ func New(opts ...Option) *Widget {
 		fn := w.cfg.onScroll
 		svOpts = append(svOpts, scrollview.OnScroll(func(_, y float32) {
 			fn(y)
-			// Invalidate cache when scroll position changes.
-			w.cache.invalidate()
+			// cache.update() detects range changes and uses incremental
+			// update (reuse overlapping decorators). No invalidate needed.
 			w.endReachedFired = false
 		}))
 	} else {
-		// Still need to invalidate cache on scroll.
 		svOpts = append(svOpts, scrollview.OnScroll(func(_, _ float32) {
-			w.cache.invalidate()
 			w.endReachedFired = false
 		}))
 	}

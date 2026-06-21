@@ -1224,6 +1224,13 @@ func TestHoverChange_NoInvalidate(t *testing.T) {
 
 	wc.update(0, 5, builder, -1)
 
+	// Clear initial dirty state (simulates first draw).
+	for i := range 5 {
+		if dec, ok := wc.widgetAt(i).(*itemDecorator); ok {
+			dec.ClearRedraw()
+		}
+	}
+
 	lv := &Widget{
 		hoveredIndex: noHoveredIndex,
 	}
@@ -2011,6 +2018,169 @@ func TestItemDecorator_Event(t *testing.T) {
 	dec := newItemDecorator(nil, nil, 0)
 	if dec.Event(nil, &event.MouseEvent{}) {
 		t.Error("decorator.Event should always return false")
+	}
+}
+
+// --- Scroll recycling tests (TDD: define correct behavior, then fix code) ---
+
+// TestScrollSameRange_NoRebuild verifies that scrolling within the same
+// visible range does NOT recreate decorators. Sub-pixel scroll should be a no-op.
+func TestScrollSameRange_NoRebuild(t *testing.T) {
+	wc := newTestCache()
+	callCount := 0
+	builder := cdk.FuncContent[ItemContext]{Fn: func(_ ItemContext) widget.Widget {
+		callCount++
+		w := &mockWidget{}
+		w.SetVisible(true)
+		return w
+	}}
+
+	wc.update(0, 5, builder, -1)
+	first := make([]widget.Widget, 5)
+	for i := range 5 {
+		first[i] = wc.widgetAt(i)
+	}
+	callCount = 0
+
+	// Simulate scroll that doesn't change visible range.
+	// Without cache.invalidate(), update sees same range → no-op.
+	wc.update(0, 5, builder, -1)
+
+	if callCount != 0 {
+		t.Errorf("builder called %d times, want 0 (same range = no rebuild)", callCount)
+	}
+	for i := range 5 {
+		if wc.widgetAt(i) != first[i] {
+			t.Errorf("decorator[%d] changed, want same instance (reuse)", i)
+		}
+	}
+}
+
+// TestScrollShiftRange_ReusesOverlap verifies that when visible range shifts
+// by a few items, overlapping decorators are REUSED (same instance) and only
+// edge decorators are newly created. RecyclerView/Flutter pattern.
+func TestScrollShiftRange_ReusesOverlap(t *testing.T) {
+	wc := newTestCache()
+	callCount := 0
+	builder := cdk.FuncContent[ItemContext]{Fn: func(_ ItemContext) widget.Widget {
+		callCount++
+		w := &mockWidget{}
+		w.SetVisible(true)
+		return w
+	}}
+
+	// Initial range [0, 8).
+	wc.update(0, 8, builder, -1)
+	origDec := make([]widget.Widget, 8)
+	for i := range 8 {
+		origDec[i] = wc.widgetAt(i)
+	}
+	callCount = 0
+
+	// Scroll down by 2 items → new range [2, 10).
+	// Items 2-7 overlap → reuse. Items 8-9 are new.
+	wc.update(2, 10, builder, -1)
+
+	// Only 2 new items should be built (indices 8, 9).
+	if callCount != 2 {
+		t.Errorf("builder called %d times, want 2 (only new edge items)", callCount)
+	}
+
+	// Overlapping items (indices 2-7) should be same decorator instances.
+	for i := 2; i < 8; i++ {
+		newOffset := i - 2
+		if wc.widgetAt(newOffset) != origDec[i] {
+			t.Errorf("decorator for index %d not reused (offset %d)", i, newOffset)
+		}
+	}
+}
+
+// TestScrollShiftRange_NewEdgeDecoratorsAreDirty verifies that newly created
+// edge decorators start dirty (need first draw), while reused ones stay clean.
+func TestScrollShiftRange_NewEdgeDecoratorsAreDirty(t *testing.T) {
+	wc := newTestCache()
+	builder := cdk.FuncContent[ItemContext]{Fn: func(_ ItemContext) widget.Widget {
+		w := &mockWidget{}
+		w.SetVisible(true)
+		return w
+	}}
+
+	wc.update(0, 8, builder, -1)
+
+	// Simulate first draw — clear dirty on all decorators.
+	for i := range 8 {
+		if dec, ok := wc.widgetAt(i).(*itemDecorator); ok {
+			dec.ClearRedraw()
+		}
+	}
+
+	// Scroll down by 2 → range [2, 10).
+	wc.update(2, 10, builder, -1)
+
+	// Reused decorators (offsets 0-5, indices 2-7) should be clean.
+	for i := 0; i < 6; i++ {
+		dec, ok := wc.widgetAt(i).(*itemDecorator)
+		if !ok {
+			t.Fatalf("widgetAt(%d) is not itemDecorator", i)
+		}
+		if dec.NeedsRedraw() {
+			t.Errorf("reused decorator at offset %d (index %d) should be clean", i, i+2)
+		}
+	}
+
+	// New edge decorators (offsets 6-7, indices 8-9) should be dirty.
+	for i := 6; i < 8; i++ {
+		dec, ok := wc.widgetAt(i).(*itemDecorator)
+		if !ok {
+			t.Fatalf("widgetAt(%d) is not itemDecorator", i)
+		}
+		if !dec.NeedsRedraw() {
+			t.Errorf("new edge decorator at offset %d (index %d) should be dirty", i, i+2)
+		}
+	}
+}
+
+// TestScrollNoOverlap_FullRebuild verifies that when visible range changes
+// completely (no overlap), all decorators are freshly built.
+func TestScrollNoOverlap_FullRebuild(t *testing.T) {
+	wc := newTestCache()
+	callCount := 0
+	builder := cdk.FuncContent[ItemContext]{Fn: func(_ ItemContext) widget.Widget {
+		callCount++
+		w := &mockWidget{}
+		w.SetVisible(true)
+		return w
+	}}
+
+	wc.update(0, 5, builder, -1)
+	callCount = 0
+
+	// Jump to completely different range.
+	wc.update(100, 105, builder, -1)
+
+	if callCount != 5 {
+		t.Errorf("builder called %d times, want 5 (no overlap = full rebuild)", callCount)
+	}
+}
+
+// TestScrollInvalidateThenSameRange_Rebuilds verifies that cache.invalidate()
+// followed by update with the same range DOES rebuild (data may have changed).
+func TestScrollInvalidateThenSameRange_Rebuilds(t *testing.T) {
+	wc := newTestCache()
+	callCount := 0
+	builder := cdk.FuncContent[ItemContext]{Fn: func(_ ItemContext) widget.Widget {
+		callCount++
+		return nil
+	}}
+
+	wc.update(0, 5, builder, -1)
+	callCount = 0
+
+	wc.invalidate()
+	wc.update(0, 5, builder, -1)
+
+	if callCount != 5 {
+		t.Errorf("callCount = %d, want 5 (invalidate forces rebuild)", callCount)
 	}
 }
 

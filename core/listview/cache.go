@@ -107,12 +107,58 @@ func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], 
 		return // nothing changed
 	}
 
-	// Full rebuild: range changed or first build.
-	wc.fullRebuild(start, end, count, content, selectedIndex)
+	// Incremental update: reuse decorators for overlapping indices,
+	// create new ones only at viewport edges. RecyclerView/Flutter pattern.
+	if wc.valid && content != nil {
+		wc.incrementalUpdate(start, end, count, content, selectedIndex)
+	} else {
+		wc.fullRebuild(start, end, count, content, selectedIndex)
+	}
 	wc.startIndex = start
 	wc.endIndex = end
 	wc.selectedIndex = selectedIndex
 	wc.valid = true
+}
+
+// incrementalUpdate reuses decorators for indices that remain visible and
+// creates new ones only at the edges. RecyclerView/Flutter pattern: items in
+// the middle of the viewport are never destroyed during scroll.
+func (wc *widgetCache) incrementalUpdate(start, end, count int, content cdk.Content[ItemContext], selectedIndex int) {
+	overlapStart := max(start, wc.startIndex)
+	overlapEnd := min(end, wc.endIndex)
+
+	if overlapStart >= overlapEnd {
+		wc.fullRebuild(start, end, count, content, selectedIndex)
+		return
+	}
+
+	newWidgets := make([]widget.Widget, count)
+
+	for i := overlapStart; i < overlapEnd; i++ {
+		newWidgets[i-start] = wc.widgets[i-wc.startIndex]
+	}
+
+	for i := start; i < overlapStart; i++ {
+		newWidgets[i-start] = wc.buildDecorator(i, content, selectedIndex)
+	}
+
+	for i := overlapEnd; i < end; i++ {
+		newWidgets[i-start] = wc.buildDecorator(i, content, selectedIndex)
+	}
+
+	wc.widgets = newWidgets
+}
+
+func (wc *widgetCache) buildDecorator(index int, content cdk.Content[ItemContext], selectedIndex int) widget.Widget {
+	w := content.Render(ItemContext{
+		Index:    index,
+		Selected: index == selectedIndex,
+		Focused:  index == selectedIndex,
+	})
+	if w == nil {
+		return nil
+	}
+	return newItemDecorator(w, wc.list, index)
 }
 
 // widgetAt returns the cached decorator at the given offset from startIndex.

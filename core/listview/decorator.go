@@ -30,6 +30,7 @@ func newItemDecorator(child widget.Widget, list *Widget, index int) *itemDecorat
 	}
 	d.SetVisible(true)
 	d.SetRepaintBoundary(true)
+	d.SetNeedsRedraw(true)
 	return d
 }
 
