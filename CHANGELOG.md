@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Debug overlay fade** — cyan (GOGPU_DEBUG_DIRTY) and green (GOGPU_DEBUG_DAMAGE) flash-and-fade overlays now auto-fade after 400ms without requiring mouse movement. Frame skip gate was not checking overlay animation state.
 - **ListView root re-record on hover** — removed legacy `invalidateItemRect` which set `window.needsRedraw=true` on every hover change, forcing root boundary re-record and full compositor blit.
 
+### Dependencies
+
+- gg v0.48.11 → v0.48.13
+- gogpu v0.42.0 → v0.42.1
+- wgpu v0.30.1 → v0.30.2
+- golang.org/x/image v0.40.0 → v0.43.0
+- golang.org/x/text v0.37.0 → v0.38.0 (indirect)
+- go-webgpu/goffi v0.5.3 → v0.5.5 (indirect)
+
 ## [0.1.34] — 2026-06-16
 
 ### Fixed
