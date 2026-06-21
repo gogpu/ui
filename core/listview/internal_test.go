@@ -1,10 +1,10 @@
 package listview
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
+	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/cdk"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -481,13 +481,23 @@ func TestNewHeightManager(t *testing.T) {
 
 // --- widgetCache tests ---
 
+// newTestCache creates a widgetCache with a dummy list back-reference.
+func newTestCache() widgetCache {
+	lv := &Widget{
+		hoveredIndex: noHoveredIndex,
+		painter:      DefaultPainter{},
+	}
+	lv.SetVisible(true)
+	return widgetCache{list: lv}
+}
+
 func TestWidgetCache_Update(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		return nil // simple builder for testing
 	}}
 
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 
 	if !wc.valid {
 		t.Error("cache should be valid after update")
@@ -504,36 +514,36 @@ func TestWidgetCache_Update(t *testing.T) {
 }
 
 func TestWidgetCache_Reuse(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	callCount := 0
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		callCount++
 		return nil
 	}}
 
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 	if callCount != 5 {
 		t.Errorf("callCount = %d, want 5", callCount)
 	}
 
 	// Second call with same range should be no-op.
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 	if callCount != 5 {
 		t.Errorf("callCount after reuse = %d, want 5", callCount)
 	}
 }
 
 func TestWidgetCache_InvalidateForces_Rebuild(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	callCount := 0
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		callCount++
 		return nil
 	}}
 
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 	wc.invalidate()
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 
 	if callCount != 10 {
 		t.Errorf("callCount = %d, want 10 (5+5 after invalidate)", callCount)
@@ -541,12 +551,12 @@ func TestWidgetCache_InvalidateForces_Rebuild(t *testing.T) {
 }
 
 func TestWidgetCache_Clear(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		return nil
 	}}
 
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 	wc.clear()
 
 	if wc.valid {
@@ -558,12 +568,12 @@ func TestWidgetCache_Clear(t *testing.T) {
 }
 
 func TestWidgetCache_EmptyRange(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		return nil
 	}}
 
-	wc.update(0, 0, builder, -1, -1)
+	wc.update(0, 0, builder, -1)
 
 	if wc.valid {
 		t.Error("cache should not be valid for empty range")
@@ -571,7 +581,7 @@ func TestWidgetCache_EmptyRange(t *testing.T) {
 }
 
 func TestWidgetCache_WidgetAt(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 
 	// Empty cache.
 	if got := wc.widgetAt(0); got != nil {
@@ -583,8 +593,8 @@ func TestWidgetCache_WidgetAt(t *testing.T) {
 }
 
 func TestWidgetCache_NilBuilder(t *testing.T) {
-	var wc widgetCache
-	wc.update(0, 3, nil, -1, -1)
+	wc := newTestCache()
+	wc.update(0, 3, nil, -1)
 
 	for i := 0; i < 3; i++ {
 		if got := wc.widgetAt(i); got != nil {
@@ -594,30 +604,30 @@ func TestWidgetCache_NilBuilder(t *testing.T) {
 }
 
 func TestWidgetCache_ItemContextPropagation(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	var received []ItemContext
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		received = append(received, ctx)
 		return nil
 	}}
 
-	wc.update(5, 8, builder, 6, 7)
+	wc.update(5, 8, builder, 6)
 
 	if len(received) != 3 {
 		t.Fatalf("received %d contexts, want 3", len(received))
 	}
 
-	// Index 5: not selected, not hovered.
-	if received[0].Index != 5 || received[0].Selected || received[0].Hovered {
-		t.Errorf("ctx[0] = %+v, want Index=5, Selected=false, Hovered=false", received[0])
+	// Index 5: not selected.
+	if received[0].Index != 5 || received[0].Selected {
+		t.Errorf("ctx[0] = %+v, want Index=5, Selected=false", received[0])
 	}
 	// Index 6: selected.
 	if received[1].Index != 6 || !received[1].Selected {
 		t.Errorf("ctx[1] = %+v, want Index=6, Selected=true", received[1])
 	}
-	// Index 7: hovered.
-	if received[2].Index != 7 || !received[2].Hovered {
-		t.Errorf("ctx[2] = %+v, want Index=7, Hovered=true", received[2])
+	// Index 7: not selected (hover is read at Draw time, not baked into context).
+	if received[2].Index != 7 || received[2].Selected {
+		t.Errorf("ctx[2] = %+v, want Index=7, Selected=false", received[2])
 	}
 }
 
@@ -880,17 +890,17 @@ func (m *mockCanvas) ScreenOriginBase() geometry.Point             { return geom
 func (m *mockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
 func (m *mockCanvas) ReplayScene(_ *scene.Scene)                   {}
 
-// --- RepaintBoundary integration tests ---
+// --- Decorator + RepaintBoundary integration tests ---
 
 func TestWidgetCache_BoundariesCreated(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
 		return w
 	}}
 
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 
 	if len(wc.widgets) != 3 {
 		t.Fatalf("len(widgets) = %d, want 3", len(wc.widgets))
@@ -901,31 +911,42 @@ func TestWidgetCache_BoundariesCreated(t *testing.T) {
 			t.Errorf("widget[%d] is nil, want non-nil", i)
 			continue
 		}
-		if !w.(*mockWidget).IsRepaintBoundary() {
-			t.Errorf("widget[%d].IsRepaintBoundary() = false, want true", i)
+		// widgetAt returns the decorator, which IS the boundary.
+		dec, ok := w.(*itemDecorator)
+		if !ok {
+			t.Errorf("widget[%d] should be *itemDecorator, got %T", i, w)
+			continue
+		}
+		if !dec.IsRepaintBoundary() {
+			t.Errorf("decorator[%d].IsRepaintBoundary() = false, want true", i)
 		}
 	}
 }
 
 func TestWidgetCache_WidgetAtWithBoundary(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
 		return w
 	}}
 
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 
-	// Valid offsets — widget should exist and be a repaint boundary.
+	// Valid offsets — widget should exist and be a decorator (RepaintBoundary).
 	for i := 0; i < 3; i++ {
 		w := wc.widgetAt(i)
 		if w == nil {
 			t.Errorf("widgetAt(%d) = nil, want non-nil", i)
 			continue
 		}
-		if !w.(*mockWidget).IsRepaintBoundary() {
-			t.Errorf("widget[%d].IsRepaintBoundary() = false, want true", i)
+		dec, ok := w.(*itemDecorator)
+		if !ok {
+			t.Errorf("widget[%d] should be *itemDecorator, got %T", i, w)
+			continue
+		}
+		if !dec.IsRepaintBoundary() {
+			t.Errorf("decorator[%d].IsRepaintBoundary() = false, want true", i)
 		}
 	}
 
@@ -938,19 +959,19 @@ func TestWidgetCache_WidgetAtWithBoundary(t *testing.T) {
 	}
 
 	// Empty cache.
-	var empty widgetCache
+	empty := newTestCache()
 	if w := empty.widgetAt(0); w != nil {
 		t.Error("widgetAt on empty cache should return nil")
 	}
 }
 
 func TestWidgetCache_BoundaryNilForNilWidget(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		return nil // builder returns nil widget
 	}}
 
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 
 	for i := 0; i < 3; i++ {
 		if w := wc.widgetAt(i); w != nil {
@@ -960,8 +981,8 @@ func TestWidgetCache_BoundaryNilForNilWidget(t *testing.T) {
 }
 
 func TestWidgetCache_BoundaryNilBuilder(t *testing.T) {
-	var wc widgetCache
-	wc.update(0, 3, nil, -1, -1)
+	wc := newTestCache()
+	wc.update(0, 3, nil, -1)
 
 	for i := 0; i < 3; i++ {
 		if w := wc.widgetAt(i); w != nil {
@@ -971,7 +992,7 @@ func TestWidgetCache_BoundaryNilBuilder(t *testing.T) {
 }
 
 func TestWidgetCache_BoundaryWrapsCorrectChild(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	widgets := make([]*mockWidget, 3)
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
@@ -980,43 +1001,51 @@ func TestWidgetCache_BoundaryWrapsCorrectChild(t *testing.T) {
 		return w
 	}}
 
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 
-	// With ADR-024, items are direct widgets with SetRepaintBoundary(true),
-	// not wrapped in a primitives.RepaintBoundary. Verify widgetAt returns
-	// the same widget the builder created and that it is a repaint boundary.
+	// widgetAt returns the decorator. childAt returns the user widget.
+	// Verify childAt returns the same widget the builder created.
 	for i := 0; i < 3; i++ {
-		w := wc.widgetAt(i)
-		if w == nil {
-			t.Fatalf("widget[%d] is nil", i)
+		decorator := wc.widgetAt(i)
+		if decorator == nil {
+			t.Fatalf("decorator[%d] is nil", i)
 		}
-		if w != widgets[i] {
-			t.Errorf("widgetAt(%d) != original widget[%d]", i, i)
+		dec, ok := decorator.(*itemDecorator)
+		if !ok {
+			t.Fatalf("widget[%d] should be *itemDecorator, got %T", i, decorator)
 		}
-		if !w.(*mockWidget).IsRepaintBoundary() {
-			t.Errorf("widget[%d].IsRepaintBoundary() = false, want true", i)
+		if !dec.IsRepaintBoundary() {
+			t.Errorf("decorator[%d].IsRepaintBoundary() = false, want true", i)
+		}
+		child := wc.childAt(i)
+		if child != widgets[i] {
+			t.Errorf("childAt(%d) != original widget[%d]", i, i)
 		}
 	}
 }
 
 func TestWidgetCache_ClearUnmountsBoundaries(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
 		return w
 	}}
 
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 
-	// Verify widgets with boundary property exist before clear.
+	// Verify decorators with boundary property exist before clear.
 	for i := 0; i < 3; i++ {
 		w := wc.widgetAt(i)
 		if w == nil {
 			t.Fatalf("widget[%d] nil before clear", i)
 		}
-		if !w.(*mockWidget).IsRepaintBoundary() {
-			t.Fatalf("widget[%d].IsRepaintBoundary() = false before clear", i)
+		dec, ok := w.(*itemDecorator)
+		if !ok {
+			t.Fatalf("widget[%d] should be *itemDecorator", i)
+		}
+		if !dec.IsRepaintBoundary() {
+			t.Fatalf("decorator[%d].IsRepaintBoundary() = false before clear", i)
 		}
 	}
 
@@ -1028,7 +1057,7 @@ func TestWidgetCache_ClearUnmountsBoundaries(t *testing.T) {
 }
 
 func TestWidgetCache_InvalidateRebuildsBoundaries(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	callCount := 0
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		callCount++
@@ -1037,29 +1066,37 @@ func TestWidgetCache_InvalidateRebuildsBoundaries(t *testing.T) {
 		return w
 	}}
 
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 	w1 := wc.widgetAt(0)
 	if w1 == nil {
 		t.Fatal("widget[0] nil before invalidate")
 	}
-	if !w1.(*mockWidget).IsRepaintBoundary() {
-		t.Fatal("widget[0].IsRepaintBoundary() = false before invalidate")
+	dec1, ok := w1.(*itemDecorator)
+	if !ok {
+		t.Fatal("widget[0] should be *itemDecorator")
+	}
+	if !dec1.IsRepaintBoundary() {
+		t.Fatal("decorator[0].IsRepaintBoundary() = false before invalidate")
 	}
 
 	wc.invalidate()
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 
 	w2 := wc.widgetAt(0)
 	if w2 == nil {
 		t.Fatal("widget[0] nil after rebuild")
 	}
-	if !w2.(*mockWidget).IsRepaintBoundary() {
-		t.Fatal("widget[0].IsRepaintBoundary() = false after rebuild")
+	dec2, ok := w2.(*itemDecorator)
+	if !ok {
+		t.Fatal("widget[0] should be *itemDecorator after rebuild")
+	}
+	if !dec2.IsRepaintBoundary() {
+		t.Fatal("decorator[0].IsRepaintBoundary() = false after rebuild")
 	}
 
-	// After invalidate + rebuild, the widget should be a new instance.
+	// After invalidate + rebuild, the decorator should be a new instance.
 	if w1 == w2 {
-		t.Error("widget should be a new instance after invalidate + rebuild")
+		t.Error("decorator should be a new instance after invalidate + rebuild")
 	}
 
 	if callCount != 6 {
@@ -1068,7 +1105,7 @@ func TestWidgetCache_InvalidateRebuildsBoundaries(t *testing.T) {
 }
 
 func TestWidgetCache_RangeShiftCreatesBoundaries(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
@@ -1076,10 +1113,10 @@ func TestWidgetCache_RangeShiftCreatesBoundaries(t *testing.T) {
 	}}
 
 	// Initial range [0, 3).
-	wc.update(0, 3, builder, -1, -1)
+	wc.update(0, 3, builder, -1)
 
 	// Shift range to [5, 8).
-	wc.update(5, 8, builder, -1, -1)
+	wc.update(5, 8, builder, -1)
 
 	if len(wc.widgets) != 3 {
 		t.Fatalf("len(widgets) = %d, want 3", len(wc.widgets))
@@ -1090,8 +1127,13 @@ func TestWidgetCache_RangeShiftCreatesBoundaries(t *testing.T) {
 			t.Errorf("widget[%d] nil after range shift", i)
 			continue
 		}
-		if !w.(*mockWidget).IsRepaintBoundary() {
-			t.Errorf("widget[%d].IsRepaintBoundary() = false after range shift", i)
+		dec, ok := w.(*itemDecorator)
+		if !ok {
+			t.Errorf("widget[%d] should be *itemDecorator after range shift", i)
+			continue
+		}
+		if !dec.IsRepaintBoundary() {
+			t.Errorf("decorator[%d].IsRepaintBoundary() = false after range shift", i)
 		}
 	}
 }
@@ -1099,7 +1141,7 @@ func TestWidgetCache_RangeShiftCreatesBoundaries(t *testing.T) {
 // --- markItemDirty tests (ADR-007 Task 1f) ---
 
 func TestMarkItemDirty_InRange(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
@@ -1107,7 +1149,7 @@ func TestMarkItemDirty_InRange(t *testing.T) {
 		return w
 	}}
 
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 
 	// Create a ListView with this cache.
 	lv := &Widget{
@@ -1117,42 +1159,46 @@ func TestMarkItemDirty_InRange(t *testing.T) {
 	lv.SetEnabled(true)
 	lv.cache = wc
 
+	// Clear any initial redraw state.
+	lv.ClearRedraw()
+
 	// Mark item 2 dirty.
 	lv.markItemDirty(2)
 
-	// The widget at index 2 should be marked dirty.
-	item := lv.cache.widgetAt(2)
-	if item == nil {
-		t.Fatal("item at index 2 should not be nil")
+	// The decorator at index 2 should be marked dirty.
+	decorator := lv.cache.widgetAt(2)
+	if decorator == nil {
+		t.Fatal("decorator at index 2 should not be nil")
 	}
-	if base, ok := item.(interface{ NeedsRedraw() bool }); ok {
+	if base, ok := decorator.(interface{ NeedsRedraw() bool }); ok {
 		if !base.NeedsRedraw() {
-			t.Error("item at index 2 should need redraw")
+			t.Error("decorator at index 2 should need redraw")
 		}
 	}
 
-	// The WidgetBase boundary at index 2 should have its scene invalidated.
-	if !item.(*mockWidget).IsSceneDirty() {
-		t.Error("item boundary scene should be dirty after markItemDirty")
+	// The decorator IS the boundary — its scene should be dirty.
+	dec := decorator.(*itemDecorator)
+	if !dec.IsSceneDirty() {
+		t.Error("decorator boundary scene should be dirty after markItemDirty")
 	}
 
-	// ListView IS marked dirty because hover/selection backgrounds are
-	// drawn in PaintItemBackground during root boundary recording.
-	// With DrawChild skip, root re-recording is cheap (items skipped).
-	if !lv.NeedsRedraw() {
-		t.Error("ListView should be marked for redraw (hover background drawn in root scene)")
+	// ListView should NOT be marked dirty — hover/selection painting moved
+	// inside the decorator. Only the decorator's boundary is dirty.
+	if lv.NeedsRedraw() {
+		t.Error("ListView should NOT be marked for redraw; " +
+			"hover/selection painting is inside the decorator (per-item boundary)")
 	}
 }
 
 func TestMarkItemDirty_OutOfRange(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
 		return w
 	}}
 
-	wc.update(5, 10, builder, -1, -1)
+	wc.update(5, 10, builder, -1)
 
 	lv := &Widget{
 		hoveredIndex: noHoveredIndex,
@@ -1168,7 +1214,7 @@ func TestMarkItemDirty_OutOfRange(t *testing.T) {
 }
 
 func TestHoverChange_NoInvalidate(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
@@ -1176,7 +1222,7 @@ func TestHoverChange_NoInvalidate(t *testing.T) {
 		return w
 	}}
 
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 
 	lv := &Widget{
 		hoveredIndex: noHoveredIndex,
@@ -1203,7 +1249,7 @@ func TestHoverChange_NoInvalidate(t *testing.T) {
 		t.Error("hover change should NOT invalidate the widget cache")
 	}
 
-	// Only the affected items should be dirty, not all.
+	// Only the affected decorator should be dirty, not all.
 	for i := 0; i < 5; i++ {
 		item := lv.cache.widgetAt(i)
 		if item == nil {
@@ -1215,13 +1261,13 @@ func TestHoverChange_NoInvalidate(t *testing.T) {
 		}
 		if i == 2 {
 			if !base.NeedsRedraw() {
-				t.Errorf("item %d should be dirty (new hovered)", i)
+				t.Errorf("decorator %d should be dirty (new hovered)", i)
 			}
 		} else {
 			// Other items should NOT be dirty (hover didn't touch them).
 			// Note: old hovered was -1, so only new hovered (2) is dirty.
 			if base.NeedsRedraw() {
-				t.Errorf("item %d should NOT be dirty (only hover target changes)", i)
+				t.Errorf("decorator %d should NOT be dirty (only hover target changes)", i)
 			}
 		}
 	}
@@ -1253,7 +1299,7 @@ func TestSelectionMode_String(t *testing.T) {
 // every visible item, causing unnecessary widget allocation and layout.
 // Regression: setSelectedIndex called cache.invalidate() -> ALL items recreated (2026-05-07)
 func TestSelectionChangeDirtiesOnlyTwoItems(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	callCount := 0
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		callCount++
@@ -1263,21 +1309,21 @@ func TestSelectionChangeDirtiesOnlyTwoItems(t *testing.T) {
 	}}
 
 	// Initial build: 10 items, item 3 selected.
-	wc.update(0, 10, builder, 3, -1)
+	wc.update(0, 10, builder, 3)
 	initialCount := callCount
 
 	if initialCount != 10 {
 		t.Fatalf("initial build: callCount = %d, want 10", initialCount)
 	}
 
-	// Save references to all widgets.
+	// Save references to all widgets (decorators).
 	originalWidgets := make([]widget.Widget, 10)
 	for i := 0; i < 10; i++ {
 		originalWidgets[i] = wc.widgetAt(i)
 	}
 
 	// Change selection from 3 to 5 — should only rebuild items 3 and 5.
-	wc.rebuildAffected(0, builder, 5, -1)
+	wc.rebuildAffected(0, builder, 5)
 
 	rebuiltCount := callCount - initialCount
 	if rebuiltCount != 2 {
@@ -1285,7 +1331,7 @@ func TestSelectionChangeDirtiesOnlyTwoItems(t *testing.T) {
 			"rebuildAffected should not recreate all items", rebuiltCount)
 	}
 
-	// Verify only items 3 and 5 were replaced.
+	// Verify only items 3 and 5 were replaced (new decorators).
 	for i := 0; i < 10; i++ {
 		current := wc.widgetAt(i)
 		if i == 3 || i == 5 {
@@ -1300,12 +1346,12 @@ func TestSelectionChangeDirtiesOnlyTwoItems(t *testing.T) {
 	}
 }
 
-// TestListViewNotDirtyOnItemClick verifies that markItemDirty marks the
-// ListView itself as needing redraw. This is required because hover/selection
-// backgrounds are drawn by PaintItemBackground during root boundary recording.
-// With DrawChild skip pattern, root re-recording is cheap (items are skipped).
+// TestListViewNotDirtyOnItemClick verifies that markItemDirty does NOT mark
+// the ListView itself as needing redraw. With the decorator pattern, hover and
+// selection backgrounds are painted inside the decorator (per-item boundary),
+// so only the decorator is dirty, not the parent ListView.
 func TestListViewNotDirtyOnItemClick(t *testing.T) {
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
@@ -1313,7 +1359,7 @@ func TestListViewNotDirtyOnItemClick(t *testing.T) {
 		return w
 	}}
 
-	wc.update(0, 10, builder, -1, -1)
+	wc.update(0, 10, builder, -1)
 
 	lv := &Widget{
 		hoveredIndex: noHoveredIndex,
@@ -1328,29 +1374,28 @@ func TestListViewNotDirtyOnItemClick(t *testing.T) {
 	// Mark a single item dirty (simulates click/hover on item 3).
 	lv.markItemDirty(3)
 
-	// The ListView itself SHOULD be marked dirty — hover/selection backgrounds
-	// are painted by PaintItemBackground during root boundary recording.
-	if !lv.NeedsRedraw() {
-		t.Error("markItemDirty should mark the ListView for redraw; " +
-			"PaintItemBackground runs during root re-recording")
+	// The ListView itself should NOT be marked dirty — the decorator
+	// owns the boundary, hover/selection painting is per-item.
+	if lv.NeedsRedraw() {
+		t.Error("markItemDirty should NOT mark the ListView for redraw; " +
+			"hover/selection painting is inside the decorator boundary")
 	}
 
-	// But the item at index 3 should be marked.
-	item := lv.cache.widgetAt(3)
-	if item == nil {
-		t.Fatal("item at index 3 should not be nil")
+	// But the decorator at index 3 should be marked.
+	decorator := lv.cache.widgetAt(3)
+	if decorator == nil {
+		t.Fatal("decorator at index 3 should not be nil")
 	}
-	if base, ok := item.(interface{ NeedsRedraw() bool }); ok {
+	if base, ok := decorator.(interface{ NeedsRedraw() bool }); ok {
 		if !base.NeedsRedraw() {
-			t.Error("item at index 3 should need redraw")
+			t.Error("decorator at index 3 should need redraw")
 		}
 	}
 }
 
 // TestVirtualContentExposesChildrenForDirtyCollector verifies that
-// virtualContent.Children() returns the cached RepaintBoundary wrappers.
-// Before the fix, Children() returned nil, so the dirty.Collector could
-// not see individual items and could not report per-item dirty regions.
+// virtualContent.Children() returns the cached decorators.
+// dirty.Collector needs children to collect per-item dirty regions.
 // Regression: virtualContent.Children() returned nil -> Collector missed individual items (2026-05-07)
 func TestVirtualContentExposesChildrenForDirtyCollector(t *testing.T) {
 	lv := New(
@@ -1358,13 +1403,13 @@ func TestVirtualContentExposesChildrenForDirtyCollector(t *testing.T) {
 		FixedItemHeight(48),
 	)
 
-	var wc widgetCache
+	wc := newTestCache()
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
 		w.SetVisible(true)
 		return w
 	}}
-	wc.update(0, 5, builder, -1, -1)
+	wc.update(0, 5, builder, -1)
 	lv.cache = wc
 
 	vc := &virtualContent{list: lv}
@@ -1382,11 +1427,11 @@ func TestVirtualContentExposesChildrenForDirtyCollector(t *testing.T) {
 
 // --- ADR-024 ListView + RepaintBoundary Regression Tests ---
 //
-// These verify that ListView items wrapped in RepaintBoundary correctly
+// These verify that ListView items wrapped in decorator correctly
 // propagate dirty state and interact with parent boundary/ScrollView clip.
 
-// TestListView_ItemBoundaryDirtyPropagation verifies that invalidating an item's
-// scene only affects that item, not the whole ListView.
+// TestListView_ItemBoundaryDirtyPropagation verifies that invalidating a
+// decorator's scene only affects that item, not the whole ListView.
 func TestListView_ItemBoundaryDirtyPropagation(t *testing.T) {
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
@@ -1394,28 +1439,28 @@ func TestListView_ItemBoundaryDirtyPropagation(t *testing.T) {
 		return w
 	}}
 
-	var wc widgetCache
-	wc.update(0, 5, builder, -1, -1)
+	wc := newTestCache()
+	wc.update(0, 5, builder, -1)
 
 	for i := 0; i < 5; i++ {
 		w := wc.widgetAt(i)
 		if w == nil {
 			t.Fatalf("widget[%d] is nil", i)
 		}
-		w.(*mockWidget).ClearSceneDirty()
+		w.(*itemDecorator).ClearSceneDirty()
 	}
 
-	wc.widgetAt(2).(*mockWidget).InvalidateScene()
+	wc.widgetAt(2).(*itemDecorator).InvalidateScene()
 
 	for i := 0; i < 5; i++ {
-		w := wc.widgetAt(i).(*mockWidget)
+		dec := wc.widgetAt(i).(*itemDecorator)
 		if i == 2 {
-			if !w.IsSceneDirty() {
-				t.Errorf("widget[%d] scene should be dirty (was explicitly invalidated)", i)
+			if !dec.IsSceneDirty() {
+				t.Errorf("decorator[%d] scene should be dirty (was explicitly invalidated)", i)
 			}
 		} else {
-			if w.IsSceneDirty() {
-				t.Errorf("widget[%d] scene should be clean (only item 2 was invalidated)", i)
+			if dec.IsSceneDirty() {
+				t.Errorf("decorator[%d] scene should be clean (only item 2 was invalidated)", i)
 			}
 		}
 	}
@@ -1448,12 +1493,10 @@ func TestListView_ScrollChangesVisibleRange(t *testing.T) {
 	}
 }
 
-// TestListView_MarkItemDirtyPropagatesUpward verifies that markItemDirty
-// uses SetNeedsRedraw (not MarkRedrawLocal) on the item widget
-// so dirty state propagates to the root WidgetBase boundary.
-// Items are boundaries (ADR-024). SetNeedsRedraw on a boundary widget
-// invalidates its OWN scene and does NOT propagate to parent.
-// This is the Flutter markNeedsPaint pattern: dirty stops at nearest boundary.
+// TestListView_MarkItemDirtyStopsAtItemBoundary verifies that markItemDirty
+// uses SetNeedsRedraw on the decorator (which IS the boundary).
+// SetNeedsRedraw on a boundary widget invalidates its OWN scene and does
+// NOT propagate to parent. This is the Flutter markNeedsPaint pattern.
 func TestListView_MarkItemDirtyStopsAtItemBoundary(t *testing.T) {
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
@@ -1464,21 +1507,22 @@ func TestListView_MarkItemDirtyStopsAtItemBoundary(t *testing.T) {
 	lv := &Widget{}
 	lv.SetVisible(true)
 	lv.SetEnabled(true)
-	lv.cache.update(0, 5, builder, -1, -1)
+	lv.cache.list = lv
+	lv.cache.update(0, 5, builder, -1)
 
-	// Create a parent boundary to verify propagation STOPS at item.
+	// Create a parent boundary to verify propagation STOPS at decorator.
 	parent := &boundaryTracker{}
 	parent.SetVisible(true)
 	parent.SetRepaintBoundary(true)
 
-	// Wire parent chain on each item widget (ADR-024 WidgetBase boundary).
+	// Wire parent chain on each decorator.
 	for i := 0; i < 5; i++ {
 		w := lv.cache.widgetAt(i)
 		if w == nil {
 			t.Fatalf("widget[%d] nil", i)
 		}
-		w.(*mockWidget).SetParent(parent)
-		w.(*mockWidget).ClearRedraw()
+		w.(*itemDecorator).SetParent(parent)
+		w.(*itemDecorator).ClearRedraw()
 	}
 	parent.ClearSceneDirty()
 	parent.sceneDirtied = false
@@ -1486,21 +1530,20 @@ func TestListView_MarkItemDirtyStopsAtItemBoundary(t *testing.T) {
 	// markItemDirty on item 2.
 	lv.markItemDirty(2)
 
-	// The item widget should be marked as needing redraw.
-	w2 := lv.cache.widgetAt(2).(*mockWidget)
-	if !w2.NeedsRedraw() {
-		t.Error("widget[2].NeedsRedraw() = false after markItemDirty")
+	// The decorator should be marked as needing redraw.
+	dec := lv.cache.widgetAt(2).(*itemDecorator)
+	if !dec.NeedsRedraw() {
+		t.Error("decorator[2].NeedsRedraw() = false after markItemDirty")
 	}
 
-	// Item IS a boundary → SetNeedsRedraw calls InvalidateScene on SELF,
+	// Decorator IS a boundary -> SetNeedsRedraw calls InvalidateScene on SELF,
 	// does NOT propagate to parent. Parent boundary stays clean.
-	// This is critical: only the 48px item re-records, not the entire tree.
-	if !w2.IsSceneDirty() {
-		t.Error("item boundary should be scene-dirty (self-invalidated)")
+	if !dec.IsSceneDirty() {
+		t.Error("decorator boundary should be scene-dirty (self-invalidated)")
 	}
 	if parent.sceneDirtied {
 		t.Error("parent boundary should NOT be dirty; " +
-			"item IS a boundary, propagation must stop at item level " +
+			"decorator IS a boundary, propagation must stop at decorator level " +
 			"(Flutter markNeedsPaint pattern)")
 	}
 }
@@ -1523,9 +1566,9 @@ func (w *boundaryTracker) Event(_ widget.Context, _ event.Event) bool { return f
 func (w *boundaryTracker) Children() []widget.Widget                  { return nil }
 
 // TestListView_MarkItemDirtyIsolatedFromRoot verifies the 3-level chain:
-// root(boundary) → lv → item(boundary). markItemDirty dirties BOTH the item
-// AND the ListView (which propagates to root). Root re-recording is cheap
-// because items are skipped via DrawChild boundary check (Flutter paintChild).
+// root(boundary) -> lv -> decorator(boundary). markItemDirty dirties ONLY
+// the decorator. The ListView and root stay clean. This is the critical
+// improvement: hover no longer dirties the entire tree.
 func TestListView_MarkItemDirtyIsolatedFromRoot(t *testing.T) {
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
@@ -1536,22 +1579,23 @@ func TestListView_MarkItemDirtyIsolatedFromRoot(t *testing.T) {
 	lv := &Widget{}
 	lv.SetVisible(true)
 	lv.SetEnabled(true)
-	lv.cache.update(0, 5, builder, -1, -1)
+	lv.cache.list = lv
+	lv.cache.update(0, 5, builder, -1)
 
-	// Build 3-level chain: root(boundary) → lv → item(boundary)
+	// Build 3-level chain: root(boundary) -> lv -> decorator(boundary)
 	root := &boundaryTracker{}
 	root.SetVisible(true)
 	root.SetRepaintBoundary(true)
 
-	// Wire parent chain: item → lv → root
+	// Wire parent chain: decorator -> lv -> root
 	lv.SetParent(root)
 	for i := 0; i < 5; i++ {
 		w := lv.cache.widgetAt(i)
 		if w == nil {
 			t.Fatalf("widget[%d] nil", i)
 		}
-		w.(*mockWidget).SetParent(lv)
-		w.(*mockWidget).ClearRedraw()
+		w.(*itemDecorator).SetParent(lv)
+		w.(*itemDecorator).ClearRedraw()
 	}
 	root.ClearSceneDirty()
 	root.sceneDirtied = false
@@ -1560,28 +1604,33 @@ func TestListView_MarkItemDirtyIsolatedFromRoot(t *testing.T) {
 	// markItemDirty on item 2.
 	lv.markItemDirty(2)
 
-	// Item should be dirty.
-	w2 := lv.cache.widgetAt(2).(*mockWidget)
-	if !w2.NeedsRedraw() {
-		t.Error("widget[2] should need redraw after markItemDirty")
+	// Decorator should be dirty.
+	dec := lv.cache.widgetAt(2).(*itemDecorator)
+	if !dec.NeedsRedraw() {
+		t.Error("decorator[2] should need redraw after markItemDirty")
 	}
 
-	// Item IS boundary → item scene is dirty.
-	if !w2.IsSceneDirty() {
-		t.Error("item boundary should be scene-dirty (self-invalidated)")
+	// Decorator IS boundary -> decorator scene is dirty.
+	if !dec.IsSceneDirty() {
+		t.Error("decorator boundary should be scene-dirty (self-invalidated)")
 	}
-	// Root SHOULD also be dirty — markItemDirty calls SetNeedsRedraw on
-	// the ListView, which propagates to root. Root re-recording is cheap
-	// because DrawChild skips item boundaries (Flutter paintChild pattern).
-	if !root.sceneDirtied {
-		t.Error("root boundary should be dirty; " +
-			"markItemDirty sets SetNeedsRedraw on ListView for PaintItemBackground")
+
+	// Root should NOT be dirty — decorator is a boundary, propagation stops there.
+	if root.sceneDirtied {
+		t.Error("root boundary should NOT be dirty; " +
+			"decorator IS a boundary, markItemDirty does not propagate to ListView or root")
+	}
+
+	// ListView itself should NOT be dirty.
+	if lv.NeedsRedraw() {
+		t.Error("ListView should NOT need redraw; " +
+			"hover/selection painting is inside the decorator boundary")
 	}
 }
 
 // TestListView_HoverChangesVisibleOnRedraw verifies the full hover cycle:
-// mouse move → hoveredIndex changes → markItemDirty → dirty propagates to root
-// boundary → scene re-recorded → new hover background visible.
+// mouse move -> hoveredIndex changes -> markItemDirty -> decorator dirty
+// -> decorator scene re-recorded -> new hover background visible.
 func TestListView_HoverChangesVisibleOnRedraw(t *testing.T) {
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
@@ -1600,6 +1649,7 @@ func TestListView_HoverChangesVisibleOnRedraw(t *testing.T) {
 	}
 	lv.painter = DefaultPainter{}
 	lv.heights = newHeightManager(&lv.cfg)
+	lv.cache.list = lv
 
 	ctx := widget.NewContext()
 	invalidateRectCalled := false
@@ -1610,7 +1660,7 @@ func TestListView_HoverChangesVisibleOnRedraw(t *testing.T) {
 	// Set initial state: no hover.
 	lv.hoveredIndex = noHoveredIndex
 
-	// Simulate mouse move at Y=100 → should hit item 2 (48px each, item2 = 96-144).
+	// Simulate mouse move at Y=100 -> should hit item 2 (48px each, item2 = 96-144).
 	me := &event.MouseEvent{
 		MouseType: event.MouseMove,
 		Position:  geometry.Pt(200, 100),
@@ -1711,7 +1761,7 @@ func TestListView_MouseMoveDispatchToContent(t *testing.T) {
 	canvas := &mockCanvas{}
 	lv.Draw(ctx, canvas)
 
-	// Mouse move at Y=100 → should hover item 2 (48px items).
+	// Mouse move at Y=100 -> should hover item 2 (48px items).
 	me := &event.MouseEvent{
 		MouseType: event.MouseMove,
 		Position:  geometry.Pt(200, 100),
@@ -1725,7 +1775,7 @@ func TestListView_MouseMoveDispatchToContent(t *testing.T) {
 
 // TestListView_HoverPaintCalledOnDraw verifies that after hover changes,
 // a subsequent Draw() calls PaintItemBackground with Hovered=true for the
-// hovered item. This ensures the painter receives the correct hover state.
+// hovered item. This ensures the decorator's painter receives correct hover state.
 func TestListView_HoverPaintCalledOnDraw(t *testing.T) {
 	lv := New(
 		ItemCount(10),
@@ -1755,7 +1805,7 @@ func TestListView_HoverPaintCalledOnDraw(t *testing.T) {
 	// Simulate hover on item 2.
 	me := &event.MouseEvent{
 		MouseType: event.MouseMove,
-		Position:  geometry.Pt(200, 100), // Y=100 → item 2 (48px items)
+		Position:  geometry.Pt(200, 100), // Y=100 -> item 2 (48px items)
 	}
 	lv.Event(ctx, me)
 
@@ -1763,11 +1813,11 @@ func TestListView_HoverPaintCalledOnDraw(t *testing.T) {
 		t.Fatalf("hoveredIndex = %d, want 2", lv.hoveredIndex)
 	}
 
-	// Track painter calls.
+	// Track painter calls — the decorator calls the painter internally.
 	tp := &trackingPainter{}
 	lv.painter = tp
 
-	// Draw again — should paint item 2 with Hovered=true.
+	// Draw again — the decorator for item 2 should paint with Hovered=true.
 	lv.Draw(ctx, canvas)
 
 	foundHover := false
@@ -1780,7 +1830,7 @@ func TestListView_HoverPaintCalledOnDraw(t *testing.T) {
 
 	if !foundHover {
 		t.Error("PaintItemBackground not called with Hovered=true for item 2; " +
-			"hover state not reaching painter on redraw")
+			"hover state not reaching decorator painter on redraw")
 	}
 }
 
@@ -1795,7 +1845,8 @@ func (p *trackingPainter) PaintItemBackground(_ widget.Canvas, ps ItemPaintState
 }
 
 // TestListView_RootBoundaryCacheInvalidatedOnHover verifies that hover changes
-// invalidate the root WidgetBase boundary cache, forcing scene re-record.
+// do NOT dirty the root boundary. With the decorator pattern, hover painting
+// is inside the decorator — only the decorator's scene is re-recorded.
 func TestListView_RootBoundaryCacheInvalidatedOnHover(t *testing.T) {
 	lv := New(
 		ItemCount(10),
@@ -1824,7 +1875,7 @@ func TestListView_RootBoundaryCacheInvalidatedOnHover(t *testing.T) {
 	root.SetRepaintBoundary(true)
 	lv.SetParent(root)
 
-	// Wire item widgets to lv as parent.
+	// Wire decorator widgets to lv as parent.
 	for i := 0; i < len(lv.cache.widgets); i++ {
 		if w := lv.cache.widgetAt(i); w != nil {
 			if setter, ok := w.(interface{ SetParent(widget.Widget) }); ok {
@@ -1864,19 +1915,17 @@ func TestListView_RootBoundaryCacheInvalidatedOnHover(t *testing.T) {
 		t.Fatalf("hoveredIndex = %d, want 2", lv.hoveredIndex)
 	}
 
-	// Root SHOULD be dirty — hover triggers markItemDirty which calls
-	// SetNeedsRedraw on the ListView. PaintItemBackground draws hover
-	// backgrounds during root boundary recording. Root re-recording is
-	// cheap because DrawChild skips item boundaries (Flutter paintChild).
-	if !root.sceneDirtied {
-		t.Error("root boundary should be dirty on hover; " +
-			"PaintItemBackground draws hover background during root re-recording")
+	// Root should NOT be dirty — decorator is the boundary, hover painting
+	// is inside the decorator. Only the decorator's scene is re-recorded.
+	if root.sceneDirtied {
+		t.Error("root boundary should NOT be dirty on hover; " +
+			"decorator owns hover painting, root tree stays clean")
 	}
 }
 
-// TestListView_BoundaryItemBoundsInContentSpace verifies that item widgets
-// (with WidgetBase boundary) have bounds set in content space (Y = cumulative
-// item offset from content start), NOT in viewport/screen space.
+// TestListView_BoundaryItemBoundsInContentSpace verifies that decorators
+// have bounds set in content space (Y = cumulative item offset from content
+// start), NOT in viewport/screen space.
 func TestListView_BoundaryItemBoundsInContentSpace(t *testing.T) {
 	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
 		w := &mockWidget{}
@@ -1884,8 +1933,8 @@ func TestListView_BoundaryItemBoundsInContentSpace(t *testing.T) {
 		return w
 	}}
 
-	var wc widgetCache
-	wc.update(0, 5, builder, -1, -1)
+	wc := newTestCache()
+	wc.update(0, 5, builder, -1)
 
 	for i := 0; i < 5; i++ {
 		w := wc.widgetAt(i)
@@ -1893,12 +1942,102 @@ func TestListView_BoundaryItemBoundsInContentSpace(t *testing.T) {
 			t.Fatalf("widget[%d] nil", i)
 		}
 		bounds := geometry.NewRect(0, float32(i*48), 400, 48)
-		w.(*mockWidget).SetBounds(bounds)
+		w.(*itemDecorator).SetBounds(bounds)
 
-		got := w.(*mockWidget).Bounds()
+		got := w.(*itemDecorator).Bounds()
 		if got.Min.Y != float32(i*48) {
 			t.Errorf("widget[%d] bounds.Min.Y = %v, want %v",
 				i, got.Min.Y, float32(i*48))
 		}
+	}
+}
+
+// TestWidgetCache_ChildAt verifies that childAt returns the inner user widget.
+func TestWidgetCache_ChildAt(t *testing.T) {
+	wc := newTestCache()
+	widgets := make([]*mockWidget, 3)
+	builder := cdk.FuncContent[ItemContext]{Fn: func(ctx ItemContext) widget.Widget {
+		w := &mockWidget{}
+		w.SetVisible(true)
+		widgets[ctx.Index] = w
+		return w
+	}}
+
+	wc.update(0, 3, builder, -1)
+
+	for i := 0; i < 3; i++ {
+		child := wc.childAt(i)
+		if child == nil {
+			t.Fatalf("childAt(%d) is nil", i)
+		}
+		if child != widgets[i] {
+			t.Errorf("childAt(%d) != original widget", i)
+		}
+	}
+
+	// Out of range.
+	if child := wc.childAt(-1); child != nil {
+		t.Error("childAt(-1) should return nil")
+	}
+	if child := wc.childAt(3); child != nil {
+		t.Error("childAt(3) should return nil")
+	}
+}
+
+// TestItemDecorator_Children verifies decorator.Children() returns the child.
+func TestItemDecorator_Children(t *testing.T) {
+	child := &mockWidget{}
+	child.SetVisible(true)
+	lv := &Widget{painter: DefaultPainter{}}
+	dec := newItemDecorator(child, lv, 0)
+
+	children := dec.Children()
+	if len(children) != 1 {
+		t.Fatalf("len(Children()) = %d, want 1", len(children))
+	}
+	if children[0] != child {
+		t.Error("Children()[0] should be the child widget")
+	}
+
+	// Nil child.
+	dec2 := newItemDecorator(nil, lv, 0)
+	if got := dec2.Children(); got != nil {
+		t.Errorf("Children() with nil child = %v, want nil", got)
+	}
+}
+
+// TestItemDecorator_Event verifies decorator.Event always returns false.
+func TestItemDecorator_Event(t *testing.T) {
+	dec := newItemDecorator(nil, nil, 0)
+	if dec.Event(nil, &event.MouseEvent{}) {
+		t.Error("decorator.Event should always return false")
+	}
+}
+
+// TestItemDecorator_LayoutDelegatesToChild verifies decorator.Layout
+// delegates to the child widget.
+func TestItemDecorator_LayoutDelegatesToChild(t *testing.T) {
+	child := &mockWidget{}
+	child.SetVisible(true)
+	lv := &Widget{painter: DefaultPainter{}}
+	dec := newItemDecorator(child, lv, 0)
+
+	c := geometry.Constraints{
+		MinWidth: 200, MaxWidth: 200,
+		MinHeight: 0, MaxHeight: geometry.Infinity,
+	}
+	size := dec.Layout(nil, c)
+
+	// mockWidget.Layout returns c.Constrain(Sz(100, 48)).
+	// With MinWidth=MaxWidth=200, width is clamped to 200.
+	if size.Width != 200 || size.Height != 48 {
+		t.Errorf("Layout = %v, want (200, 48)", size)
+	}
+
+	// Nil child.
+	dec2 := newItemDecorator(nil, lv, 0)
+	size2 := dec2.Layout(nil, c)
+	if size2 != (geometry.Size{}) {
+		t.Errorf("Layout with nil child = %v, want zero", size2)
 	}
 }

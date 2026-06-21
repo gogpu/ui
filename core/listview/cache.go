@@ -5,37 +5,34 @@ import (
 	"github.com/gogpu/ui/widget"
 )
 
-// widgetCache caches the currently visible item widgets between frames.
+// widgetCache caches the currently visible item decorators between frames.
 //
 // When the visible range has not changed and data has not been invalidated,
-// the cache returns the same widgets without calling the builder again.
+// the cache returns the same decorators without calling the builder again.
 // This avoids unnecessary allocations during static frames (no scroll).
 //
-// Each item widget is automatically wrapped in a [primitives.RepaintBoundary]
-// to enable per-item pixel caching. When the item subtree is clean (no dirty
-// widgets), the cached pixels are blitted directly instead of re-rendering.
-// Item background, selection, and dividers are painted OUTSIDE the boundary
-// by the painter on the main canvas.
+// Each item widget is wrapped in an [itemDecorator] that IS the RepaintBoundary.
+// The decorator owns hover/selection painting — when hover changes, only the
+// decorator's scene is re-recorded, not the entire ListView.
 type widgetCache struct {
 	startIndex    int
 	endIndex      int
 	selectedIndex int
-	hoveredIndex  int
 	widgets       []widget.Widget
 	valid         bool
+	list          *Widget // back-reference for decorator creation
 }
 
-// rebuildAffected rebuilds only items whose selection or hover state changed.
+// rebuildAffected rebuilds only items whose selection state changed.
 // Android RecyclerView pattern: only affected ViewHolders are rebound.
-func (wc *widgetCache) rebuildAffected(start int, content cdk.Content[ItemContext], selectedIndex, hoveredIndex int) {
+//
+// Hover changes do NOT trigger rebuilds — the decorator reads hover state
+// from list.hoveredIndex at Draw time (visual-only, no content change).
+func (wc *widgetCache) rebuildAffected(start int, content cdk.Content[ItemContext], selectedIndex int) {
 	affectedIndices := make(map[int]bool)
 	if wc.selectedIndex != selectedIndex {
 		affectedIndices[wc.selectedIndex] = true
 		affectedIndices[selectedIndex] = true
-	}
-	if wc.hoveredIndex != hoveredIndex {
-		affectedIndices[wc.hoveredIndex] = true
-		affectedIndices[hoveredIndex] = true
 	}
 
 	for idx := range affectedIndices {
@@ -47,26 +44,24 @@ func (wc *widgetCache) rebuildAffected(start int, content cdk.Content[ItemContex
 			Index:    idx,
 			Selected: idx == selectedIndex,
 			Focused:  idx == selectedIndex,
-			Hovered:  idx == hoveredIndex,
 		})
 		if w != nil {
-			if setter, ok := w.(interface{ SetRepaintBoundary(bool) }); ok {
-				setter.SetRepaintBoundary(true)
-			}
+			wc.widgets[offset] = newItemDecorator(w, wc.list, idx)
+		} else {
+			wc.widgets[offset] = nil
 		}
-		wc.widgets[offset] = w
 	}
 }
 
 // fullRebuild recreates all items in the range (scroll or first build).
-func (wc *widgetCache) fullRebuild(start, _, count int, content cdk.Content[ItemContext], selectedIndex, hoveredIndex int) {
+func (wc *widgetCache) fullRebuild(start, _, count int, content cdk.Content[ItemContext], selectedIndex int) {
 	if cap(wc.widgets) >= count {
 		wc.widgets = wc.widgets[:count]
 	} else {
 		wc.widgets = make([]widget.Widget, count)
 	}
 
-	if content == nil { //nolint:nestif // cache miss path with lazy initialization and RepaintBoundary wrapping
+	if content == nil {
 		for i := range wc.widgets {
 			wc.widgets[i] = nil
 		}
@@ -77,58 +72,68 @@ func (wc *widgetCache) fullRebuild(start, _, count int, content cdk.Content[Item
 				Index:    idx,
 				Selected: idx == selectedIndex,
 				Focused:  idx == selectedIndex,
-				Hovered:  idx == hoveredIndex,
 			})
 			if w != nil {
-				if setter, ok := w.(interface{ SetRepaintBoundary(bool) }); ok {
-					setter.SetRepaintBoundary(true)
-				}
+				wc.widgets[i] = newItemDecorator(w, wc.list, idx)
+			} else {
+				wc.widgets[i] = nil
 			}
-			wc.widgets[i] = w
 		}
 	}
 }
 
-// update ensures the cache contains widgets for the range [start, end).
+// update ensures the cache contains decorators for the range [start, end).
 // If the range matches and the cache is valid, this is a no-op.
 // Otherwise, it calls the content's Render method for each index in the range
-// and wraps each widget in a RepaintBoundary.
-func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], selectedIndex, hoveredIndex int) {
+// and wraps each widget in an itemDecorator (which is the RepaintBoundary).
+//
+// Hover state is NOT tracked here — decorators read it at Draw time from
+// list.hoveredIndex, so hover changes require no cache action.
+func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], selectedIndex int) {
 	count := end - start
 	if count <= 0 {
 		wc.clear()
 		return
 	}
 
-	// Fast path: same range, only selection/hover changed → rebuild only affected items.
+	// Fast path: same range, only selection changed -> rebuild only affected items.
 	// Android RecyclerView pattern: notifyItemChanged(pos) rebinds single ViewHolder.
 	if wc.valid && wc.startIndex == start && wc.endIndex == end && content != nil {
-		if wc.selectedIndex != selectedIndex || wc.hoveredIndex != hoveredIndex {
-			wc.rebuildAffected(start, content, selectedIndex, hoveredIndex)
+		if wc.selectedIndex != selectedIndex {
+			wc.rebuildAffected(start, content, selectedIndex)
 			wc.selectedIndex = selectedIndex
-			wc.hoveredIndex = hoveredIndex
 			return
 		}
 		return // nothing changed
 	}
 
 	// Full rebuild: range changed or first build.
-	wc.fullRebuild(start, end, count, content, selectedIndex, hoveredIndex)
+	wc.fullRebuild(start, end, count, content, selectedIndex)
 	wc.startIndex = start
 	wc.endIndex = end
 	wc.selectedIndex = selectedIndex
-	wc.hoveredIndex = hoveredIndex
 	wc.valid = true
 }
 
-// widgetAt returns the cached widget at the given offset from startIndex.
-// This returns the raw (unwrapped) widget for compatibility with existing code
-// that needs direct widget access (e.g., for Layout and bounds setting).
+// widgetAt returns the cached decorator at the given offset from startIndex.
 func (wc *widgetCache) widgetAt(offset int) widget.Widget {
 	if offset < 0 || offset >= len(wc.widgets) {
 		return nil
 	}
 	return wc.widgets[offset]
+}
+
+// childAt returns the inner user widget (unwrapped from the decorator) at the
+// given offset. Returns nil if the offset is out of range or the widget is nil.
+func (wc *widgetCache) childAt(offset int) widget.Widget {
+	w := wc.widgetAt(offset)
+	if w == nil {
+		return nil
+	}
+	if dec, ok := w.(*itemDecorator); ok {
+		return dec.child
+	}
+	return w
 }
 
 // invalidate marks the cache as needing a rebuild.

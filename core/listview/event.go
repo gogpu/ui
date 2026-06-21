@@ -187,7 +187,7 @@ func (w *Widget) moveSelectionByPage(ctx widget.Context, currentIdx, count, dire
 }
 
 // setSelectedIndex updates the selected index, writing back to signal if bound.
-func (w *Widget) setSelectedIndex(ctx widget.Context, index int) {
+func (w *Widget) setSelectedIndex(_ widget.Context, index int) {
 	current := w.cfg.ResolvedSelectedIndex()
 	if index == current {
 		return
@@ -209,8 +209,6 @@ func (w *Widget) setSelectedIndex(ctx widget.Context, index int) {
 	if w.cfg.onSelectionChange != nil {
 		w.cfg.onSelectionChange(index)
 	}
-
-	ctx.InvalidateRect(w.Bounds())
 }
 
 // noHoveredIndex indicates no item is currently hovered.

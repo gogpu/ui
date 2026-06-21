@@ -75,6 +75,9 @@ func New(opts ...Option) *Widget {
 	// Initialize height manager.
 	w.heights = newHeightManager(&w.cfg)
 
+	// Set cache back-reference for decorator creation.
+	w.cache.list = w
+
 	// Create virtual content widget.
 	w.virtual = &virtualContent{list: w}
 	w.virtual.SetVisible(true)
@@ -361,17 +364,17 @@ func (w *Widget) AccessibilityActions() []a11y.Action {
 
 // --- Internal helpers ---
 
-// markItemDirty marks a specific item's widget as needing redraw without
+// markItemDirty marks a specific item's decorator as needing redraw without
 // invalidating the entire cache or triggering layout. This enables paint-only
 // hover changes: only the affected item(s) are repainted, not all visible
 // items (ADR-007, Task 1f).
 //
-// The hover state is passed to the Painter at paint-time via the
-// virtualContent.Draw method, so the widget tree does NOT need rebuilding.
+// The decorator reads hover/selection state from the list at Draw time,
+// so the widget tree does NOT need rebuilding.
 //
-// The RepaintBoundary wrapper is marked dirty so the dirty.Collector
-// (via collectViewportChildren) reports only the affected items' bounds
-// clipped to the viewport — not the entire ListView area.
+// The decorator IS the RepaintBoundary — SetNeedsRedraw on the decorator
+// calls InvalidateScene on itself and does NOT propagate to the parent.
+// This is the critical fix: the ListView is NOT marked dirty on hover.
 func (w *Widget) markItemDirty(index int) {
 	offset := index - w.cache.startIndex
 	if offset < 0 || offset >= len(w.cache.widgets) {
@@ -383,13 +386,6 @@ func (w *Widget) markItemDirty(index int) {
 			setter.SetNeedsRedraw(true)
 		}
 	}
-
-	// Hover/selection background is drawn by PaintItemBackground in
-	// updateVirtualContent (root boundary recording). Dirty the root
-	// so it re-records with the updated hoveredIndex. With DrawChild
-	// skip, root recording is cheap — items are SKIPPED, only structure
-	// (title, checkboxes, ScrollView frame, hover backgrounds) re-records.
-	w.SetNeedsRedraw(true)
 }
 
 // invalidateItemRect requests redraw for a single item's bounds.

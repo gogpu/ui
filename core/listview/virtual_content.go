@@ -62,10 +62,11 @@ func (vc *virtualContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 	selectedIdx := lv.cfg.ResolvedSelectedIndex()
 
 	// Update the widget cache for the visible range.
-	lv.cache.update(start, end, lv.cfg.itemContent, selectedIdx, lv.hoveredIndex)
+	// Hover is NOT passed — decorators read it at Draw time from lv.hoveredIndex.
+	lv.cache.update(start, end, lv.cfg.itemContent, selectedIdx)
 
-	// Wire parent chain on item widgets so dirty propagation
-	// (SetNeedsRedraw → propagateDirtyUpward) can reach the root WidgetBase
+	// Wire parent chain on decorator widgets so dirty propagation
+	// (SetNeedsRedraw -> propagateDirtyUpward) can reach the root WidgetBase
 	// boundary. Flutter adoptChild pattern.
 	for i := 0; i < end-start; i++ {
 		if w := lv.cache.widgetAt(i); w != nil {
@@ -78,24 +79,24 @@ func (vc *virtualContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 	// Content width excludes scrollbar inset so items don't render under it.
 	contentWidth := lv.viewportWidth - lv.scroll.ScrollbarInset()
 
-	// Layout and draw each visible item.
+	// Layout and draw each visible item via its decorator.
 	for i := start; i < end; i++ {
 		offset := i - start
-		w := lv.cache.widgetAt(offset)
-		if w == nil {
+		decorator := lv.cache.widgetAt(offset)
+		if decorator == nil {
 			continue
 		}
 
 		y := lv.heights.offsetAt(i)
 
-		// Layout the item widget with fixed width, flexible height.
+		// Layout the decorator (which delegates to the child widget).
 		itemConstraints := geometry.Constraints{
 			MinWidth:  contentWidth,
 			MaxWidth:  contentWidth,
 			MinHeight: 0,
 			MaxHeight: geometry.Infinity,
 		}
-		actualSize := w.Layout(ctx, itemConstraints)
+		actualSize := decorator.Layout(ctx, itemConstraints)
 
 		// Update measured height in lazy mode.
 		lv.heights.setMeasured(i, actualSize.Height)
@@ -103,32 +104,19 @@ func (vc *virtualContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 		// Compute item bounds using actual measured height.
 		itemBounds := geometry.NewRect(0, y, contentWidth, actualSize.Height)
 
-		// Set widget bounds.
-		if setter, ok := w.(interface{ SetBounds(geometry.Rect) }); ok {
+		// Set decorator bounds (not the inner child — decorator owns the boundary).
+		if setter, ok := decorator.(interface{ SetBounds(geometry.Rect) }); ok {
 			setter.SetBounds(itemBounds)
 		}
 
-		// Paint item background (hover).
-		ips := ItemPaintState{
-			Bounds:   itemBounds,
-			Index:    i,
-			Selected: i == selectedIdx,
-			Focused:  i == selectedIdx && lv.IsFocused(),
-			Hovered:  i == lv.hoveredIndex,
-			Disabled: lv.cfg.ResolvedDisabled(),
-		}
-
-		lv.painter.PaintItemBackground(canvas, ips)
-
-		// Paint selection highlight.
-		if ips.Selected {
-			lv.painter.PaintSelection(canvas, ips)
-		}
-
-		widget.StampScreenOrigin(w, canvas)
-		widget.DrawChild(w, ctx, canvas)
+		// Stamp screen origin and draw via DrawChild (boundary-aware).
+		// DrawChild skips the decorator during boundary recording because it IS
+		// a boundary — each decorator gets its own scene + GPU texture.
+		widget.StampScreenOrigin(decorator, canvas)
+		widget.DrawChild(decorator, ctx, canvas)
 
 		// Draw divider between items (not after the last visible item).
+		// Dividers are structural, painted by the parent (between items).
 		if lv.cfg.divider && i < end-1 {
 			divY := y + actualSize.Height
 			lv.painter.PaintDivider(canvas, DividerState{
@@ -155,7 +143,7 @@ func (vc *virtualContent) Event(ctx widget.Context, e event.Event) bool {
 	return handleContentEvent(vc.list, ctx, e)
 }
 
-// Children returns the cached item widgets for dirty-region collection.
+// Children returns the cached item decorators for dirty-region collection.
 // Their ScreenBounds (set during the previous Draw) allow the dirty.Collector to
 // report item-level dirty rects clipped to the viewport.
 func (vc *virtualContent) Children() []widget.Widget {
