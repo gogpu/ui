@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Badge widget** ([#138](https://github.com/gogpu/ui/pull/138), @TimLai666) — notification badge displaying a count or status dot. Count mode (pill shape, "99+" overflow), dot mode (minimal indicator). Signal bindings with dedup, pluggable Painter, DefaultPainter (M3 error color). 99.3% coverage.
 - **Chip widget** ([#139](https://github.com/gogpu/ui/pull/139), @TimLai666) — compact action/filter chip (M3 spec). Action mode (click handler), filter mode (toggleable selection with two-way signal write-back). M3 state layers (hover 0.08, press 0.12), keyboard activation (Enter/Space), focus ring. FontSize in PaintState for design system painters. 99.0% coverage.
+- **Badge + Chip design system painters** — all 4 themes: M3 (Error/OnError, Outline/SecondaryContainer), DevTools (Red7/White, BorderStrong/ControlFill), Fluent (Accent/OnAccent, StrokeDefault/AccentLight), Cupertino (SystemRed/White, Separator/Accent). 86 tests.
 
 ### Performance
 

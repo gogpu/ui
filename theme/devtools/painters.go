@@ -13,8 +13,10 @@ package devtools
 //	btn := button.New(button.PainterOpt(p.Button))
 //	cb  := checkbox.New(checkbox.PainterOpt(p.Checkbox))
 type Painters struct {
+	Badge       BadgePainter
 	Button      ButtonPainter
 	Checkbox    CheckboxPainter
+	Chip        ChipPainter
 	Radio       RadioPainter
 	TextField   TextFieldPainter
 	Dropdown    DropdownPainter
@@ -37,15 +39,17 @@ type Painters struct {
 	Stripe      StripePainter
 }
 
-// NewPainters returns all 22 DevTools painters initialized with the given theme.
+// NewPainters returns all 24 DevTools painters initialized with the given theme.
 //
 // This is a convenience function that avoids repetitive Theme field assignment.
 // All painters share the same *Theme pointer, so updating the theme via pointer
 // mutation (e.g. *dt = *devtools.NewDarkTheme()) updates all painters at once.
 func NewPainters(t *Theme) Painters {
 	return Painters{
+		Badge:       BadgePainter{Theme: t},
 		Button:      ButtonPainter{Theme: t},
 		Checkbox:    CheckboxPainter{Theme: t},
+		Chip:        ChipPainter{Theme: t},
 		Radio:       RadioPainter{Theme: t},
 		TextField:   TextFieldPainter{Theme: t},
 		Dropdown:    DropdownPainter{Theme: t},

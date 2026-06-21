@@ -17,10 +17,12 @@
 //
 // # Painters
 //
-// DevTools provides 20 painters covering all interactive and data-display widgets:
+// DevTools provides 24 painters covering all interactive and data-display widgets:
 //
+//   - [BadgePainter] — notification badge (dot or count pill)
 //   - [ButtonPainter] — compact 28px buttons with 4px radius
 //   - [CheckboxPainter] — 16px checkbox with check/dash marks
+//   - [ChipPainter] — filter/action chips
 //   - [RadioPainter] — 16px radio with inner dot
 //   - [TextFieldPainter] — single-line input with cursor, selection, error state
 //   - [DropdownPainter] — trigger + menu with keyboard navigation
@@ -39,8 +41,10 @@
 //   - [PopoverPainter] — popover surface and tooltip
 //   - [LineChartPainter] — real-time line chart with grid
 //   - [ListViewPainter] — list item backgrounds, selection, dividers
+//   - [TitleBarPainter] — window title bar with control buttons
+//   - [StripePainter] — alternating row backgrounds
 //
-// Use [NewPainters] to create all 20 painters at once:
+// Use [NewPainters] to create all 24 painters at once:
 //
 //	dt := devtools.NewDarkTheme()
 //	p := devtools.NewPainters(dt)

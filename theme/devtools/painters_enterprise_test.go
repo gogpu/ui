@@ -1247,6 +1247,9 @@ func TestNewPaintersAllFieldsNonZero(t *testing.T) {
 	p := devtools.NewPainters(dt)
 
 	// Verify every painter has Theme set (non-nil).
+	if p.Badge.Theme != dt {
+		t.Error("Badge.Theme should be set")
+	}
 	if p.Button.Theme != dt {
 		t.Error("Button.Theme should be set")
 	}
