@@ -194,6 +194,8 @@ func main() {
 | `core/toolbar` | Horizontal action bar: icon buttons, separators, spacers, custom widget items | 96%+ |
 | `core/menu` | MenuBar + ContextMenu: submenus, separators, disabled items, shortcut display | 96%+ |
 | `core/docking` | IDE-style dockable panels: border layout, tabbed groups, Dock/Undock API | 95.3% |
+| `core/badge` | Notification badge: count mode (pill, "99+" overflow), dot mode, signal bindings with dedup | 99.3% |
+| `core/chip` | Action/filter chip (M3 spec): toggleable selection, two-way signal write-back, state layers | 99.0% |
 | `theme/material3` | 21 component painters (all widgets covered) | 97%+ |
 | `theme/devtools` | **JetBrains DevTools**: 22 painters, Int UI gray scale, dark/light, IDE-style | 96%+ |
 | `theme/fluent` | Microsoft Fluent Design: 9 painters, accent colors, inner focus ring, light/dark | 96%+ |
@@ -223,7 +225,7 @@ func main() {
 │  theme/cupertino/  │                  │                     │
 │  9 Painters        │                  │                     │
 ├─────────────────────────────────────────────────────────────┤
-│  22 Interactive Widgets (core/)                             │
+│  24 Interactive Widgets (core/)                             │
 │  button, checkbox, radio, textfield, dropdown, slider,      │
 │  dialog, scrollview, tabview, listview, gridview, linechart,│
 │  progressbar, progress, collapsible, popover, splitview,    │
@@ -297,7 +299,7 @@ Software backend e2e tests prove scissor=48x48 at HAL level.
 | [`examples/hello`](examples/hello) | Widget demo: checkbox, radio, ListView (1000 items), M3 theme, event-driven GPU rendering |
 | [`examples/signals`](examples/signals) | Reactive signals: TextSignal, ContentSignal, CheckedSignal, SelectedSignal, DisabledSignal |
 | [`examples/taskmanager`](examples/taskmanager) | Full task manager: charts, tables, animations, real-time data |
-| [`examples/gallery`](examples/gallery) | Widget gallery: all 22 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
+| [`examples/gallery`](examples/gallery) | Widget gallery: all 24 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
 | [`examples/ide`](examples/ide) | GoLand-inspired IDE layout: DevTools theme, toolbar, tree, tabs, terminal, SVG icons |
 | [`examples/modular-compositor`](examples/modular-compositor) | Multi-module offscreen rendering: clock + notification compositor ([#75](https://github.com/gogpu/ui/issues/75)) |
 

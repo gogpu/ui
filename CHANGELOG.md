@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.35] — 2026-06-21
+
+### Added
+
+- **Badge widget** ([#138](https://github.com/gogpu/ui/pull/138), @TimLai666) — notification badge displaying a count or status dot. Count mode (pill shape, "99+" overflow), dot mode (minimal indicator). Signal bindings with dedup, pluggable Painter, DefaultPainter (M3 error color). 99.3% coverage.
+- **Chip widget** ([#139](https://github.com/gogpu/ui/pull/139), @TimLai666) — compact action/filter chip (M3 spec). Action mode (click handler), filter mode (toggleable selection with two-way signal write-back). M3 state layers (hover 0.08, press 0.12), keyboard activation (Enter/Space), focus ring. FontSize in PaintState for design system painters. 99.0% coverage.
+
+### Performance
+
+- **Layout pool** ([#140](https://github.com/gogpu/ui/pull/140), @TimLai666) — `sync.Pool` for per-Compute temporary slices in flex/grid/stack layouts. Flex and stack: 0 allocs/op. Grid: 2 allocs/op (config-aliased slices). ~12% faster layout compute.
+- **ListView per-item decorator** — hover/selection background painted inside per-item boundary (Flutter/Android/Qt pattern). Hover change dirties only the affected item, not the entire ListView. Previously root re-recorded on every hover.
+- **ListView scroll recycling** — incremental cache update reuses decorators for overlapping items during scroll. Only edge items (entering viewport) are created. RecyclerView/Flutter SliverList pattern.
+
+### Fixed
+
+- **Debug overlay fade** — cyan (GOGPU_DEBUG_DIRTY) and green (GOGPU_DEBUG_DAMAGE) flash-and-fade overlays now auto-fade after 400ms without requiring mouse movement. Frame skip gate was not checking overlay animation state.
+- **ListView root re-record on hover** — removed legacy `invalidateItemRect` which set `window.needsRedraw=true` on every hover change, forcing root boundary re-record and full compositor blit.
+
 ## [0.1.34] — 2026-06-16
 
 ### Fixed

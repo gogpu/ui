@@ -972,9 +972,12 @@ Level 2 — Dirty Region Redraw (persistent pixmap):
   Pixmap persists between frames (Qt QBackingStore pattern)
 
 Level 3 — RepaintBoundary Cache (subtree isolation):
-  Container widgets auto-wrap children (ListView items)
-  Cache hit → DrawImage blit (zero re-render)
-  Cache miss → offscreen render → centralized ImageCache (LRU, 64MB)
+  Container widgets wrap children in RepaintBoundary (ListView itemDecorator)
+  Each boundary has its own GPU texture (MSAA offscreen render)
+  Cache hit → DrawGPUTexture blit (zero re-render)
+  Cache miss → offscreen render → per-boundary GPU texture cache
+  ListView: decorator owns hover/selection painting (Flutter/Android/Qt pattern)
+  Scroll: incremental cache update — reuse decorators for overlapping items
 ```
 
 Key components:
