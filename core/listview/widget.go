@@ -386,33 +386,6 @@ func (w *Widget) markItemDirty(index int) {
 	}
 }
 
-// invalidateItemRect requests redraw for a single item's bounds.
-// Uses item screen bounds (clipped to viewport) instead of entire ListView
-// bounds — produces small dirty rects for overlay and damage tracking.
-func (w *Widget) invalidateItemRect(ctx widget.Context, index int) {
-	offset := index - w.cache.startIndex
-	if offset < 0 || offset >= len(w.cache.widgets) {
-		ctx.InvalidateRect(w.Bounds())
-		return
-	}
-	if item := w.cache.widgetAt(offset); item != nil { //nolint:nestif // item recycling with type assertion chain for screen bounds fallback
-		type screenBounder interface{ ScreenBounds() geometry.Rect }
-		if sb, ok := item.(screenBounder); ok {
-			bounds := sb.ScreenBounds()
-			if !bounds.IsEmpty() {
-				ctx.InvalidateRect(bounds)
-				return
-			}
-		}
-		type bounder interface{ Bounds() geometry.Rect }
-		if b, ok := item.(bounder); ok {
-			ctx.InvalidateRect(b.Bounds())
-			return
-		}
-	}
-	ctx.InvalidateRect(w.Bounds())
-}
-
 // currentScrollY returns the current vertical scroll offset.
 func (w *Widget) currentScrollY() float32 {
 	_, y := w.scroll.ScrollOffset()

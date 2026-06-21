@@ -1659,13 +1659,17 @@ func TestListView_HoverChangesVisibleOnRedraw(t *testing.T) {
 	lv.cache.list = lv
 
 	ctx := widget.NewContext()
-	invalidateRectCalled := false
-	ctx.SetOnInvalidateRect(func(_ geometry.Rect) {
-		invalidateRectCalled = true
-	})
 
-	// Set initial state: no hover.
+	// Build cache so decorators exist.
 	lv.hoveredIndex = noHoveredIndex
+	lv.cache.update(0, 10, builder, -1)
+
+	// Clear initial dirty state.
+	for i := range 10 {
+		if dec, ok := lv.cache.widgetAt(i).(*itemDecorator); ok {
+			dec.ClearRedraw()
+		}
+	}
 
 	// Simulate mouse move at Y=100 -> should hit item 2 (48px each, item2 = 96-144).
 	me := &event.MouseEvent{
@@ -1678,12 +1682,14 @@ func TestListView_HoverChangesVisibleOnRedraw(t *testing.T) {
 		t.Errorf("hoveredIndex = %d after mouse at Y=100, want 2", lv.hoveredIndex)
 	}
 
-	if !invalidateRectCalled {
-		t.Error("InvalidateRect not called after hover change")
+	// Decorator for item 2 should be dirty (boundary self-invalidation).
+	if dec, ok := lv.cache.widgetAt(2).(*itemDecorator); ok {
+		if !dec.NeedsRedraw() {
+			t.Error("decorator[2] should be dirty after hover")
+		}
 	}
 
 	// Move to item 4 (Y=200, item4 = 192-240).
-	invalidateRectCalled = false
 	me2 := &event.MouseEvent{
 		MouseType: event.MouseMove,
 		Position:  geometry.Pt(200, 200),
@@ -1694,8 +1700,11 @@ func TestListView_HoverChangesVisibleOnRedraw(t *testing.T) {
 		t.Errorf("hoveredIndex = %d after mouse at Y=200, want 4", lv.hoveredIndex)
 	}
 
-	if !invalidateRectCalled {
-		t.Error("InvalidateRect not called after hover change to item 4")
+	// Decorator for item 4 should be dirty, item 2 should also be dirty (old hover).
+	if dec, ok := lv.cache.widgetAt(4).(*itemDecorator); ok {
+		if !dec.NeedsRedraw() {
+			t.Error("decorator[4] should be dirty after hover change")
+		}
 	}
 }
 

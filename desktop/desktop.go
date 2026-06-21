@@ -190,6 +190,12 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	// Before Phase C: NeedsRedrawInTreeNonBoundary O(n) walked entire tree.
 	// After Phase C: HasDirtyBoundaries O(1) checks map length.
 	needsAnyWork := rl.fullRedrawNeeded || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
+	if isDebugDirtyEnabled() && rl.debugOverlay.needsAnimationFrame() {
+		needsAnyWork = true
+	}
+	if isDebugDamageEnabled() && rl.canvas != nil && rl.canvas.NeedsAnimationFrame() {
+		needsAnyWork = true
+	}
 	if !needsAnyWork {
 		return
 	}
@@ -465,11 +471,12 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 		}
 	}
 
-	// NOTE: gg canvas.NeedsAnimationFrame (debug overlay fade) intentionally
-	// NOT triggering RequestRedraw here. Spinner pumper and data tickers
-	// already provide frames. Extra RequestRedraw from overlay fade creates
-	// 30fps feedback loop via TrackDamageRect → gg flash → NeedsAnimationFrame.
-	// Fade renders in existing frames instead of demanding new ones.
+	// Request frames for gg damage overlay fade animation.
+	// Feedback loop is prevented by SetDamageTracking(false) during overlay
+	// draw (canvas.go) and timestamp dedup in damageOverlayState.update().
+	if isDebugDamageEnabled() && rl.canvas != nil && rl.canvas.NeedsAnimationFrame() {
+		rl.gogpuApp.RequestRedraw()
+	}
 }
 
 // accumulatedDamageRects returns the accumulated damage rects across the
