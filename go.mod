@@ -4,8 +4,8 @@ go 1.25.0
 
 require (
 	github.com/coregx/signals v0.1.0
-	github.com/gogpu/gg v0.48.13
-	github.com/gogpu/gogpu v0.42.1
+	github.com/gogpu/gg v0.48.14
+	github.com/gogpu/gogpu v0.42.5
 	github.com/gogpu/gpucontext v0.21.0
 	github.com/gogpu/gputypes v0.5.0
 	github.com/gogpu/wgpu v0.30.2

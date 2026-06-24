@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Radio group stale selection pixels** ([#145](https://github.com/gogpu/ui/issues/145)) — selecting a new radio button now invalidates both the newly-selected and previously-selected items. Previously only the clicked item was invalidated, causing the old "selected dot" to persist on damage-aware compositors (Wayland, Vulkan `VK_KHR_incremental_present`, DX12 `FLIP_SEQUENTIAL`). Also expanded invalidation rect to cover focus ring area (drawn 2px beyond item bounds).
+- **Inconsistent glyph weights in ListView** ([#148](https://github.com/gogpu/ui/issues/148)) — RepaintBoundary GPU textures were blitted at fractional pixel positions, causing the GPU's bilinear texture sampler to interpolate between texel rows differently per item. Snapped compositor blit coordinates to integer device pixels (Flutter `ComputeIntegralTransCTM` pattern). Also snapped clip rect coordinates for consistency.
+
+### Dependencies
+
+- gg v0.48.13 → v0.48.14
+- gogpu v0.42.1 → v0.42.5
 
 ## [0.1.35] — 2026-06-21
 

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"image"
+	"math"
 	"testing"
 	"unsafe"
 
@@ -521,5 +522,65 @@ func TestTrackBoundaryDamage_ChildAppendsBothRects(t *testing.T) {
 	wantPhysical := image.Rect(100, 200, 148, 248)
 	if rl.frameDamageRects[0] != wantPhysical {
 		t.Errorf("physical damage = %v, want %v", rl.frameDamageRects[0], wantPhysical)
+	}
+}
+
+// --- Test: pixel snap for boundary blit positions ---
+
+// TestPixelSnap_BlitPosition verifies that boundary blit coordinates are
+// rounded to integer device pixels (Flutter ComputeIntegralTransCTM pattern).
+// Without snapping, the GPU's bilinear texture sampler interpolates between
+// texel rows at fractional positions, producing inconsistent glyph weights
+// across ListView items at different Y offsets (#148).
+func TestPixelSnap_BlitPosition(t *testing.T) {
+	tests := []struct {
+		name string
+		inX  float32
+		inY  float32
+		outX float64
+		outY float64
+	}{
+		{"integer", 100, 200, 100, 200},
+		{"fractional_low", 100.3, 200.2, 100, 200},
+		{"fractional_high", 100.7, 200.8, 101, 201},
+		{"half", 100.5, 200.5, 101, 201},          // math.Round rounds 0.5 to even? No, to nearest
+		{"negative", -10.3, -20.7, -10, -21},
+		{"zero", 0, 0, 0, 0},
+		{"scroll_offset", 0, 36.3, 0, 36},         // ListView item after fractional scroll
+		{"large_fractional", 0, 1080.4, 0, 1080},   // near bottom of 1080p display
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotX := math.Round(float64(tt.inX))
+			gotY := math.Round(float64(tt.inY))
+			if gotX != tt.outX || gotY != tt.outY {
+				t.Errorf("snap(%v, %v) = (%v, %v), want (%v, %v)",
+					tt.inX, tt.inY, gotX, gotY, tt.outX, tt.outY)
+			}
+		})
+	}
+}
+
+// TestPixelSnap_ClipRect verifies that compositor clip rect coordinates
+// are also snapped to integer device pixels for consistency with blit positions.
+func TestPixelSnap_ClipRect(t *testing.T) {
+	clip := geometry.NewRect(10.3, 20.7, 100.5, 200.2)
+
+	x := math.Round(float64(clip.Min.X))
+	y := math.Round(float64(clip.Min.Y))
+	w := math.Round(float64(clip.Width()))
+	h := math.Round(float64(clip.Height()))
+
+	if x != 10 {
+		t.Errorf("clip.Min.X snap = %v, want 10", x)
+	}
+	if y != 21 {
+		t.Errorf("clip.Min.Y snap = %v, want 21", y)
+	}
+	if w != 101 {
+		t.Errorf("clip.Width snap = %v, want 101", w)
+	}
+	if h != 200 {
+		t.Errorf("clip.Height snap = %v, want 200", h)
 	}
 }

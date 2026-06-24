@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"math"
 	"os"
 	"sync"
 
@@ -787,7 +788,11 @@ func (rl *renderLoop) blitPictureLayer(pic *compositor.PictureLayerImpl, cc *gg.
 
 	bw, bh := pic.Size()
 	origin := pic.ScreenOrigin()
-	x, y := float64(origin.X), float64(origin.Y)
+	// Snap blit position to integer device pixels (Flutter ComputeIntegralTransCTM
+	// pattern). Without rounding, the GPU's bilinear texture sampler interpolates
+	// between texel rows at fractional positions, producing inconsistent glyph
+	// weights across ListView items at different Y offsets.
+	x, y := math.Round(float64(origin.X)), math.Round(float64(origin.Y))
 
 	rl.blitCount++
 	if isDebugDamageEnabled() {
@@ -804,8 +809,8 @@ func (rl *renderLoop) blitPictureLayer(pic *compositor.PictureLayerImpl, cc *gg.
 		if entry.hasClip {
 			clip := entry.clipRect
 			cc.Push()
-			cc.ClipRect(float64(clip.Min.X), float64(clip.Min.Y),
-				float64(clip.Width()), float64(clip.Height()))
+			cc.ClipRect(math.Round(float64(clip.Min.X)), math.Round(float64(clip.Min.Y)),
+				math.Round(float64(clip.Width())), math.Round(float64(clip.Height())))
 			cc.DrawGPUTextureWithOpacity(entry.texture, x, y, bw, bh, opacity)
 			cc.Pop()
 		} else {
@@ -815,8 +820,8 @@ func (rl *renderLoop) blitPictureLayer(pic *compositor.PictureLayerImpl, cc *gg.
 	case entry.hasClip:
 		clip := entry.clipRect
 		cc.Push()
-		cc.ClipRect(float64(clip.Min.X), float64(clip.Min.Y),
-			float64(clip.Width()), float64(clip.Height()))
+		cc.ClipRect(math.Round(float64(clip.Min.X)), math.Round(float64(clip.Min.Y)),
+			math.Round(float64(clip.Width())), math.Round(float64(clip.Height())))
 		cc.DrawGPUTexture(entry.texture, x, y, bw, bh)
 		cc.Pop()
 
