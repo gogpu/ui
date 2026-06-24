@@ -2,8 +2,27 @@ package radio
 
 import (
 	"github.com/gogpu/ui/event"
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
+
+// focusRingMargin is the extra space beyond item bounds occupied by the
+// focus ring (offset + half stroke width). InvalidateRect must include
+// this margin so the compositor clears focus ring pixels.
+const focusRingMargin = focusRingOffset + focusRingStrokeWidth/2 + 1
+
+// invalidateItem marks an item for redraw with bounds expanded to cover
+// the focus ring area. Without this expansion, the focus ring (drawn
+// outside item bounds) leaves stale pixels on damage-aware compositors.
+func invalidateItem(it *Item, ctx widget.Context) {
+	it.SetNeedsRedraw(true)
+	b := it.Bounds()
+	expanded := geometry.NewRect(
+		b.Min.X-focusRingMargin, b.Min.Y-focusRingMargin,
+		b.Width()+focusRingMargin*2, b.Height()+focusRingMargin*2,
+	)
+	ctx.InvalidateRect(expanded)
+}
 
 // handleItemEvent processes input events for a single radio item.
 // It manages hover, press, and keyboard activation states.
@@ -29,15 +48,13 @@ func handleItemMouseEvent(it *Item, ctx widget.Context, e *event.MouseEvent) boo
 	case event.MouseEnter:
 		it.state = stateHover
 		ctx.SetCursor(widget.CursorPointer)
-		it.SetNeedsRedraw(true)
-		ctx.InvalidateRect(it.Bounds())
+		invalidateItem(it, ctx)
 		return true
 
 	case event.MouseLeave:
 		it.state = stateNormal
 		ctx.SetCursor(widget.CursorDefault)
-		it.SetNeedsRedraw(true)
-		ctx.InvalidateRect(it.Bounds())
+		invalidateItem(it, ctx)
 		return true
 
 	case event.MousePress:
@@ -46,8 +63,7 @@ func handleItemMouseEvent(it *Item, ctx widget.Context, e *event.MouseEvent) boo
 		}
 		it.state = statePressed
 		ctx.RequestFocus(it)
-		it.SetNeedsRedraw(true)
-		ctx.InvalidateRect(it.Bounds())
+		invalidateItem(it, ctx)
 		return true
 
 	case event.MouseRelease:
@@ -61,10 +77,11 @@ func handleItemMouseEvent(it *Item, ctx widget.Context, e *event.MouseEvent) boo
 		} else {
 			it.state = stateNormal
 		}
-		it.SetNeedsRedraw(true)
-		ctx.InvalidateRect(it.Bounds())
+		invalidateItem(it, ctx)
 		if wasPressed && it.Bounds().Contains(e.Position) {
-			it.group.selectValue(it.value)
+			if prev := it.group.selectValue(it.value); prev != nil {
+				invalidateItem(prev, ctx)
+			}
 		}
 		return true
 
@@ -94,16 +111,16 @@ func handleActivationKey(it *Item, ctx widget.Context, e *event.KeyEvent) bool {
 	switch e.KeyType {
 	case event.KeyPress:
 		it.state = statePressed
-		it.SetNeedsRedraw(true)
-		ctx.InvalidateRect(it.Bounds())
+		invalidateItem(it, ctx)
 		return true
 	case event.KeyRelease:
 		wasPressed := it.state == statePressed
 		it.state = stateNormal
-		it.SetNeedsRedraw(true)
-		ctx.InvalidateRect(it.Bounds())
+		invalidateItem(it, ctx)
 		if wasPressed {
-			it.group.selectValue(it.value)
+			if prev := it.group.selectValue(it.value); prev != nil {
+				invalidateItem(prev, ctx)
+			}
 		}
 		return true
 	default:

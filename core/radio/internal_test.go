@@ -1926,3 +1926,127 @@ func TestRadioGroupDoesNotForwardMouseEnterToItems(t *testing.T) {
 		t.Error("Group.Event should not consume MouseLeave")
 	}
 }
+
+// --- Issue #145: selection change must invalidate BOTH items ---
+
+func TestSelectionChange_InvalidatesPreviousItem(t *testing.T) {
+	g := NewGroup(
+		Items(
+			ItemDef{Value: "a", Label: "Alpha"},
+			ItemDef{Value: "b", Label: "Beta"},
+		),
+		Selected("a"),
+	)
+	a, b := g.items[0], g.items[1]
+	a.SetBounds(geometry.NewRect(0, 0, 100, 24))
+	b.SetBounds(geometry.NewRect(0, 28, 100, 24))
+
+	// Verify A is initially selected.
+	if !g.isSelected("a") {
+		t.Fatal("item A should be initially selected")
+	}
+
+	// Click B (press + release inside B's bounds).
+	// Group.Event translates to group-local coords, so position must
+	// be within B's bounds: (0,28)-(100,52).
+	clickPt := geometry.Pt(50, 40)
+	ctx := widget.NewContext()
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		clickPt, clickPt, event.ModNone)
+	handleItemEvent(b, ctx, press)
+
+	ctx = widget.NewContext()
+	release := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		clickPt, clickPt, event.ModNone)
+	handleItemEvent(b, ctx, release)
+
+	// B should be selected now.
+	if !g.isSelected("b") {
+		t.Error("item B should be selected after click")
+	}
+
+	// A (previously selected) must be marked for redraw.
+	if !a.NeedsRedraw() {
+		t.Error("issue #145: previously-selected item A must be marked needsRedraw " +
+			"so damage-aware compositors clear its 'selected dot' pixels")
+	}
+}
+
+func TestSelectionChange_KeyActivation_InvalidatesPrevious(t *testing.T) {
+	g := NewGroup(
+		Items(
+			ItemDef{Value: "a", Label: "Alpha"},
+			ItemDef{Value: "b", Label: "Beta"},
+		),
+		Selected("a"),
+	)
+	a, b := g.items[0], g.items[1]
+	a.SetBounds(geometry.NewRect(0, 0, 100, 24))
+	b.SetBounds(geometry.NewRect(0, 28, 100, 24))
+	b.SetFocused(true)
+
+	// Key activate B.
+	ctx := widget.NewContext()
+	handleItemEvent(b, ctx, &event.KeyEvent{KeyType: event.KeyPress, Key: event.KeySpace})
+	ctx = widget.NewContext()
+	handleItemEvent(b, ctx, &event.KeyEvent{KeyType: event.KeyRelease, Key: event.KeySpace})
+
+	if !g.isSelected("b") {
+		t.Error("item B should be selected after key activation")
+	}
+	if !a.NeedsRedraw() {
+		t.Error("issue #145: previously-selected item A must be marked needsRedraw on key activation")
+	}
+}
+
+func TestSelectionChange_SameItem_NoPreviousInvalidation(t *testing.T) {
+	g := NewGroup(
+		Items(ItemDef{Value: "a", Label: "Alpha"}),
+		Selected("a"),
+	)
+	a := g.items[0]
+	a.SetBounds(geometry.NewRect(0, 0, 100, 24))
+
+	// Click already-selected item — no change, no previous invalidation needed.
+	ctx := widget.NewContext()
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(50, 12), geometry.Pt(50, 12), event.ModNone)
+	handleItemEvent(a, ctx, press)
+	a.SetNeedsRedraw(false) // clear from press
+
+	ctx = widget.NewContext()
+	release := event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0,
+		geometry.Pt(50, 12), geometry.Pt(50, 12), event.ModNone)
+	handleItemEvent(a, ctx, release)
+
+	// selectValue returns nil (no change), so only the clicked item is invalidated.
+	if !g.isSelected("a") {
+		t.Error("item A should still be selected")
+	}
+}
+
+func TestInvalidateItem_ExpandsBoundsForFocusRing(t *testing.T) {
+	g := NewGroup(Items(ItemDef{Value: "a", Label: "Alpha"}))
+	it := g.items[0]
+	it.SetBounds(geometry.NewRect(10, 20, 100, 24))
+
+	ctx := widget.NewContext()
+	invalidateItem(it, ctx)
+
+	if !it.NeedsRedraw() {
+		t.Error("invalidateItem should mark needsRedraw")
+	}
+
+	// The invalidated rect should be larger than item bounds
+	// to cover the focus ring area.
+	ir := ctx.InvalidatedRect()
+	bounds := it.Bounds()
+	if ir.Min.X >= bounds.Min.X || ir.Min.Y >= bounds.Min.Y {
+		t.Errorf("invalidated rect %v should expand beyond item bounds %v to cover focus ring",
+			ir, bounds)
+	}
+	if ir.Max.X <= bounds.Max.X || ir.Max.Y <= bounds.Max.Y {
+		t.Errorf("invalidated rect %v should expand beyond item bounds %v to cover focus ring",
+			ir, bounds)
+	}
+}

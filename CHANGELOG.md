@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Layout cache infrastructure** ([#143](https://github.com/gogpu/ui/pull/143), @TimLai666) — ADR-032 Phase 1: per-node constraint cache on WidgetBase, `widget.LayoutChild()` helper (symmetric with DrawChild), `MarkNeedsLayout()` with idempotency guard and upward propagation, `GOGPU_DEBUG_LAYOUT=1` debug verifier. Purely additive — mechanism is inert until containers adopt LayoutChild in Phase 2.
+
+### Fixed
+
+- **Radio group stale selection pixels** ([#145](https://github.com/gogpu/ui/issues/145)) — selecting a new radio button now invalidates both the newly-selected and previously-selected items. Previously only the clicked item was invalidated, causing the old "selected dot" to persist on damage-aware compositors (Wayland, Vulkan `VK_KHR_incremental_present`, DX12 `FLIP_SEQUENTIAL`). Also expanded invalidation rect to cover focus ring area (drawn 2px beyond item bounds).
+
 ## [0.1.35] — 2026-06-21
 
 ### Added

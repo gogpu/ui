@@ -113,17 +113,24 @@ func (g *Group) setSelectedLocked(value string) {
 }
 
 // selectValue is called by items when they are activated.
-func (g *Group) selectValue(value string) {
+// Returns the previously-selected item (nil if none) so the caller
+// can invalidate its region — the selection change alone does not
+// trigger redraw of the deselected item.
+func (g *Group) selectValue(value string) *Item {
 	g.mu.Lock()
 	prev := g.selected
 	g.setSelectedLocked(value)
 	changed := g.selected != prev
 	onChange := g.cfg.onChange
 	selectedSignal := g.cfg.selectedSignal
+	var prevItem *Item
+	if changed && prev >= 0 && prev < len(g.items) {
+		prevItem = g.items[prev]
+	}
 	g.mu.Unlock()
 
 	if !changed {
-		return
+		return nil
 	}
 
 	// TWO-WAY: if a SelectedSignal is bound, write back the new value.
@@ -134,6 +141,8 @@ func (g *Group) selectValue(value string) {
 	if onChange != nil {
 		onChange(value)
 	}
+
+	return prevItem
 }
 
 // isSelected reports whether the item with the given value is currently selected.
