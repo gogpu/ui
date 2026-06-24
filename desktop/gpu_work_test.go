@@ -543,11 +543,11 @@ func TestPixelSnap_BlitPosition(t *testing.T) {
 		{"integer", 100, 200, 100, 200},
 		{"fractional_low", 100.3, 200.2, 100, 200},
 		{"fractional_high", 100.7, 200.8, 101, 201},
-		{"half", 100.5, 200.5, 101, 201},          // math.Round rounds 0.5 to even? No, to nearest
+		{"half", 100.5, 200.5, 101, 201}, // math.Round rounds 0.5 to even? No, to nearest
 		{"negative", -10.3, -20.7, -10, -21},
 		{"zero", 0, 0, 0, 0},
-		{"scroll_offset", 0, 36.3, 0, 36},         // ListView item after fractional scroll
-		{"large_fractional", 0, 1080.4, 0, 1080},   // near bottom of 1080p display
+		{"scroll_offset", 0, 36.3, 0, 36},        // ListView item after fractional scroll
+		{"large_fractional", 0, 1080.4, 0, 1080}, // near bottom of 1080p display
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
