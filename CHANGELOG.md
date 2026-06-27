@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.37] — 2026-06-27
+
+### Added
+
+- **Painter/Widget behavior separation** (ADR-034) — enterprise-level refactor moving ALL behavioral logic (cursor position, selection, text measurement, animation easing, data mapping) from theme painters to core widgets. Painters are now draw-only. Enables community theme authoring.
+- **LayoutMetrics optional interface** — 7 widgets (button, checkbox, radio, slider, chip, dialog, textfield) define LayoutMetrics allowing theme painters to control spatial metrics (height, padding, fontSize, radius). 35 compile-time checked implementations across 5 painters.
+- **ThemeBundle interface** (`theme.Bundle`) — packages all painters for complete theme installation. Community themes implement this to provide a full design system.
+- **Gallery: 8 themes** — Fluent and Cupertino added to theme switcher alongside M3 (4 colors) + DevTools (dark/light).
+- **internal/textmetrics** — shared MeasureText-based text measurement replacing per-painter charWidthRatio estimates.
+
+### Fixed
+
+- **DevTools cursor wrong position** ([#126](https://github.com/gogpu/ui/issues/126)) — cursor position was computed differently per theme (MeasureText vs charWidthRatio). Now all themes use widget-computed CursorRect via MeasureText.
+- **Cursor height** — added 2px caretHeightOffset (Flutter `_kCaretHeightOffset` pattern) for cleaner cursor appearance.
+
+### Changed (breaking, v0.x)
+
+- **TextField PaintState** — expanded with pre-computed fields (DisplayText, ContentRect, CursorRect, SelectionRect, ShowCursor, ShowSelection, FontSize, ColorScheme). Pointer receiver (`*PaintState`).
+- **titlebar Painter** — `DrawBackground`/`DrawControlButton` renamed to `PaintBackground`/`PaintControlButton`.
+- **linechart Painter** — `PaintChart(canvas, bounds, state)` → `PaintChart(canvas, state)` with Bounds in PaintState.
+- **progressbar PaintState** — `ProgressBarColorScheme` field renamed to `ColorScheme`.
+
+### Removed
+
+- 4 duplicate `maskText` functions (one per theme painter — now single in core)
+- 4 duplicate `contentRect` functions (now computed by widget)
+- `charWidthRatio` constants from all theme textfield painters
+- `easeInOut` duplicate from M3 progress painter
+
 ## [0.1.36] — 2026-06-25
 
 ### Added

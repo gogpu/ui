@@ -1504,6 +1504,12 @@ Generic widgets in `core/` define behavior and delegate visual rendering to a `P
 
 This lets the same widget render as Material 3, Fluent, or Cupertino by swapping the Painter. Colors flow as a value struct (`ButtonColorScheme`) -- no import cycle between `core/` and `theme/`.
 
+**Behavior/Styling separation (ADR-034):** Painters are draw-only — they receive pre-computed geometry (cursor rects, selection rects, action button positions) via PaintState and render with theme colors. Behavioral logic (text measurement, cursor positioning, hit-testing, animation easing) stays in the core widget. This enables community theme authoring without duplicating behavior.
+
+**LayoutMetrics (ADR-034):** Widgets define an optional `LayoutMetrics` interface that painters can implement to control spatial metrics (height, padding, font size, corner radius). Widgets query via type assertion with DefaultPainter fallback. This is the Qt `QStyle::pixelMetric` pattern — themes control dimensions without touching behavior.
+
+**ThemeBundle:** `theme.Bundle` interface packages all painters for complete theme installation. Community themes implement `Bundle` to provide a full design system via `app.WithThemeBundle()`.
+
 ### 6. Opt-in Lifecycle for Signal Binding
 
 Widgets that use reactive signals implement `Lifecycle` (opt-in via type assertion). This follows the Flutter `initState`/`dispose` pattern — explicit lifecycle hooks for resource management:
