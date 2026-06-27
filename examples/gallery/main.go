@@ -31,8 +31,6 @@ import (
 	"github.com/gogpu/gogpu"
 	"github.com/gogpu/ui/app"
 	"github.com/gogpu/ui/core/button"
-	"github.com/gogpu/ui/event"
-	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/collapsible"
 	"github.com/gogpu/ui/core/datatable"
@@ -51,6 +49,8 @@ import (
 	"github.com/gogpu/ui/core/toolbar"
 	"github.com/gogpu/ui/core/treeview"
 	"github.com/gogpu/ui/desktop"
+	"github.com/gogpu/ui/event"
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/theme"
@@ -973,9 +973,9 @@ func smoothWalk(current, lo, hi, step float64) float64 {
 // from Event and forwards to dialog.Show.
 type dialogTrigger struct {
 	widget.WidgetBase
-	dlg    *dialog.Widget
-	btn    *button.Widget
-	label  string
+	dlg   *dialog.Widget
+	btn   *button.Widget
+	label string
 }
 
 func newDialogTrigger(dlg *dialog.Widget, label string, ps painterSet) *dialogTrigger {
