@@ -73,6 +73,15 @@ func (p DialogPainter) paintActions(canvas widget.Canvas, ps dialog.PaintState, 
 		return
 	}
 
+	// Use pre-computed ActionRects when available (ADR-034 Phase 4).
+	if len(ps.ActionRects) == len(ps.Actions) {
+		for i, action := range ps.Actions {
+			canvas.DrawText(action.Label, ps.ActionRects[i], cupDlgActionFontSize, colors.ActionFg, false, cupDlgTextAlignCenter)
+		}
+		return
+	}
+
+	// Legacy fallback.
 	x := ps.Bounds.Max.X - cupDlgPadding
 	y := ps.Bounds.Max.Y - cupDlgPadding - cupDlgActionHeight
 

@@ -29,6 +29,18 @@ type PaintState struct {
 	AnimationPhase float64             // 0-1 sawtooth phase within one grow/shrink cycle
 	Disabled       bool                // widget is disabled
 	ColorScheme    ProgressColorScheme // theme-derived colors (zero = use defaults)
+
+	// Pre-computed geometry (ADR-034 Phase 4).
+	// The widget computes these from Bounds, Diameter, and StrokeWidth.
+	// Painters should prefer these over recomputing center/radius.
+	Center geometry.Point // pre-computed circle center
+	Radius float32        // pre-computed radius (after stroke width inset)
+
+	// Pre-computed arc angles for indeterminate mode (ADR-034 Phase 4).
+	// The widget applies easing to AnimationPhase and computes the arc geometry.
+	// Painters should use these instead of duplicating the easing function.
+	ArcStartAngle float64 // start angle including rotation and tail offset
+	ArcSweepAngle float64 // sweep angle after easing (clamped to minimum)
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.
@@ -43,22 +55,15 @@ func (p DefaultPainter) PaintProgress(canvas widget.Canvas, ps PaintState) {
 		return
 	}
 
-	bounds := ps.Bounds
-	centerX := bounds.Min.X + bounds.Width()/2
-	centerY := bounds.Min.Y + bounds.Height()/2
-	center := geometry.Pt(centerX, centerY)
-
-	// Use the smaller of width/height for the radius, minus stroke width.
-	availDiameter := ps.Diameter
-	if bounds.Width() < availDiameter {
-		availDiameter = bounds.Width()
-	}
-	if bounds.Height() < availDiameter {
-		availDiameter = bounds.Height()
-	}
-	radius := (availDiameter - ps.StrokeWidth) / 2
+	// Use pre-computed geometry when available (ADR-034 Phase 4).
+	center := ps.Center
+	radius := ps.Radius
 	if radius <= 0 {
-		return
+		// Legacy fallback: compute center and radius from bounds.
+		center, radius = ComputeCenterRadius(ps)
+		if radius <= 0 {
+			return
+		}
 	}
 
 	if ps.Indeterminate {
@@ -108,18 +113,13 @@ func (p DefaultPainter) paintIndeterminate(canvas widget.Canvas, ps PaintState, 
 	trackColor := resolveTrackColor(ps, hasScheme)
 	canvas.StrokeCircle(center, radius, trackColor, ps.StrokeWidth)
 
-	// Compute variable sweep from AnimationPhase.
-	phase := ps.AnimationPhase
-	headValue := easeInOut(math.Min(phase*2, 1.0))
-	tailValue := easeInOut(math.Max((phase-0.5)*2, 0.0))
-
-	const maxSweep = math.Pi * 1.5 // 270°
-	const minSweep = 0.05
-	arcSweep := (headValue - tailValue) * maxSweep
-	if arcSweep < minSweep {
-		arcSweep = minSweep
+	// Use pre-computed arc angles when available (ADR-034 Phase 4).
+	arcStart := ps.ArcStartAngle
+	arcSweep := ps.ArcSweepAngle
+	if arcSweep == 0 {
+		// Legacy fallback: compute from AnimationPhase with easing.
+		arcStart, arcSweep = ComputeArcAngles(ps.AnimationPhase, ps.Rotation)
 	}
-	arcStart := -math.Pi/2 + ps.Rotation + tailValue*maxSweep
 
 	indicatorColor := resolveIndicatorColor(ps, hasScheme)
 	drawArcStyled(canvas, center, radius, arcStart, arcSweep, indicatorColor, ps.StrokeWidth, widget.LineCapRound)
@@ -134,6 +134,49 @@ func drawArcStyled(canvas widget.Canvas, center geometry.Point, radius float32,
 	}
 	canvas.StrokeArc(center, radius, startAngle, sweepAngle, color, strokeWidth)
 }
+
+// ComputeCenterRadius derives center point and radius from PaintState bounds,
+// diameter, and stroke width. Used as legacy fallback when pre-computed
+// Center/Radius are not set. Theme painters may call this for backward
+// compatibility with directly constructed PaintState values.
+func ComputeCenterRadius(ps PaintState) (geometry.Point, float32) {
+	bounds := ps.Bounds
+	centerX := bounds.Min.X + bounds.Width()/2
+	centerY := bounds.Min.Y + bounds.Height()/2
+	center := geometry.Pt(centerX, centerY)
+
+	availDiameter := ps.Diameter
+	if bounds.Width() < availDiameter {
+		availDiameter = bounds.Width()
+	}
+	if bounds.Height() < availDiameter {
+		availDiameter = bounds.Height()
+	}
+	radius := (availDiameter - ps.StrokeWidth) / 2
+	return center, radius
+}
+
+// ComputeArcAngles computes the indeterminate arc start and sweep angles
+// from an animation phase and rotation using cubic ease-in-out. Theme
+// painters may call this for backward compatibility with directly
+// constructed PaintState values.
+func ComputeArcAngles(phase, rotation float64) (arcStart, arcSweep float64) {
+	headValue := easeInOut(math.Min(phase*2, 1.0))
+	tailValue := easeInOut(math.Max((phase-0.5)*2, 0.0))
+
+	arcSweep = (headValue - tailValue) * maxArcSweep
+	if arcSweep < minArcSweep {
+		arcSweep = minArcSweep
+	}
+	arcStart = -math.Pi/2 + rotation + tailValue*maxArcSweep
+	return arcStart, arcSweep
+}
+
+// Arc sweep constants shared between widget and painter.
+const (
+	maxArcSweep = math.Pi * 1.5 // 270° maximum arc sweep
+	minArcSweep = 0.05          // minimum arc to prevent visual disappearance
+)
 
 // easeInOut applies a cubic ease-in-out curve.
 func easeInOut(t float64) float64 {

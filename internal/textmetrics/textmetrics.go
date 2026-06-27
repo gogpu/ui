@@ -63,13 +63,22 @@ func (m *Metrics) RuneIndexFromX(contentRect geometry.Rect, displayText string, 
 	return len(runes)
 }
 
+// caretHeightOffset is the amount by which the cursor is inset on each side
+// relative to the full line height. This matches Flutter's _kCaretHeightOffset
+// constant, making the cursor 2px shorter on top and bottom for a cleaner look.
+const caretHeightOffset float32 = 2.0
+
 // CursorRect returns the cursor line rectangle for the given rune position.
-// Height is based on fontSize * lineHeightRatio, vertically centered in contentRect.
+// Height is based on fontSize * lineHeightRatio minus caretHeightOffset on
+// each side (Flutter _kCaretHeightOffset pattern), vertically centered in
+// contentRect.
 func (m *Metrics) CursorRect(contentRect geometry.Rect, displayText string, runePos int, cursorWidth float32) geometry.Rect {
 	x := m.CursorX(contentRect, displayText, runePos)
 	lineHeight := m.FontSize * 1.4
 	centerY := (contentRect.Min.Y + contentRect.Max.Y) / 2
-	return geometry.NewRect(x, centerY-lineHeight/2, cursorWidth, lineHeight)
+	top := centerY - lineHeight/2 + caretHeightOffset
+	bottom := centerY + lineHeight/2 - caretHeightOffset
+	return geometry.NewRect(x, top, cursorWidth, bottom-top)
 }
 
 // SelectionRect returns the selection highlight rectangle for the given

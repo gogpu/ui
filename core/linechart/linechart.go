@@ -346,14 +346,15 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	}
 
 	// Build PaintState from current data.
-	chartState := w.buildPaintState()
-	chartState.Bounds = bounds
+	chartState := w.buildPaintState(bounds)
 	w.painter.PaintChart(canvas, chartState)
 }
 
 // buildPaintState creates a read-only snapshot for the painter.
-func (w *Widget) buildPaintState() PaintState {
+// Pre-computes plot geometry so painters only draw (ADR-034 Phase 4).
+func (w *Widget) buildPaintState(bounds geometry.Rect) PaintState {
 	cs := PaintState{
+		Bounds:     bounds,
 		MaxPoints:  w.cfg.maxPoints,
 		YMin:       w.cfg.yMin,
 		YMax:       w.cfg.yMax,
@@ -373,7 +374,67 @@ func (w *Widget) buildPaintState() PaintState {
 		w.mu.Unlock()
 	}
 
+	// Pre-compute plot geometry (ADR-034 Phase 4).
+	cs.PlotArea = computePlotArea(bounds, cs.ShowLabels)
+	cs.GridLines = w.computeGridLines(cs.PlotArea, cs.YMin, cs.YMax)
+	cs.SeriesLines = w.computeSeriesLines(cs.PlotArea, cs.Series, cs.YMin, cs.YMax)
+
 	return cs
+}
+
+// computeGridLines pre-computes Y grid line positions and labels.
+func (w *Widget) computeGridLines(plotArea geometry.Rect, yMin, yMax float64) []GridLine {
+	if plotArea.IsEmpty() {
+		return nil
+	}
+	lines := make([]GridLine, 0, gridDivisions+1)
+	yRange := yMax - yMin
+	for i := 0; i <= gridDivisions; i++ {
+		t := float64(i) / float64(gridDivisions)
+		value := yMin + t*yRange
+		y := plotArea.Max.Y - float32(t)*plotArea.Height()
+		lines = append(lines, GridLine{
+			Y:     y,
+			Label: formatLabel(value, yMin, yMax),
+		})
+	}
+	return lines
+}
+
+// computeSeriesLines pre-computes pixel coordinates for each data series.
+func (w *Widget) computeSeriesLines(plotArea geometry.Rect, series []Series, yMin, yMax float64) [][]geometry.Point {
+	if plotArea.IsEmpty() || len(series) == 0 {
+		return nil
+	}
+
+	yRange := yMax - yMin
+	if yRange <= zeroThreshold && yRange >= -zeroThreshold {
+		return nil
+	}
+
+	slots := w.cfg.maxPoints - 1
+	if slots < 1 {
+		slots = 1
+	}
+	xStep := plotArea.Width() / float32(slots)
+
+	result := make([][]geometry.Point, len(series))
+	for si, s := range series {
+		pointCount := len(s.Points)
+		if pointCount < 2 {
+			result[si] = nil
+			continue
+		}
+		startX := plotArea.Max.X - float32(pointCount-1)*xStep
+		pts := make([]geometry.Point, pointCount)
+		for i := 0; i < pointCount; i++ {
+			x := startX + float32(i)*xStep
+			y := yForValue(s.Points[i].Value, plotArea, yMin, yRange)
+			pts[i] = geometry.Pt(x, y)
+		}
+		result[si] = pts
+	}
+	return result
 }
 
 // Event handles an input event and returns true if consumed.

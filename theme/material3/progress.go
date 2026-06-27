@@ -23,22 +23,15 @@ func (p ProgressPainter) PaintProgress(canvas widget.Canvas, ps progress.PaintSt
 		return
 	}
 
-	bounds := ps.Bounds
-	centerX := bounds.Min.X + bounds.Width()/2
-	centerY := bounds.Min.Y + bounds.Height()/2
-	center := geometry.Pt(centerX, centerY)
-
-	// Use the smaller of width/height for the radius, minus stroke width.
-	availDiameter := ps.Diameter
-	if bounds.Width() < availDiameter {
-		availDiameter = bounds.Width()
-	}
-	if bounds.Height() < availDiameter {
-		availDiameter = bounds.Height()
-	}
-	radius := (availDiameter - ps.StrokeWidth) / 2
+	// Use pre-computed geometry when available (ADR-034 Phase 4).
+	center := ps.Center
+	radius := ps.Radius
 	if radius <= 0 {
-		return
+		// Legacy fallback: compute from bounds (for direct PaintState construction).
+		center, radius = progress.ComputeCenterRadius(ps)
+		if radius <= 0 {
+			return
+		}
 	}
 
 	if ps.Indeterminate {
@@ -76,7 +69,7 @@ func (p ProgressPainter) paintDeterminate(canvas widget.Canvas, ps progress.Pain
 }
 
 // paintIndeterminate draws a variable-length rotating arc per M3 spec.
-// The arc grows from ~0° to ~270° then shrinks back on a 1.333s cycle
+// The arc grows from ~0 to ~270 degrees then shrinks back on a 1.333s cycle
 // while continuously rotating (Flutter progress_indicator.dart reference).
 func (p ProgressPainter) paintIndeterminate(canvas widget.Canvas, ps progress.PaintState, center geometry.Point, radius float32) {
 	trackColor, indicatorColor, _ := p.resolveProgressColors(ps)
@@ -84,20 +77,13 @@ func (p ProgressPainter) paintIndeterminate(canvas widget.Canvas, ps progress.Pa
 	// Draw track circle.
 	canvas.StrokeCircle(center, radius, trackColor, ps.StrokeWidth)
 
-	// Compute head/tail using eased sawtooth.
-	// Phase 0.0-0.5: head runs ahead (arc grows), phase 0.5-1.0: tail catches up (arc shrinks).
-	phase := ps.AnimationPhase
-	headValue := m3EaseInOut(math.Min(phase*2, 1.0))
-	tailValue := m3EaseInOut(math.Max((phase-0.5)*2, 0.0))
-
-	// Arc sweep from tail to head, scaled to 3/4 turn (270°).
-	arcSweep := (headValue - tailValue) * m3MaxArcSweep
-	if arcSweep < m3MinArcSweep {
-		arcSweep = m3MinArcSweep
+	// Use pre-computed arc angles (ADR-034 Phase 4).
+	arcStart := ps.ArcStartAngle
+	arcSweep := ps.ArcSweepAngle
+	if arcSweep == 0 {
+		// Legacy fallback: compute from AnimationPhase.
+		arcStart, arcSweep = progress.ComputeArcAngles(ps.AnimationPhase, ps.Rotation)
 	}
-
-	// Arc start = base rotation + tail offset.
-	arcStart := -math.Pi/2 + ps.Rotation + tailValue*m3MaxArcSweep
 
 	strokeArcWithCap(canvas, center, radius, arcStart, arcSweep, indicatorColor, ps.StrokeWidth, widget.LineCapRound)
 }
@@ -110,15 +96,6 @@ func strokeArcWithCap(canvas widget.Canvas, center geometry.Point, radius float3
 		return
 	}
 	canvas.StrokeArc(center, radius, startAngle, sweepAngle, color, strokeWidth)
-}
-
-// m3EaseInOut applies a cubic ease-in-out curve (approximation of Flutter's fastOutSlowIn).
-func m3EaseInOut(t float64) float64 {
-	if t < 0.5 {
-		return 4 * t * t * t
-	}
-	v := -2*t + 2
-	return 1 - v*v*v/2
 }
 
 // resolveProgressColors returns track, indicator, and label colors for the current state.
@@ -155,8 +132,6 @@ var (
 const (
 	m3ProgressFontSize  float32 = 12
 	m3ProgressTextAlign         = widget.TextAlignCenter
-	m3MaxArcSweep               = math.Pi * 1.5 // 270° maximum arc sweep
-	m3MinArcSweep               = 0.05          // minimum arc to prevent visual disappearance
 )
 
 // Compile-time check that ProgressPainter implements Painter.

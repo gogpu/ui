@@ -159,6 +159,9 @@ func (w *Widget) drawDeterminate(_ widget.Context, canvas widget.Canvas, bounds 
 		ps.Label = w.resolveLabel(value)
 	}
 
+	// Pre-compute geometry (ADR-034 Phase 4).
+	ps.Center, ps.Radius = ComputeCenterRadius(ps)
+
 	w.painter.PaintProgress(canvas, ps)
 }
 
@@ -174,6 +177,9 @@ func (w *Widget) drawIndeterminate(ctx widget.Context, canvas widget.Canvas, bou
 	}
 
 	elapsed := w.elapsedSeconds(ctx)
+	rotation := computeRotation(elapsed)
+	phase := computeAnimationPhase(elapsed)
+
 	ps := PaintState{
 		Bounds:         bounds,
 		Diameter:       diameter,
@@ -181,9 +187,13 @@ func (w *Widget) drawIndeterminate(ctx widget.Context, canvas widget.Canvas, bou
 		Disabled:       w.cfg.ResolvedDisabled(),
 		ColorScheme:    w.cfg.colorScheme,
 		Indeterminate:  true,
-		Rotation:       computeRotation(elapsed),
-		AnimationPhase: computeAnimationPhase(elapsed),
+		Rotation:       rotation,
+		AnimationPhase: phase,
 	}
+
+	// Pre-compute geometry and arc angles (ADR-034 Phase 4).
+	ps.Center, ps.Radius = ComputeCenterRadius(ps)
+	ps.ArcStartAngle, ps.ArcSweepAngle = ComputeArcAngles(phase, rotation)
 
 	w.painter.PaintProgress(canvas, ps)
 	w.SetNeedsRedraw(true)

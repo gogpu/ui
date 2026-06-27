@@ -22,6 +22,12 @@ type PaintState struct {
 	Focused     bool
 	Bounds      geometry.Rect // dialog surface bounds (not backdrop)
 	ColorScheme DialogColorScheme
+
+	// ActionRects holds pre-computed button positions (one per action).
+	// The widget computes these using canvas.MeasureText for accurate layout.
+	// Painters should draw action buttons at these positions rather than
+	// computing button widths from character count estimates.
+	ActionRects []geometry.Rect
 }
 
 // DialogColorScheme provides theme-derived colors for dialog painting.
@@ -118,7 +124,15 @@ func (p DefaultPainter) paintActions(canvas widget.Canvas, ps PaintState, hasSch
 		actionFg = ps.ColorScheme.ActionFg
 	}
 
-	// Layout actions from right to left.
+	// Use pre-computed ActionRects when available (ADR-034 Phase 4).
+	if len(ps.ActionRects) == len(ps.Actions) {
+		for i, action := range ps.Actions {
+			canvas.DrawText(action.Label, ps.ActionRects[i], actionFontSize, actionFg, false, textAlignCenter)
+		}
+		return
+	}
+
+	// Legacy fallback: compute button layout from character count estimate.
 	x := ps.Bounds.Max.X - dialogPadding
 	y := ps.Bounds.Max.Y - dialogPadding - actionHeight
 

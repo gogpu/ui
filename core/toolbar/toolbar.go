@@ -305,15 +305,23 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 
 		switch item.Kind {
 		case ItemButton:
+			// Pre-compute icon/text bounds (ADR-034 Phase 4).
+			iBounds := iconBoundsForItem(itemBounds, item.ShowLabel)
+			var tBounds geometry.Rect
+			if item.ShowLabel && item.Label != "" {
+				tBounds = textBoundsForItem(itemBounds, iBounds)
+			}
 			w.painter.PaintButtonItem(canvas, PaintButtonState{
-				Label:     item.Label,
-				Icon:      item.Icon,
-				ShowLabel: item.ShowLabel,
-				Hovered:   w.itemStates[i].interaction == stateHover,
-				Pressed:   w.itemStates[i].interaction == statePressed,
-				Focused:   w.focusIndex == i,
-				Disabled:  !item.Enabled,
-				Bounds:    itemBounds,
+				Label:      item.Label,
+				Icon:       item.Icon,
+				ShowLabel:  item.ShowLabel,
+				Hovered:    w.itemStates[i].interaction == stateHover,
+				Pressed:    w.itemStates[i].interaction == statePressed,
+				Focused:    w.focusIndex == i,
+				Disabled:   !item.Enabled,
+				Bounds:     itemBounds,
+				IconBounds: iBounds,
+				TextBounds: tBounds,
 			})
 		case ItemSeparator:
 			w.painter.PaintSeparator(canvas, itemBounds)

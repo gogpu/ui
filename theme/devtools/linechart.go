@@ -46,8 +46,11 @@ func (p LineChartPainter) PaintChart(canvas widget.Canvas, state linechart.Paint
 	}
 	canvas.DrawRect(bounds, bg)
 
-	// Compute the plot area (inset for labels if enabled).
-	plotArea := dtChartPlotArea(bounds, state.ShowLabels)
+	// Use pre-computed plot area (ADR-034 Phase 4).
+	plotArea := state.PlotArea
+	if plotArea.IsEmpty() {
+		plotArea = dtChartPlotArea(bounds, state.ShowLabels)
+	}
 	if plotArea.Width() <= 0 || plotArea.Height() <= 0 {
 		return
 	}
@@ -62,21 +65,68 @@ func (p LineChartPainter) PaintChart(canvas widget.Canvas, state linechart.Paint
 		if gridColor == (widget.Color{}) {
 			gridColor = colors.GridColor
 		}
-		dtChartDrawGrid(canvas, plotArea, gridColor)
+		if len(state.GridLines) > 0 {
+			dtChartDrawPrecomputedGrid(canvas, plotArea, state.GridLines, gridColor)
+		} else {
+			dtChartDrawGrid(canvas, plotArea, gridColor)
+		}
 	}
 
 	// Y-axis labels.
 	if state.ShowLabels {
-		dtChartDrawLabels(canvas, bounds, plotArea, state, colors.LabelColor)
+		if len(state.GridLines) > 0 {
+			dtChartDrawPrecomputedLabels(canvas, bounds, state.GridLines, colors.LabelColor)
+		} else {
+			dtChartDrawLabels(canvas, bounds, plotArea, state, colors.LabelColor)
+		}
 	}
 
 	// Data lines.
-	for _, series := range state.Series {
-		lineColor := series.Color
-		if lineColor == (widget.Color{}) {
-			lineColor = colors.LineColor
+	if len(state.SeriesLines) == len(state.Series) {
+		for i, series := range state.Series {
+			lineColor := series.Color
+			if lineColor == (widget.Color{}) {
+				lineColor = colors.LineColor
+			}
+			dtChartDrawPrecomputedSeries(canvas, state.SeriesLines[i], lineColor)
 		}
-		dtChartDrawSeries(canvas, plotArea, series, state, lineColor)
+	} else {
+		for _, series := range state.Series {
+			lineColor := series.Color
+			if lineColor == (widget.Color{}) {
+				lineColor = colors.LineColor
+			}
+			dtChartDrawSeries(canvas, plotArea, series, state, lineColor)
+		}
+	}
+}
+
+// dtChartDrawPrecomputedGrid draws grid lines at pre-computed Y positions.
+func dtChartDrawPrecomputedGrid(canvas widget.Canvas, plotArea geometry.Rect, gridLines []linechart.GridLine, color widget.Color) {
+	for _, gl := range gridLines {
+		from := geometry.Pt(plotArea.Min.X, gl.Y)
+		to := geometry.Pt(plotArea.Max.X, gl.Y)
+		canvas.DrawLine(from, to, color, dtChartGridLineWidth)
+	}
+}
+
+// dtChartDrawPrecomputedLabels draws labels at pre-computed grid line positions.
+func dtChartDrawPrecomputedLabels(canvas widget.Canvas, bounds geometry.Rect, gridLines []linechart.GridLine, color widget.Color) {
+	for _, gl := range gridLines {
+		labelBounds := geometry.NewRect(
+			bounds.Min.X,
+			gl.Y-dtChartLabelFontSize/2,
+			dtChartLabelAreaWidth-dtChartLabelPadding,
+			dtChartLabelFontSize,
+		)
+		canvas.DrawText(gl.Label, labelBounds, dtChartLabelFontSize, color, false, widget.TextAlignRight)
+	}
+}
+
+// dtChartDrawPrecomputedSeries draws connected line segments from pre-computed coordinates.
+func dtChartDrawPrecomputedSeries(canvas widget.Canvas, points []geometry.Point, color widget.Color) {
+	for i := 1; i < len(points); i++ {
+		canvas.DrawLine(points[i-1], points[i], color, dtChartLineWidth)
 	}
 }
 

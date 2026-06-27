@@ -45,8 +45,11 @@ func (p LineChartPainter) PaintChart(canvas widget.Canvas, state linechart.Paint
 	}
 	canvas.DrawRect(bounds, bg)
 
-	// Compute the plot area (inset for labels if enabled).
-	plotArea := m3ChartPlotArea(bounds, state.ShowLabels)
+	// Use pre-computed plot area (ADR-034 Phase 4).
+	plotArea := state.PlotArea
+	if plotArea.IsEmpty() {
+		plotArea = m3ChartPlotArea(bounds, state.ShowLabels)
+	}
 	if plotArea.Width() <= 0 || plotArea.Height() <= 0 {
 		return
 	}
@@ -61,21 +64,68 @@ func (p LineChartPainter) PaintChart(canvas widget.Canvas, state linechart.Paint
 		if gridColor == (widget.Color{}) {
 			gridColor = colors.GridColor
 		}
-		m3ChartDrawGrid(canvas, plotArea, gridColor)
+		if len(state.GridLines) > 0 {
+			m3ChartDrawPrecomputedGrid(canvas, plotArea, state.GridLines, gridColor)
+		} else {
+			m3ChartDrawGrid(canvas, plotArea, gridColor)
+		}
 	}
 
 	// Y-axis labels.
 	if state.ShowLabels {
-		m3ChartDrawLabels(canvas, bounds, plotArea, state, colors.LabelColor)
+		if len(state.GridLines) > 0 {
+			m3ChartDrawPrecomputedLabels(canvas, bounds, state.GridLines, colors.LabelColor)
+		} else {
+			m3ChartDrawLabels(canvas, bounds, plotArea, state, colors.LabelColor)
+		}
 	}
 
 	// Data lines.
-	for _, series := range state.Series {
-		lineColor := series.Color
-		if lineColor == (widget.Color{}) {
-			lineColor = colors.LineColor
+	if len(state.SeriesLines) == len(state.Series) {
+		for i, series := range state.Series {
+			lineColor := series.Color
+			if lineColor == (widget.Color{}) {
+				lineColor = colors.LineColor
+			}
+			m3ChartDrawPrecomputedSeries(canvas, state.SeriesLines[i], lineColor)
 		}
-		m3ChartDrawSeries(canvas, plotArea, series, state, lineColor)
+	} else {
+		for _, series := range state.Series {
+			lineColor := series.Color
+			if lineColor == (widget.Color{}) {
+				lineColor = colors.LineColor
+			}
+			m3ChartDrawSeries(canvas, plotArea, series, state, lineColor)
+		}
+	}
+}
+
+// m3ChartDrawPrecomputedGrid draws grid lines at pre-computed Y positions.
+func m3ChartDrawPrecomputedGrid(canvas widget.Canvas, plotArea geometry.Rect, gridLines []linechart.GridLine, color widget.Color) {
+	for _, gl := range gridLines {
+		from := geometry.Pt(plotArea.Min.X, gl.Y)
+		to := geometry.Pt(plotArea.Max.X, gl.Y)
+		canvas.DrawLine(from, to, color, m3ChartGridLineWidth)
+	}
+}
+
+// m3ChartDrawPrecomputedLabels draws labels at pre-computed grid line positions.
+func m3ChartDrawPrecomputedLabels(canvas widget.Canvas, bounds geometry.Rect, gridLines []linechart.GridLine, color widget.Color) {
+	for _, gl := range gridLines {
+		labelBounds := geometry.NewRect(
+			bounds.Min.X,
+			gl.Y-m3ChartLabelFontSize/2,
+			m3ChartLabelAreaWidth-m3ChartLabelPadding,
+			m3ChartLabelFontSize,
+		)
+		canvas.DrawText(gl.Label, labelBounds, m3ChartLabelFontSize, color, false, widget.TextAlignRight)
+	}
+}
+
+// m3ChartDrawPrecomputedSeries draws connected line segments from pre-computed coordinates.
+func m3ChartDrawPrecomputedSeries(canvas widget.Canvas, points []geometry.Point, color widget.Color) {
+	for i := 1; i < len(points); i++ {
+		canvas.DrawLine(points[i-1], points[i], color, m3ChartLineWidth)
 	}
 }
 

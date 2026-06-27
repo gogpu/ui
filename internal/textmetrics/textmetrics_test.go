@@ -193,9 +193,10 @@ func TestCursorRect_Basic(t *testing.T) {
 		t.Errorf("CursorRect.Width = %v, want 2.0", rect.Width())
 	}
 
-	// Height should be based on lineHeight (fontSize * 1.4).
+	// Height should be based on lineHeight (fontSize * 1.4) minus
+	// 2*caretHeightOffset (Flutter _kCaretHeightOffset = 2.0).
 	lineHeight := m.FontSize * 1.4
-	wantHeight := lineHeight
+	wantHeight := lineHeight - 2*caretHeightOffset
 	gotHeight := rect.Height()
 	if gotHeight < wantHeight-0.1 || gotHeight > wantHeight+0.1 {
 		t.Errorf("CursorRect.Height = %v, want ~%v", gotHeight, wantHeight)

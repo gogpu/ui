@@ -5,6 +5,12 @@ import (
 	"github.com/gogpu/ui/widget"
 )
 
+// GridLine holds a pre-computed Y grid position and its formatted label.
+type GridLine struct {
+	Y     float32 // Y pixel coordinate within the plot area
+	Label string  // formatted value string
+}
+
 // PaintState holds the read-only snapshot passed to the painter.
 type PaintState struct {
 	Bounds     geometry.Rect // total widget bounds
@@ -16,6 +22,13 @@ type PaintState struct {
 	ShowLabels bool
 	GridColor  widget.Color
 	Background widget.Color
+
+	// Pre-computed plot geometry (ADR-034 Phase 4).
+	// The widget computes these from Bounds and data. Painters should use
+	// these instead of recomputing data-to-pixel mapping.
+	PlotArea    geometry.Rect      // computed plot area (after label margins)
+	GridLines   []GridLine         // pre-computed Y grid positions + labels
+	SeriesLines [][]geometry.Point // pre-computed pixel coordinates per series
 }
 
 // Painter renders the chart visuals.
@@ -42,8 +55,12 @@ func (p DefaultPainter) PaintChart(canvas widget.Canvas, cs PaintState) {
 	// Background fill.
 	canvas.DrawRect(bounds, cs.Background)
 
-	// Compute the plot area (inset for labels if enabled).
-	plotArea := computePlotArea(bounds, cs.ShowLabels)
+	// Prefer pre-computed plot data (ADR-034 Phase 4).
+	plotArea := cs.PlotArea
+	if plotArea.IsEmpty() {
+		// Legacy fallback.
+		plotArea = computePlotArea(bounds, cs.ShowLabels)
+	}
 
 	if plotArea.Width() <= 0 || plotArea.Height() <= 0 {
 		return
@@ -55,17 +72,31 @@ func (p DefaultPainter) PaintChart(canvas widget.Canvas, cs PaintState) {
 
 	// Grid lines.
 	if cs.ShowGrid {
-		drawGrid(canvas, plotArea, cs)
+		if len(cs.GridLines) > 0 {
+			drawPrecomputedGrid(canvas, plotArea, cs.GridLines, cs.GridColor)
+		} else {
+			drawGrid(canvas, plotArea, cs)
+		}
 	}
 
 	// Y-axis labels.
 	if cs.ShowLabels {
-		drawLabels(canvas, bounds, plotArea, cs)
+		if len(cs.GridLines) > 0 {
+			drawPrecomputedLabels(canvas, bounds, cs.GridLines, defaultLabelColor)
+		} else {
+			drawLabels(canvas, bounds, plotArea, cs)
+		}
 	}
 
 	// Data lines.
-	for _, series := range cs.Series {
-		drawSeriesLine(canvas, plotArea, series, cs)
+	if len(cs.SeriesLines) == len(cs.Series) {
+		for i, series := range cs.Series {
+			drawPrecomputedSeries(canvas, cs.SeriesLines[i], series.Color)
+		}
+	} else {
+		for _, series := range cs.Series {
+			drawSeriesLine(canvas, plotArea, series, cs)
+		}
 	}
 }
 
@@ -165,4 +196,33 @@ func yForValue(value float64, plotArea geometry.Rect, yMin, yRange float64) floa
 		t = 1
 	}
 	return plotArea.Max.Y - float32(t)*plotArea.Height()
+}
+
+// drawPrecomputedGrid draws horizontal grid lines at pre-computed Y positions.
+func drawPrecomputedGrid(canvas widget.Canvas, plotArea geometry.Rect, gridLines []GridLine, gridColor widget.Color) {
+	for _, gl := range gridLines {
+		from := geometry.Pt(plotArea.Min.X, gl.Y)
+		to := geometry.Pt(plotArea.Max.X, gl.Y)
+		canvas.DrawLine(from, to, gridColor, gridLineWidth)
+	}
+}
+
+// drawPrecomputedLabels draws Y-axis labels at pre-computed positions.
+func drawPrecomputedLabels(canvas widget.Canvas, bounds geometry.Rect, gridLines []GridLine, color widget.Color) {
+	for _, gl := range gridLines {
+		labelBounds := geometry.NewRect(
+			bounds.Min.X,
+			gl.Y-labelFontSize/2,
+			labelAreaWidth-labelPadding,
+			labelFontSize,
+		)
+		canvas.DrawText(gl.Label, labelBounds, labelFontSize, color, false, labelAlign)
+	}
+}
+
+// drawPrecomputedSeries draws connected line segments from pre-computed pixel coordinates.
+func drawPrecomputedSeries(canvas widget.Canvas, points []geometry.Point, color widget.Color) {
+	for i := 1; i < len(points); i++ {
+		canvas.DrawLine(points[i-1], points[i], color, lineWidth)
+	}
 }

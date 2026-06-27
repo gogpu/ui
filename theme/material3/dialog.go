@@ -75,7 +75,15 @@ func (p DialogPainter) paintActions(canvas widget.Canvas, ps dialog.PaintState, 
 		return
 	}
 
-	// Layout actions from right to left.
+	// Use pre-computed ActionRects when available (ADR-034 Phase 4).
+	if len(ps.ActionRects) == len(ps.Actions) {
+		for i, action := range ps.Actions {
+			canvas.DrawText(action.Label, ps.ActionRects[i], m3DialogActionFontSize, colors.ActionFg, false, m3DialogTextAlignCenter)
+		}
+		return
+	}
+
+	// Legacy fallback.
 	x := ps.Bounds.Max.X - m3DialogPadding
 	y := ps.Bounds.Max.Y - m3DialogPadding - m3DialogActionHeight
 
