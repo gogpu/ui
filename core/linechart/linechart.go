@@ -347,7 +347,8 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 
 	// Build PaintState from current data.
 	chartState := w.buildPaintState()
-	w.painter.PaintChart(canvas, bounds, chartState)
+	chartState.Bounds = bounds
+	w.painter.PaintChart(canvas, chartState)
 }
 
 // buildPaintState creates a read-only snapshot for the painter.

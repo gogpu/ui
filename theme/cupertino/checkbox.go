@@ -208,5 +208,19 @@ const (
 	cupCbDashStroke       float32 = 2
 )
 
-// Compile-time check that CheckboxPainter implements Painter.
-var _ checkbox.Painter = CheckboxPainter{}
+// CheckboxBoxSize returns the Cupertino toggle track width.
+// The Cupertino checkbox renders as a toggle switch, so the "box size"
+// represents the track width for layout purposes.
+func (CheckboxPainter) CheckboxBoxSize() float32 { return cupCbTrackWidth }
+
+// CheckboxLabelGap returns the Cupertino gap between toggle and label.
+func (CheckboxPainter) CheckboxLabelGap() float32 { return cupCbLabelGap }
+
+// CheckboxFontSize returns the Cupertino label font size.
+func (CheckboxPainter) CheckboxFontSize() float32 { return cupCbFontSize }
+
+// Compile-time checks.
+var (
+	_ checkbox.Painter       = CheckboxPainter{}
+	_ checkbox.LayoutMetrics = CheckboxPainter{}
+)

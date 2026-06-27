@@ -7,6 +7,7 @@ import (
 
 // PaintState holds the read-only snapshot passed to the painter.
 type PaintState struct {
+	Bounds     geometry.Rect // total widget bounds
 	Series     []Series
 	MaxPoints  int
 	YMin       float64
@@ -23,7 +24,7 @@ type PaintState struct {
 //
 // If no Painter is set, [DefaultPainter] is used.
 type Painter interface {
-	PaintChart(canvas widget.Canvas, bounds geometry.Rect, state PaintState)
+	PaintChart(canvas widget.Canvas, state PaintState)
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.
@@ -32,7 +33,8 @@ type DefaultPainter struct{}
 
 // PaintChart renders the chart with background, optional grid, optional labels,
 // and line segments for each data series.
-func (p DefaultPainter) PaintChart(canvas widget.Canvas, bounds geometry.Rect, cs PaintState) {
+func (p DefaultPainter) PaintChart(canvas widget.Canvas, cs PaintState) {
+	bounds := cs.Bounds
 	if bounds.IsEmpty() {
 		return
 	}

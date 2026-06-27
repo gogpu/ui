@@ -347,7 +347,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	bounds := w.Bounds()
 
 	// Draw background.
-	w.painter.DrawBackground(canvas, bounds, BackgroundState{
+	w.painter.PaintBackground(canvas, bounds, BackgroundState{
 		Focused: w.cfg.focused,
 	})
 
@@ -383,7 +383,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if w.cfg.chrome != nil {
 		for i := 0; i < controlCount; i++ {
 			ct := w.controlTypeForIndex(i)
-			w.painter.DrawControlButton(canvas, w.controlBounds[i], ct, ControlState{
+			w.painter.PaintControlButton(canvas, w.controlBounds[i], ct, ControlState{
 				Hovered: w.controlStates[i] == stateHover,
 				Pressed: w.controlStates[i] == statePressed,
 			})

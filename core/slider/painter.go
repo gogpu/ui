@@ -43,8 +43,24 @@ type SliderColorScheme struct {
 	MarkColor     widget.Color // tick mark color
 }
 
+// LayoutMetrics allows theme painters to provide spatial metrics used by the
+// widget's Layout method to compute thumb and track dimensions.
+//
+// Painters that implement this interface provide custom metrics.
+// Painters that do not implement it get default values from [DefaultPainter].
+type LayoutMetrics interface {
+	// SliderThumbRadius returns the thumb circle radius in logical pixels.
+	SliderThumbRadius() float32
+
+	// SliderTrackHeight returns the track bar height in logical pixels.
+	SliderTrackHeight() float32
+}
+
 // DefaultPainter provides a minimal fallback painter with no design system styling.
 // It draws a simple slider -- useful for testing and as a base reference.
+//
+// DefaultPainter also implements [LayoutMetrics], providing the default spatial
+// values used when a painter does not implement that interface.
 type DefaultPainter struct{}
 
 // PaintSlider renders a minimal slider with gray track, blue active segment,
@@ -247,6 +263,24 @@ func applyStateModifier(base widget.Color, hovered, pressed bool) widget.Color {
 	}
 	return base
 }
+
+// SliderThumbRadius returns the default thumb radius.
+func (DefaultPainter) SliderThumbRadius() float32 { return thumbRadius }
+
+// SliderTrackHeight returns the default track height.
+func (DefaultPainter) SliderTrackHeight() float32 { return trackHeight }
+
+// resolveSliderLayoutMetrics returns the LayoutMetrics from the painter if it
+// implements that interface, otherwise returns DefaultPainter metrics.
+func resolveSliderLayoutMetrics(p Painter) LayoutMetrics {
+	if lm, ok := p.(LayoutMetrics); ok {
+		return lm
+	}
+	return DefaultPainter{}
+}
+
+// Compile-time checks.
+var _ LayoutMetrics = DefaultPainter{}
 
 // Painting constants.
 const (

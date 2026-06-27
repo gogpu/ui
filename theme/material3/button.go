@@ -197,5 +197,40 @@ const (
 	m3PressedDarkenFactor  float32 = 0.15
 )
 
-// Compile-time check that ButtonPainter implements Painter.
-var _ button.Painter = ButtonPainter{}
+// ButtonHeight returns the M3 height for the given button size.
+func (ButtonPainter) ButtonHeight(size button.Size) float32 {
+	switch size {
+	case button.Small:
+		return 32
+	case button.Large:
+		return 48
+	default:
+		return 40
+	}
+}
+
+// ButtonPadding returns the M3 horizontal and vertical padding.
+func (ButtonPainter) ButtonPadding(size button.Size) (float32, float32) {
+	switch size {
+	case button.Small:
+		return 12, 6
+	case button.Large:
+		return 24, 12
+	default:
+		return 16, 8
+	}
+}
+
+// ButtonFontSize returns the M3 font size for the given button size.
+func (ButtonPainter) ButtonFontSize(size button.Size) float32 {
+	return m3FontSize(size)
+}
+
+// ButtonRadius returns the M3 default corner radius.
+func (ButtonPainter) ButtonRadius() float32 { return m3DefaultRadius }
+
+// Compile-time checks.
+var (
+	_ button.Painter       = ButtonPainter{}
+	_ button.LayoutMetrics = ButtonPainter{}
+)

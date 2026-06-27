@@ -84,14 +84,18 @@ func (w *Widget) IsFocusable() bool {
 
 // Layout calculates the button's preferred size within the given constraints.
 func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
-	height := sizeHeight(w.cfg.size)
+	// Query LayoutMetrics from painter (type assert with default fallback).
+	lm := resolveButtonLayoutMetrics(w.painter)
+
+	height := lm.ButtonHeight(w.cfg.size)
+	fontSize := lm.ButtonFontSize(w.cfg.size)
+	padX, padY := lm.ButtonPadding(w.cfg.size)
 
 	// Estimate text width: approximate at ~7px per character for medium font.
 	text := w.cfg.ResolvedText()
-	fontSize := sizeFontSize(w.cfg.size)
 	textWidth := float32(len(text)) * fontSize * charWidthRatio
 
-	totalWidth := textWidth + w.paddingX*2
+	totalWidth := textWidth + padX*2
 	totalHeight := height
 
 	// Apply min/max width overrides.
@@ -103,8 +107,8 @@ func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geom
 	}
 
 	// Ensure height accounts for vertical padding.
-	if totalHeight < w.paddingY*2 {
-		totalHeight = w.paddingY * 2
+	if totalHeight < padY*2 {
+		totalHeight = padY * 2
 	}
 
 	preferred := geometry.Sz(totalWidth, totalHeight)

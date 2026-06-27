@@ -35,8 +35,8 @@ func (p TitleBarPainter) resolveColors() dtTitleBarColors {
 	}
 }
 
-// DrawBackground renders the dark header background with a 1px bottom border.
-func (p TitleBarPainter) DrawBackground(canvas widget.Canvas, bounds geometry.Rect, _ titlebar.BackgroundState) {
+// PaintBackground renders the dark header background with a 1px bottom border.
+func (p TitleBarPainter) PaintBackground(canvas widget.Canvas, bounds geometry.Rect, _ titlebar.BackgroundState) {
 	if bounds.IsEmpty() {
 		return
 	}
@@ -55,8 +55,8 @@ func (p TitleBarPainter) DrawBackground(canvas widget.Canvas, bounds geometry.Re
 	canvas.DrawRect(borderRect, colors.BorderColor)
 }
 
-// DrawControlButton renders a window control button with Windows-style hover.
-func (p TitleBarPainter) DrawControlButton(canvas widget.Canvas, bounds geometry.Rect, control titlebar.ControlType, state titlebar.ControlState) {
+// PaintControlButton renders a window control button with Windows-style hover.
+func (p TitleBarPainter) PaintControlButton(canvas widget.Canvas, bounds geometry.Rect, control titlebar.ControlType, state titlebar.ControlState) {
 	if bounds.IsEmpty() {
 		return
 	}

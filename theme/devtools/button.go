@@ -189,5 +189,41 @@ const (
 	dtPressedDarkenFactor  float32 = 0.10
 )
 
-// Compile-time check that ButtonPainter implements Painter.
-var _ button.Painter = ButtonPainter{}
+// ButtonHeight returns the DevTools height for the given button size.
+// DevTools buttons are more compact than M3 (28px default).
+func (ButtonPainter) ButtonHeight(size button.Size) float32 {
+	switch size {
+	case button.Small:
+		return 24
+	case button.Large:
+		return 36
+	default:
+		return 28
+	}
+}
+
+// ButtonPadding returns the DevTools horizontal and vertical padding.
+func (ButtonPainter) ButtonPadding(size button.Size) (float32, float32) {
+	switch size {
+	case button.Small:
+		return 8, 4
+	case button.Large:
+		return 16, 8
+	default:
+		return 12, 6
+	}
+}
+
+// ButtonFontSize returns the DevTools font size for the given button size.
+func (ButtonPainter) ButtonFontSize(size button.Size) float32 {
+	return dtButtonFontSize(size)
+}
+
+// ButtonRadius returns the DevTools default corner radius.
+func (ButtonPainter) ButtonRadius() float32 { return dtButtonRadius }
+
+// Compile-time checks.
+var (
+	_ button.Painter       = ButtonPainter{}
+	_ button.LayoutMetrics = ButtonPainter{}
+)

@@ -199,5 +199,14 @@ const (
 	flSliderMarkRadius           float32 = 2
 )
 
-// Compile-time check that SliderPainter implements Painter.
-var _ slider.Painter = SliderPainter{}
+// SliderThumbRadius returns the Fluent thumb radius.
+func (SliderPainter) SliderThumbRadius() float32 { return flSliderThumbRadius }
+
+// SliderTrackHeight returns the Fluent track height.
+func (SliderPainter) SliderTrackHeight() float32 { return flSliderTrackHeight }
+
+// Compile-time checks.
+var (
+	_ slider.Painter       = SliderPainter{}
+	_ slider.LayoutMetrics = SliderPainter{}
+)

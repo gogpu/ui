@@ -176,9 +176,12 @@ func (w *Widget) Unmount() {
 // computeDialogBounds calculates the centered dialog surface bounds
 // within the given window size.
 func (w *Widget) computeDialogBounds(windowSize geometry.Size) geometry.Rect {
+	// Query LayoutMetrics from painter (type assert with default fallback).
+	lm := resolveDialogLayoutMetrics(w.painter)
+
 	maxW := w.cfg.maxWidth
 	if maxW <= 0 {
-		maxW = defaultMaxWidth
+		maxW = lm.DialogMaxWidth()
 	}
 
 	// Constrain to window bounds.

@@ -217,5 +217,14 @@ const (
 	cupSliderFocusAlpha       float32 = 0.6
 )
 
-// Compile-time check that SliderPainter implements Painter.
-var _ slider.Painter = SliderPainter{}
+// SliderThumbRadius returns the Cupertino thumb radius.
+func (SliderPainter) SliderThumbRadius() float32 { return cupSliderThumbRadius }
+
+// SliderTrackHeight returns the Cupertino track height.
+func (SliderPainter) SliderTrackHeight() float32 { return cupSliderTrackHeight }
+
+// Compile-time checks.
+var (
+	_ slider.Painter       = SliderPainter{}
+	_ slider.LayoutMetrics = SliderPainter{}
+)

@@ -195,5 +195,40 @@ const (
 	flDisabledAlpha        float32 = 0.38
 )
 
-// Compile-time check that ButtonPainter implements Painter.
-var _ button.Painter = ButtonPainter{}
+// ButtonHeight returns the Fluent height for the given button size.
+func (ButtonPainter) ButtonHeight(size button.Size) float32 {
+	switch size {
+	case button.Small:
+		return 28
+	case button.Large:
+		return 44
+	default:
+		return 36
+	}
+}
+
+// ButtonPadding returns the Fluent horizontal and vertical padding.
+func (ButtonPainter) ButtonPadding(size button.Size) (float32, float32) {
+	switch size {
+	case button.Small:
+		return 10, 5
+	case button.Large:
+		return 20, 10
+	default:
+		return 16, 8
+	}
+}
+
+// ButtonFontSize returns the Fluent font size for the given button size.
+func (ButtonPainter) ButtonFontSize(size button.Size) float32 {
+	return flButtonFontSize(size)
+}
+
+// ButtonRadius returns the Fluent default corner radius.
+func (ButtonPainter) ButtonRadius() float32 { return flButtonRadius }
+
+// Compile-time checks.
+var (
+	_ button.Painter       = ButtonPainter{}
+	_ button.LayoutMetrics = ButtonPainter{}
+)

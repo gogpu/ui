@@ -184,5 +184,17 @@ const (
 	flDashStrokeWidth float32 = 2
 )
 
-// Compile-time check that CheckboxPainter implements Painter.
-var _ checkbox.Painter = CheckboxPainter{}
+// CheckboxBoxSize returns the Fluent checkbox box size.
+func (CheckboxPainter) CheckboxBoxSize() float32 { return flCBBoxSize }
+
+// CheckboxLabelGap returns the Fluent gap between box and label.
+func (CheckboxPainter) CheckboxLabelGap() float32 { return flCBLabelGap }
+
+// CheckboxFontSize returns the Fluent label font size.
+func (CheckboxPainter) CheckboxFontSize() float32 { return flCBFontSize }
+
+// Compile-time checks.
+var (
+	_ checkbox.Painter       = CheckboxPainter{}
+	_ checkbox.LayoutMetrics = CheckboxPainter{}
+)

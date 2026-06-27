@@ -154,11 +154,11 @@ func TestProgressBarPainter_WithColorScheme(t *testing.T) {
 	}
 
 	ps := progressbar.PaintState{
-		Value:                  0.5,
-		Bounds:                 geometry.NewRect(0, 0, 200, 20),
-		BarHeight:              8,
-		Radius:                 4,
-		ProgressBarColorScheme: scheme,
+		Value:       0.5,
+		Bounds:      geometry.NewRect(0, 0, 200, 20),
+		BarHeight:   8,
+		Radius:      4,
+		ColorScheme: scheme,
 	}
 
 	p.PaintProgressBar(canvas, ps)

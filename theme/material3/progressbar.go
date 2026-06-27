@@ -38,7 +38,7 @@ func (p ProgressBarPainter) PaintProgressBar(canvas widget.Canvas, ps progressba
 	}
 
 	// Determine the color scheme to use.
-	colors := ps.ProgressBarColorScheme
+	colors := ps.ColorScheme
 	if colors == (progressbar.ProgressBarColorScheme{}) {
 		colors = p.resolveColors()
 	}

@@ -211,5 +211,17 @@ const (
 	m3DashStrokeWidth float32 = 2
 )
 
-// Compile-time check that CheckboxPainter implements Painter.
-var _ checkbox.Painter = CheckboxPainter{}
+// CheckboxBoxSize returns the M3 checkbox box size.
+func (CheckboxPainter) CheckboxBoxSize() float32 { return m3CheckboxBoxSize }
+
+// CheckboxLabelGap returns the M3 gap between box and label.
+func (CheckboxPainter) CheckboxLabelGap() float32 { return m3CheckboxLabelGap }
+
+// CheckboxFontSize returns the M3 label font size.
+func (CheckboxPainter) CheckboxFontSize() float32 { return m3CheckboxFontSize }
+
+// Compile-time checks.
+var (
+	_ checkbox.Painter       = CheckboxPainter{}
+	_ checkbox.LayoutMetrics = CheckboxPainter{}
+)

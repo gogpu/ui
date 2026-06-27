@@ -55,10 +55,29 @@ var flDefaultChipColors = chip.ChipColorScheme{
 	DisabledLabel:      widget.RGBA(0.38, 0.38, 0.38, flChipDisabledAlpha), // OnSurfaceSecond @ 38%
 }
 
+// ChipFontSize returns the Fluent chip font size.
+func (ChipPainter) ChipFontSize() float32 { return flChipFontSize }
+
+// ChipMinWidth returns the Fluent minimum chip width.
+func (ChipPainter) ChipMinWidth() float32 { return flChipMinWidth }
+
+// ChipPadding returns the Fluent chip horizontal padding.
+func (ChipPainter) ChipPadding() float32 { return flChipPadding }
+
+// ChipRadius returns the Fluent chip corner radius.
+func (ChipPainter) ChipRadius() float32 { return flChipRadius }
+
 // Fluent chip constants.
 const (
 	flChipDisabledAlpha float32 = 0.38
+	flChipFontSize      float32 = 14 // Fluent body
+	flChipMinWidth      float32 = 44 // Fluent touch target
+	flChipPadding       float32 = 12 // Fluent horizontal padding
+	flChipRadius        float32 = 4  // Fluent control radius
 )
 
-// Compile-time check that ChipPainter implements chip.Painter.
-var _ chip.Painter = ChipPainter{}
+// Compile-time checks.
+var (
+	_ chip.Painter       = ChipPainter{}
+	_ chip.LayoutMetrics = ChipPainter{}
+)

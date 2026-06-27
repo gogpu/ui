@@ -148,7 +148,23 @@ const (
 	cupRadioFocusAlpha      float32 = 0.6
 	cupRadioHoverLighten    float32 = 0.08
 	cupRadioPressedDarken   float32 = 0.12
+	cupRadioItemPadding     float32 = 4
 )
 
-// Compile-time check that RadioPainter implements Painter.
-var _ radio.Painter = RadioPainter{}
+// RadioCircleRadius returns the Cupertino outer circle radius.
+func (RadioPainter) RadioCircleRadius() float32 { return cupRadioOuterRadius }
+
+// RadioLabelGap returns the Cupertino gap between circle and label.
+func (RadioPainter) RadioLabelGap() float32 { return cupRadioLabelGap }
+
+// RadioFontSize returns the Cupertino label font size.
+func (RadioPainter) RadioFontSize() float32 { return cupRadioFontSize }
+
+// RadioItemPadding returns the Cupertino radio item padding.
+func (RadioPainter) RadioItemPadding() float32 { return cupRadioItemPadding }
+
+// Compile-time checks.
+var (
+	_ radio.Painter       = RadioPainter{}
+	_ radio.LayoutMetrics = RadioPainter{}
+)

@@ -55,10 +55,29 @@ var cupDefaultChipColors = chip.ChipColorScheme{
 	DisabledLabel:      widget.RGBA(0.235, 0.235, 0.263, 0.3),      // TertiaryLabel
 }
 
+// ChipFontSize returns the Cupertino chip font size.
+func (ChipPainter) ChipFontSize() float32 { return cupChipFontSize }
+
+// ChipMinWidth returns the Cupertino minimum chip width.
+func (ChipPainter) ChipMinWidth() float32 { return cupChipMinWidth }
+
+// ChipPadding returns the Cupertino chip horizontal padding.
+func (ChipPainter) ChipPadding() float32 { return cupChipPadding }
+
+// ChipRadius returns the Cupertino chip corner radius.
+func (ChipPainter) ChipRadius() float32 { return cupChipRadius }
+
 // Cupertino chip constants.
 const (
 	cupChipSelectedAlpha float32 = 0.15 // Apple HIG tint alpha for selected tags
+	cupChipFontSize      float32 = 15   // SF Pro body
+	cupChipMinWidth      float32 = 44   // Apple HIG touch target
+	cupChipPadding       float32 = 14   // Apple HIG horizontal padding
+	cupChipRadius        float32 = 10   // Apple HIG rounded pill
 )
 
-// Compile-time check that ChipPainter implements chip.Painter.
-var _ chip.Painter = ChipPainter{}
+// Compile-time checks.
+var (
+	_ chip.Painter       = ChipPainter{}
+	_ chip.LayoutMetrics = ChipPainter{}
+)

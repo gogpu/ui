@@ -60,12 +60,20 @@ func (it *Item) IsFocusable() bool {
 
 // Layout calculates the item's preferred size within the given constraints.
 func (it *Item) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
-	totalWidth := outerRadius*2 + itemPadding*2
-	totalHeight := outerRadius*2 + itemPadding*2
+	// Query LayoutMetrics from painter (type assert with default fallback).
+	lm := resolveRadioLayoutMetrics(it.painter)
+
+	radius := lm.RadioCircleRadius()
+	pad := lm.RadioItemPadding()
+	gap := lm.RadioLabelGap()
+	fontSize := lm.RadioFontSize()
+
+	totalWidth := radius*2 + pad*2
+	totalHeight := radius*2 + pad*2
 
 	if it.label != "" {
-		textWidth := float32(len(it.label)) * defaultFontSize * charWidthRatio
-		totalWidth += labelGap + textWidth
+		textWidth := float32(len(it.label)) * fontSize * charWidthRatio
+		totalWidth += gap + textWidth
 	}
 
 	if totalHeight < itemMinHeight {

@@ -42,8 +42,27 @@ type CheckboxColorScheme struct {
 	FocusRing       widget.Color
 }
 
+// LayoutMetrics allows theme painters to provide spatial metrics used by the
+// widget's Layout method to compute box size, label gap, and font size.
+//
+// Painters that implement this interface provide custom metrics.
+// Painters that do not implement it get default values from [DefaultPainter].
+type LayoutMetrics interface {
+	// CheckboxBoxSize returns the checkbox square size in logical pixels.
+	CheckboxBoxSize() float32
+
+	// CheckboxLabelGap returns the gap between the checkbox box and label text.
+	CheckboxLabelGap() float32
+
+	// CheckboxFontSize returns the font size for the label text.
+	CheckboxFontSize() float32
+}
+
 // DefaultPainter provides a minimal fallback painter with no design system styling.
 // It draws a simple checkbox -- useful for testing and as a base reference.
+//
+// DefaultPainter also implements [LayoutMetrics], providing the default spatial
+// values used when a painter does not implement that interface.
 type DefaultPainter struct{}
 
 // PaintCheckbox renders a minimal checkbox with gray colors.
@@ -89,3 +108,24 @@ func resolveLabelColor(state PaintState, hasScheme bool) widget.Color {
 	}
 	return defaultLabelColor
 }
+
+// CheckboxBoxSize returns the default checkbox square size.
+func (DefaultPainter) CheckboxBoxSize() float32 { return boxSize }
+
+// CheckboxLabelGap returns the default gap between box and label.
+func (DefaultPainter) CheckboxLabelGap() float32 { return labelGap }
+
+// CheckboxFontSize returns the default font size for the label.
+func (DefaultPainter) CheckboxFontSize() float32 { return defaultFontSize }
+
+// resolveCheckboxLayoutMetrics returns the LayoutMetrics from the painter if it
+// implements that interface, otherwise returns DefaultPainter metrics.
+func resolveCheckboxLayoutMetrics(p Painter) LayoutMetrics {
+	if lm, ok := p.(LayoutMetrics); ok {
+		return lm
+	}
+	return DefaultPainter{}
+}
+
+// Compile-time checks.
+var _ LayoutMetrics = DefaultPainter{}

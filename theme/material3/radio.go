@@ -156,7 +156,23 @@ const (
 	m3RadioFocusRingStrokeWidth float32 = 2
 	m3RadioHoverLightenFactor   float32 = 0.1
 	m3RadioPressedDarkenFactor  float32 = 0.15
+	m3RadioItemPadding          float32 = 4
 )
 
-// Compile-time check that RadioPainter implements Painter.
-var _ radio.Painter = RadioPainter{}
+// RadioCircleRadius returns the M3 outer circle radius.
+func (RadioPainter) RadioCircleRadius() float32 { return m3RadioOuterRadius }
+
+// RadioLabelGap returns the M3 gap between circle and label.
+func (RadioPainter) RadioLabelGap() float32 { return m3RadioLabelGap }
+
+// RadioFontSize returns the M3 label font size.
+func (RadioPainter) RadioFontSize() float32 { return m3RadioFontSize }
+
+// RadioItemPadding returns the M3 radio item padding.
+func (RadioPainter) RadioItemPadding() float32 { return m3RadioItemPadding }
+
+// Compile-time checks.
+var (
+	_ radio.Painter       = RadioPainter{}
+	_ radio.LayoutMetrics = RadioPainter{}
+)

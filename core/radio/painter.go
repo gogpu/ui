@@ -40,8 +40,30 @@ type RadioColorScheme struct {
 	FocusRing        widget.Color
 }
 
+// LayoutMetrics allows theme painters to provide spatial metrics used by the
+// item's Layout method to compute circle size, label gap, and font size.
+//
+// Painters that implement this interface provide custom metrics.
+// Painters that do not implement it get default values from [DefaultPainter].
+type LayoutMetrics interface {
+	// RadioCircleRadius returns the outer circle radius in logical pixels.
+	RadioCircleRadius() float32
+
+	// RadioLabelGap returns the gap between the circle and label text.
+	RadioLabelGap() float32
+
+	// RadioFontSize returns the font size for the label text.
+	RadioFontSize() float32
+
+	// RadioItemPadding returns the padding around each radio item.
+	RadioItemPadding() float32
+}
+
 // DefaultPainter provides a minimal fallback painter with no design system styling.
 // It draws a simple radio button -- useful for testing and as a base reference.
+//
+// DefaultPainter also implements [LayoutMetrics], providing the default spatial
+// values used when a painter does not implement that interface.
 type DefaultPainter struct{}
 
 // PaintRadio renders a minimal radio item with gray colors.
@@ -87,3 +109,27 @@ func resolveLabelColor(state PaintState, hasScheme bool) widget.Color {
 	}
 	return defaultLabelColor
 }
+
+// RadioCircleRadius returns the default outer circle radius.
+func (DefaultPainter) RadioCircleRadius() float32 { return outerRadius }
+
+// RadioLabelGap returns the default gap between circle and label.
+func (DefaultPainter) RadioLabelGap() float32 { return labelGap }
+
+// RadioFontSize returns the default font size for the label.
+func (DefaultPainter) RadioFontSize() float32 { return defaultFontSize }
+
+// RadioItemPadding returns the default padding around each radio item.
+func (DefaultPainter) RadioItemPadding() float32 { return itemPadding }
+
+// resolveRadioLayoutMetrics returns the LayoutMetrics from the painter if it
+// implements that interface, otherwise returns DefaultPainter metrics.
+func resolveRadioLayoutMetrics(p Painter) LayoutMetrics {
+	if lm, ok := p.(LayoutMetrics); ok {
+		return lm
+	}
+	return DefaultPainter{}
+}
+
+// Compile-time checks.
+var _ LayoutMetrics = DefaultPainter{}

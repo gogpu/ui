@@ -117,7 +117,20 @@ const (
 	cupDlgFocusRingOffset float32 = 3
 	cupDlgFocusRingStroke float32 = 2.5
 	cupDlgFocusRingAlpha  float32 = 0.6
+	cupDlgMaxWidth        float32 = 480
 )
 
-// Compile-time check that DialogPainter implements Painter.
-var _ dialog.Painter = DialogPainter{}
+// DialogPadding returns the Cupertino dialog padding.
+func (DialogPainter) DialogPadding() float32 { return cupDlgPadding }
+
+// DialogTitleHeight returns the Cupertino dialog title height.
+func (DialogPainter) DialogTitleHeight() float32 { return cupDlgTitleHeight }
+
+// DialogMaxWidth returns the Cupertino default maximum dialog width.
+func (DialogPainter) DialogMaxWidth() float32 { return cupDlgMaxWidth }
+
+// Compile-time checks.
+var (
+	_ dialog.Painter       = DialogPainter{}
+	_ dialog.LayoutMetrics = DialogPainter{}
+)

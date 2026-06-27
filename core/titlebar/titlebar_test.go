@@ -247,10 +247,10 @@ func TestDraw_CallsPainter(t *testing.T) {
 	tb.Draw(ctx, canvas)
 
 	if !p.bgPainted {
-		t.Error("DrawBackground should have been called")
+		t.Error("PaintBackground should have been called")
 	}
 	if p.controlCount != controlCount {
-		t.Errorf("DrawControlButton called %d times, want %d", p.controlCount, controlCount)
+		t.Errorf("PaintControlButton called %d times, want %d", p.controlCount, controlCount)
 	}
 }
 
@@ -265,7 +265,7 @@ func TestDraw_NoChrome_NoControls(t *testing.T) {
 	tb.Draw(ctx, canvas)
 
 	if p.controlCount != 0 {
-		t.Errorf("DrawControlButton called %d times, want 0 (no chrome)", p.controlCount)
+		t.Errorf("PaintControlButton called %d times, want 0 (no chrome)", p.controlCount)
 	}
 }
 
@@ -748,64 +748,64 @@ func TestAccessibilityActions_Nil(t *testing.T) {
 
 // --- DefaultPainter Tests ---
 
-func TestDefaultPainter_DrawBackground_EmptyBounds(t *testing.T) {
+func TestDefaultPainter_PaintBackground_EmptyBounds(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
-	p.DrawBackground(canvas, geometry.Rect{}, BackgroundState{})
+	p.PaintBackground(canvas, geometry.Rect{}, BackgroundState{})
 
 	if len(canvas.drawRects) > 0 {
 		t.Error("should not paint with empty bounds")
 	}
 }
 
-func TestDefaultPainter_DrawBackground(t *testing.T) {
+func TestDefaultPainter_PaintBackground(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 800, 40)
-	p.DrawBackground(canvas, bounds, BackgroundState{Focused: true})
+	p.PaintBackground(canvas, bounds, BackgroundState{Focused: true})
 
 	if len(canvas.drawRects) == 0 {
 		t.Error("should draw background rect")
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_EmptyBounds(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_EmptyBounds(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
-	p.DrawControlButton(canvas, geometry.Rect{}, ControlClose, ControlState{})
+	p.PaintControlButton(canvas, geometry.Rect{}, ControlClose, ControlState{})
 
 	if len(canvas.drawRects) > 0 || len(canvas.drawLines) > 0 {
 		t.Error("should not paint with empty bounds")
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_Minimize(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_Minimize(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlMinimize, ControlState{})
+	p.PaintControlButton(canvas, bounds, ControlMinimize, ControlState{})
 
 	if len(canvas.drawLines) == 0 {
 		t.Error("minimize should draw a line")
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_Maximize(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_Maximize(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlMaximize, ControlState{})
+	p.PaintControlButton(canvas, bounds, ControlMaximize, ControlState{})
 
 	if len(canvas.strokeRects) == 0 {
 		t.Error("maximize should draw a stroked rect")
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_Restore(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_Restore(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlRestore, ControlState{})
+	p.PaintControlButton(canvas, bounds, ControlRestore, ControlState{})
 
 	// Restore draws two rects.
 	if len(canvas.strokeRects) < 2 {
@@ -813,11 +813,11 @@ func TestDefaultPainter_DrawControlButton_Restore(t *testing.T) {
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_Close(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_Close(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlClose, ControlState{})
+	p.PaintControlButton(canvas, bounds, ControlClose, ControlState{})
 
 	// Close draws 2 lines (X shape).
 	if len(canvas.drawLines) != 2 {
@@ -825,11 +825,11 @@ func TestDefaultPainter_DrawControlButton_Close(t *testing.T) {
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_CloseHover(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_CloseHover(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlClose, ControlState{Hovered: true})
+	p.PaintControlButton(canvas, bounds, ControlClose, ControlState{Hovered: true})
 
 	// Should draw red background.
 	if len(canvas.drawRects) == 0 {
@@ -837,11 +837,11 @@ func TestDefaultPainter_DrawControlButton_CloseHover(t *testing.T) {
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_MinimizeHover(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_MinimizeHover(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlMinimize, ControlState{Hovered: true})
+	p.PaintControlButton(canvas, bounds, ControlMinimize, ControlState{Hovered: true})
 
 	// Should draw hover background.
 	if len(canvas.drawRects) == 0 {
@@ -849,22 +849,22 @@ func TestDefaultPainter_DrawControlButton_MinimizeHover(t *testing.T) {
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_Pressed(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_Pressed(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlMinimize, ControlState{Pressed: true})
+	p.PaintControlButton(canvas, bounds, ControlMinimize, ControlState{Pressed: true})
 
 	if len(canvas.drawRects) == 0 {
 		t.Error("pressed control should draw background rect")
 	}
 }
 
-func TestDefaultPainter_DrawControlButton_ClosePressed(t *testing.T) {
+func TestDefaultPainter_PaintControlButton_ClosePressed(t *testing.T) {
 	p := DefaultPainter{}
 	canvas := &mockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
-	p.DrawControlButton(canvas, bounds, ControlClose, ControlState{Pressed: true})
+	p.PaintControlButton(canvas, bounds, ControlClose, ControlState{Pressed: true})
 
 	if len(canvas.drawRects) == 0 {
 		t.Error("close pressed should draw dark red background")
@@ -1206,11 +1206,11 @@ type testPainter struct {
 	controls     []ControlType
 }
 
-func (p *testPainter) DrawBackground(_ widget.Canvas, _ geometry.Rect, _ BackgroundState) {
+func (p *testPainter) PaintBackground(_ widget.Canvas, _ geometry.Rect, _ BackgroundState) {
 	p.bgPainted = true
 }
 
-func (p *testPainter) DrawControlButton(_ widget.Canvas, _ geometry.Rect, control ControlType, _ ControlState) {
+func (p *testPainter) PaintControlButton(_ widget.Canvas, _ geometry.Rect, control ControlType, _ ControlState) {
 	p.controlCount++
 	p.controls = append(p.controls, control)
 }

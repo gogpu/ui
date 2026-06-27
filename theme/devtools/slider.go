@@ -198,5 +198,14 @@ const (
 	dtSliderMarkRadius           float32 = 2
 )
 
-// Compile-time check that SliderPainter implements Painter.
-var _ slider.Painter = SliderPainter{}
+// SliderThumbRadius returns the DevTools thumb radius.
+func (SliderPainter) SliderThumbRadius() float32 { return dtSliderThumbRadius }
+
+// SliderTrackHeight returns the DevTools track height.
+func (SliderPainter) SliderTrackHeight() float32 { return dtSliderTrackHeight }
+
+// Compile-time checks.
+var (
+	_ slider.Painter       = SliderPainter{}
+	_ slider.LayoutMetrics = SliderPainter{}
+)

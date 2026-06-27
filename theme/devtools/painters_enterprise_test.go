@@ -965,7 +965,7 @@ func TestLineChartPainterImplementsInterface(t *testing.T) {
 func TestLineChartPaintChartEmpty(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := devtools.LineChartPainter{}
-	painter.PaintChart(canvas, geometry.Rect{}, linechart.PaintState{})
+	painter.PaintChart(canvas, linechart.PaintState{})
 	if len(canvas.calls) != 0 {
 		t.Errorf("empty bounds should produce no calls, got %d", len(canvas.calls))
 	}
@@ -974,7 +974,8 @@ func TestLineChartPaintChartEmpty(t *testing.T) {
 func TestLineChartPaintChart(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := devtools.LineChartPainter{}
-	painter.PaintChart(canvas, geometry.NewRect(0, 0, 300, 200), linechart.PaintState{
+	painter.PaintChart(canvas, linechart.PaintState{
+		Bounds: geometry.NewRect(0, 0, 300, 200),
 		Series: []linechart.Series{
 			{
 				Color: widget.Hex(0x3574F0),
@@ -1006,7 +1007,8 @@ func TestLineChartPaintChart(t *testing.T) {
 func TestLineChartPaintChartNoData(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := devtools.LineChartPainter{}
-	painter.PaintChart(canvas, geometry.NewRect(0, 0, 300, 200), linechart.PaintState{
+	painter.PaintChart(canvas, linechart.PaintState{
+		Bounds:    geometry.NewRect(0, 0, 300, 200),
 		MaxPoints: 100,
 		YMin:      0,
 		YMax:      100,
@@ -1023,7 +1025,8 @@ func TestLineChartPainterWithTheme(t *testing.T) {
 	painter := devtools.LineChartPainter{Theme: theme}
 	canvas := &recordCanvas{}
 
-	painter.PaintChart(canvas, geometry.NewRect(0, 0, 300, 200), linechart.PaintState{
+	painter.PaintChart(canvas, linechart.PaintState{
+		Bounds:    geometry.NewRect(0, 0, 300, 200),
 		MaxPoints: 100,
 		YMin:      0,
 		YMax:      100,
@@ -1218,8 +1221,8 @@ func TestAllEnterprisePaintersWithLightTheme(t *testing.T) {
 			})
 		}},
 		{"LineChartPainter", func(c *recordCanvas) {
-			devtools.LineChartPainter{Theme: theme}.PaintChart(c, geometry.NewRect(0, 0, 300, 200), linechart.PaintState{
-				MaxPoints: 100, YMin: 0, YMax: 100, ShowGrid: true,
+			devtools.LineChartPainter{Theme: theme}.PaintChart(c, linechart.PaintState{
+				Bounds: geometry.NewRect(0, 0, 300, 200), MaxPoints: 100, YMin: 0, YMax: 100, ShowGrid: true,
 			})
 		}},
 		{"ListViewPainter", func(c *recordCanvas) {

@@ -126,14 +126,14 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	label := w.resolveLabel(value)
 
 	w.painter.PaintProgressBar(canvas, PaintState{
-		Value:                  value,
-		Bounds:                 w.Bounds(),
-		BarHeight:              barH,
-		Radius:                 radius,
-		ShowLabel:              w.cfg.showLabel,
-		Label:                  label,
-		Disabled:               w.cfg.ResolvedDisabled(),
-		ProgressBarColorScheme: w.cfg.colorScheme,
+		Value:       value,
+		Bounds:      w.Bounds(),
+		BarHeight:   barH,
+		Radius:      radius,
+		ShowLabel:   w.cfg.showLabel,
+		Label:       label,
+		Disabled:    w.cfg.ResolvedDisabled(),
+		ColorScheme: w.cfg.colorScheme,
 	})
 }
 

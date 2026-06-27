@@ -138,7 +138,23 @@ const (
 	dtRadioTextAlignLeft                = widget.TextAlignLeft
 	dtRadioFocusRingOffset      float32 = 2
 	dtRadioFocusRingStrokeWidth float32 = 1
+	dtRadioItemPadding          float32 = 4
 )
 
-// Compile-time check that RadioPainter implements Painter.
-var _ radio.Painter = RadioPainter{}
+// RadioCircleRadius returns the DevTools outer circle radius.
+func (RadioPainter) RadioCircleRadius() float32 { return dtRadioOuterRadius }
+
+// RadioLabelGap returns the DevTools gap between circle and label.
+func (RadioPainter) RadioLabelGap() float32 { return dtRadioLabelGap }
+
+// RadioFontSize returns the DevTools label font size.
+func (RadioPainter) RadioFontSize() float32 { return dtRadioFontSize }
+
+// RadioItemPadding returns the DevTools radio item padding.
+func (RadioPainter) RadioItemPadding() float32 { return dtRadioItemPadding }
+
+// Compile-time checks.
+var (
+	_ radio.Painter       = RadioPainter{}
+	_ radio.LayoutMetrics = RadioPainter{}
+)

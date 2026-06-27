@@ -186,5 +186,17 @@ const (
 	dtDashStrokeWidth float32 = 1.5
 )
 
-// Compile-time check that CheckboxPainter implements Painter.
-var _ checkbox.Painter = CheckboxPainter{}
+// CheckboxBoxSize returns the DevTools checkbox box size.
+func (CheckboxPainter) CheckboxBoxSize() float32 { return dtCBBoxSize }
+
+// CheckboxLabelGap returns the DevTools gap between box and label.
+func (CheckboxPainter) CheckboxLabelGap() float32 { return dtCBLabelGap }
+
+// CheckboxFontSize returns the DevTools label font size.
+func (CheckboxPainter) CheckboxFontSize() float32 { return dtCBFontSize }
+
+// Compile-time checks.
+var (
+	_ checkbox.Painter       = CheckboxPainter{}
+	_ checkbox.LayoutMetrics = CheckboxPainter{}
+)

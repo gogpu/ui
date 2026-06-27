@@ -197,5 +197,40 @@ const (
 	cupBtnFocusAlpha      float32 = 0.6
 )
 
-// Compile-time check that ButtonPainter implements Painter.
-var _ button.Painter = ButtonPainter{}
+// ButtonHeight returns the Cupertino height for the given button size.
+func (ButtonPainter) ButtonHeight(size button.Size) float32 {
+	switch size {
+	case button.Small:
+		return 30
+	case button.Large:
+		return 50
+	default:
+		return 44
+	}
+}
+
+// ButtonPadding returns the Cupertino horizontal and vertical padding.
+func (ButtonPainter) ButtonPadding(size button.Size) (float32, float32) {
+	switch size {
+	case button.Small:
+		return 10, 6
+	case button.Large:
+		return 24, 14
+	default:
+		return 20, 10
+	}
+}
+
+// ButtonFontSize returns the Cupertino font size for the given button size.
+func (ButtonPainter) ButtonFontSize(size button.Size) float32 {
+	return cupBtnFontSize(size)
+}
+
+// ButtonRadius returns the Cupertino default corner radius.
+func (ButtonPainter) ButtonRadius() float32 { return cupBtnDefaultRadius }
+
+// Compile-time checks.
+var (
+	_ button.Painter       = ButtonPainter{}
+	_ button.LayoutMetrics = ButtonPainter{}
+)

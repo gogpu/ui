@@ -16,14 +16,14 @@ type Painter interface {
 
 // PaintState provides the current progress bar state to the painter.
 type PaintState struct {
-	Value                  float64                // current value clamped to [0, 1]
-	Bounds                 geometry.Rect          // total widget bounds
-	BarHeight              float32                // height of the bar in logical pixels
-	Radius                 float32                // corner radius for rounded ends
-	ShowLabel              bool                   // whether to show percentage label
-	Label                  string                 // pre-formatted label text (empty if ShowLabel is false)
-	Disabled               bool                   // widget is disabled
-	ProgressBarColorScheme ProgressBarColorScheme // theme-derived colors (zero = use defaults)
+	Value       float64                // current value clamped to [0, 1]
+	Bounds      geometry.Rect          // total widget bounds
+	BarHeight   float32                // height of the bar in logical pixels
+	Radius      float32                // corner radius for rounded ends
+	ShowLabel   bool                   // whether to show percentage label
+	Label       string                 // pre-formatted label text (empty if ShowLabel is false)
+	Disabled    bool                   // widget is disabled
+	ColorScheme ProgressBarColorScheme // theme-derived colors (zero = use defaults)
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.
@@ -32,13 +32,13 @@ type DefaultPainter struct{}
 
 // PaintProgressBar renders a minimal progress bar with a gray track,
 // blue fill, and optional centered label.
-// If state.ProgressBarColorScheme is non-zero, its colors are used instead of built-in defaults.
+// If state.ColorScheme is non-zero, its colors are used instead of built-in defaults.
 func (p DefaultPainter) PaintProgressBar(canvas widget.Canvas, ps PaintState) {
 	if ps.Bounds.IsEmpty() {
 		return
 	}
 
-	hasScheme := ps.ProgressBarColorScheme != (ProgressBarColorScheme{})
+	hasScheme := ps.ColorScheme != (ProgressBarColorScheme{})
 	bounds := ps.Bounds
 
 	// Calculate bar rect centered vertically in bounds.
@@ -82,12 +82,12 @@ func (p DefaultPainter) PaintProgressBar(canvas widget.Canvas, ps PaintState) {
 func resolveTrackColor(ps PaintState, hasScheme bool) widget.Color {
 	if ps.Disabled {
 		if hasScheme {
-			return ps.ProgressBarColorScheme.DisabledTrack
+			return ps.ColorScheme.DisabledTrack
 		}
 		return defaultDisabledTrack
 	}
 	if hasScheme {
-		return ps.ProgressBarColorScheme.Track
+		return ps.ColorScheme.Track
 	}
 	return defaultTrackColor
 }
@@ -95,19 +95,19 @@ func resolveTrackColor(ps PaintState, hasScheme bool) widget.Color {
 func resolveBarColor(ps PaintState, hasScheme bool) widget.Color {
 	if ps.Disabled {
 		if hasScheme {
-			return ps.ProgressBarColorScheme.DisabledBar
+			return ps.ColorScheme.DisabledBar
 		}
 		return defaultDisabledBar
 	}
 	if hasScheme {
-		return ps.ProgressBarColorScheme.Bar
+		return ps.ColorScheme.Bar
 	}
 	return defaultBarColor
 }
 
 func resolveLabelColor(ps PaintState, hasScheme bool) widget.Color {
 	if hasScheme {
-		return ps.ProgressBarColorScheme.Label
+		return ps.ColorScheme.Label
 	}
 	return defaultLabelColor
 }

@@ -216,5 +216,14 @@ const (
 	m3SliderPressedDarkenFactor  float32 = 0.15
 )
 
-// Compile-time check that SliderPainter implements Painter.
-var _ slider.Painter = SliderPainter{}
+// SliderThumbRadius returns the M3 thumb radius.
+func (SliderPainter) SliderThumbRadius() float32 { return m3SliderThumbRadius }
+
+// SliderTrackHeight returns the M3 track height.
+func (SliderPainter) SliderTrackHeight() float32 { return m3SliderTrackHeight }
+
+// Compile-time checks.
+var (
+	_ slider.Painter       = SliderPainter{}
+	_ slider.LayoutMetrics = SliderPainter{}
+)

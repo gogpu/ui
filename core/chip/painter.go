@@ -12,6 +12,25 @@ type Painter interface {
 	PaintChip(canvas widget.Canvas, state PaintState)
 }
 
+// LayoutMetrics allows theme painters to provide spatial metrics used by the
+// widget's Layout method to compute chip dimensions.
+//
+// Painters that implement this interface provide custom metrics.
+// Painters that do not implement it get default values from [DefaultPainter].
+type LayoutMetrics interface {
+	// ChipFontSize returns the font size for the chip label.
+	ChipFontSize() float32
+
+	// ChipMinWidth returns the minimum chip width in logical pixels.
+	ChipMinWidth() float32
+
+	// ChipPadding returns the horizontal padding inside the chip.
+	ChipPadding() float32
+
+	// ChipRadius returns the corner radius for the chip.
+	ChipRadius() float32
+}
+
 // PaintState provides the current chip state to the painter.
 type PaintState struct {
 	Label       string          // chip label text
@@ -140,6 +159,30 @@ func resolveDisabledBackground(ps PaintState, hasScheme bool) widget.Color {
 	}
 	return defaultDisabledBackground
 }
+
+// ChipFontSize returns the default font size.
+func (DefaultPainter) ChipFontSize() float32 { return defaultFontSize }
+
+// ChipMinWidth returns the default minimum chip width.
+func (DefaultPainter) ChipMinWidth() float32 { return minChipWidth }
+
+// ChipPadding returns the default horizontal padding.
+func (DefaultPainter) ChipPadding() float32 { return labelPaddingX }
+
+// ChipRadius returns the default corner radius.
+func (DefaultPainter) ChipRadius() float32 { return defaultChipRadius }
+
+// resolveChipLayoutMetrics returns the LayoutMetrics from the painter if it
+// implements that interface, otherwise returns DefaultPainter metrics.
+func resolveChipLayoutMetrics(p Painter) LayoutMetrics {
+	if lm, ok := p.(LayoutMetrics); ok {
+		return lm
+	}
+	return DefaultPainter{}
+}
+
+// Compile-time checks.
+var _ LayoutMetrics = DefaultPainter{}
 
 // Painting constants.
 const (

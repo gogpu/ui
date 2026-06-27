@@ -30,7 +30,8 @@ func (p LineChartPainter) resolveColors() lineChartColors {
 }
 
 // PaintChart renders a line chart according to Material 3 specifications.
-func (p LineChartPainter) PaintChart(canvas widget.Canvas, bounds geometry.Rect, state linechart.PaintState) {
+func (p LineChartPainter) PaintChart(canvas widget.Canvas, state linechart.PaintState) {
+	bounds := state.Bounds
 	if bounds.IsEmpty() {
 		return
 	}

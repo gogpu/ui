@@ -133,7 +133,23 @@ const (
 	flRadioTextAlignLeft                = widget.TextAlignLeft
 	flRadioFocusRingOffset      float32 = 2
 	flRadioFocusRingStrokeWidth float32 = 2
+	flRadioItemPadding          float32 = 4
 )
 
-// Compile-time check that RadioPainter implements Painter.
-var _ radio.Painter = RadioPainter{}
+// RadioCircleRadius returns the Fluent outer circle radius.
+func (RadioPainter) RadioCircleRadius() float32 { return flRadioOuterRadius }
+
+// RadioLabelGap returns the Fluent gap between circle and label.
+func (RadioPainter) RadioLabelGap() float32 { return flRadioLabelGap }
+
+// RadioFontSize returns the Fluent label font size.
+func (RadioPainter) RadioFontSize() float32 { return flRadioFontSize }
+
+// RadioItemPadding returns the Fluent radio item padding.
+func (RadioPainter) RadioItemPadding() float32 { return flRadioItemPadding }
+
+// Compile-time checks.
+var (
+	_ radio.Painter       = RadioPainter{}
+	_ radio.LayoutMetrics = RadioPainter{}
+)

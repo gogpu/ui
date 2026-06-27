@@ -74,14 +74,21 @@ func (w *Widget) IsFocusable() bool {
 
 // Layout calculates the checkbox's preferred size within the given constraints.
 func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+	// Query LayoutMetrics from painter (type assert with default fallback).
+	lm := resolveCheckboxLayoutMetrics(w.painter)
+
+	bs := lm.CheckboxBoxSize()
+	gap := lm.CheckboxLabelGap()
+	fontSize := lm.CheckboxFontSize()
+
 	// Box size + optional label width.
-	totalWidth := boxSize + w.padding*2
-	totalHeight := boxSize + w.padding*2
+	totalWidth := bs + w.padding*2
+	totalHeight := bs + w.padding*2
 
 	label := w.cfg.ResolvedLabel()
 	if label != "" {
-		textWidth := float32(len(label)) * defaultFontSize * charWidthRatio
-		totalWidth += labelGap + textWidth
+		textWidth := float32(len(label)) * fontSize * charWidthRatio
+		totalWidth += gap + textWidth
 	}
 
 	// Ensure minimum height.

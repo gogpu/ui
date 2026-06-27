@@ -46,8 +46,30 @@ type ButtonColorScheme struct {
 	FocusRing      widget.Color
 }
 
+// LayoutMetrics allows theme painters to provide spatial metrics used by the
+// widget's Layout method to compute height, padding, and font size.
+//
+// Painters that implement this interface provide custom per-size metrics.
+// Painters that do not implement it get default values from [DefaultPainter].
+type LayoutMetrics interface {
+	// ButtonHeight returns the target height in logical pixels for the given size.
+	ButtonHeight(size Size) float32
+
+	// ButtonPadding returns the horizontal and vertical padding for the given size.
+	ButtonPadding(size Size) (paddingX, paddingY float32)
+
+	// ButtonFontSize returns the font size in logical pixels for the given size.
+	ButtonFontSize(size Size) float32
+
+	// ButtonRadius returns the default corner radius for the button.
+	ButtonRadius() float32
+}
+
 // DefaultPainter provides a minimal fallback painter with no design system styling.
 // It draws a simple gray button -- useful for testing and as a base reference.
+//
+// DefaultPainter also implements [LayoutMetrics], providing the default spatial
+// values used when a painter does not implement that interface.
 type DefaultPainter struct{}
 
 // PaintButton renders a minimal button with gray background and black text.
@@ -102,6 +124,32 @@ func (p DefaultPainter) PaintButton(canvas widget.Canvas, state PaintState) {
 		drawFocusIndicator(canvas, state.Bounds, radius)
 	}
 }
+
+// ButtonHeight returns the default height for the given button size.
+func (DefaultPainter) ButtonHeight(size Size) float32 { return sizeHeight(size) }
+
+// ButtonPadding returns the default horizontal and vertical padding.
+func (DefaultPainter) ButtonPadding(_ Size) (float32, float32) {
+	return defaultPaddingX, defaultPaddingY
+}
+
+// ButtonFontSize returns the default font size for the given button size.
+func (DefaultPainter) ButtonFontSize(size Size) float32 { return sizeFontSize(size) }
+
+// ButtonRadius returns the default corner radius.
+func (DefaultPainter) ButtonRadius() float32 { return defaultRadius }
+
+// resolveButtonLayoutMetrics returns the LayoutMetrics from the painter if it
+// implements that interface, otherwise returns DefaultPainter metrics.
+func resolveButtonLayoutMetrics(p Painter) LayoutMetrics {
+	if lm, ok := p.(LayoutMetrics); ok {
+		return lm
+	}
+	return DefaultPainter{}
+}
+
+// Compile-time checks.
+var _ LayoutMetrics = DefaultPainter{}
 
 // Default colors for DefaultPainter.
 var (

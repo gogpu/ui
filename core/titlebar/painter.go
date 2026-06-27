@@ -11,11 +11,11 @@ import (
 //
 // If no Painter is set, the title bar uses [DefaultPainter].
 type Painter interface {
-	// DrawBackground draws the title bar background.
-	DrawBackground(canvas widget.Canvas, bounds geometry.Rect, state BackgroundState)
+	// PaintBackground draws the title bar background.
+	PaintBackground(canvas widget.Canvas, bounds geometry.Rect, state BackgroundState)
 
-	// DrawControlButton draws a window control button (minimize, maximize, close).
-	DrawControlButton(canvas widget.Canvas, bounds geometry.Rect, control ControlType, state ControlState)
+	// PaintControlButton draws a window control button (minimize, maximize, close).
+	PaintControlButton(canvas widget.Canvas, bounds geometry.Rect, control ControlType, state ControlState)
 }
 
 // ControlType identifies a window control button.
@@ -70,16 +70,16 @@ type ControlState struct {
 // It draws a simple dark bar with basic window controls.
 type DefaultPainter struct{}
 
-// DrawBackground renders a dark background bar.
-func (p DefaultPainter) DrawBackground(canvas widget.Canvas, bounds geometry.Rect, _ BackgroundState) {
+// PaintBackground renders a dark background bar.
+func (p DefaultPainter) PaintBackground(canvas widget.Canvas, bounds geometry.Rect, _ BackgroundState) {
 	if bounds.IsEmpty() {
 		return
 	}
 	canvas.DrawRect(bounds, defaultBarBg)
 }
 
-// DrawControlButton renders a minimal window control button.
-func (p DefaultPainter) DrawControlButton(canvas widget.Canvas, bounds geometry.Rect, control ControlType, state ControlState) {
+// PaintControlButton renders a minimal window control button.
+func (p DefaultPainter) PaintControlButton(canvas widget.Canvas, bounds geometry.Rect, control ControlType, state ControlState) {
 	if bounds.IsEmpty() {
 		return
 	}

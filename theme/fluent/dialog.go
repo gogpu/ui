@@ -99,6 +99,7 @@ const (
 	flDialogActionCharWidth float32 = 8
 	flDialogActionPaddingX  float32 = 12
 	flDialogActionSpacing   float32 = 8
+	flDialogMaxWidth        float32 = 560
 	flDialogTextAlignLeft           = widget.TextAlignLeft
 	flDialogTextAlignCenter         = widget.TextAlignCenter
 )
@@ -115,5 +116,17 @@ var flDefaultDialogColors = dialog.DialogColorScheme{
 	ActionBg: DefaultAccentColor,
 }
 
-// Compile-time check that DialogPainter implements Painter.
-var _ dialog.Painter = DialogPainter{}
+// DialogPadding returns the Fluent dialog padding.
+func (DialogPainter) DialogPadding() float32 { return flDialogPadding }
+
+// DialogTitleHeight returns the Fluent dialog title height.
+func (DialogPainter) DialogTitleHeight() float32 { return flDialogTitleHeight }
+
+// DialogMaxWidth returns the Fluent default maximum dialog width.
+func (DialogPainter) DialogMaxWidth() float32 { return flDialogMaxWidth }
+
+// Compile-time checks.
+var (
+	_ dialog.Painter       = DialogPainter{}
+	_ dialog.LayoutMetrics = DialogPainter{}
+)

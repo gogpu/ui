@@ -55,5 +55,28 @@ var dtDefaultChipColors = chip.ChipColorScheme{
 	DisabledLabel:      widget.Hex(0x6F737A), // Gray7
 }
 
-// Compile-time check that ChipPainter implements chip.Painter.
-var _ chip.Painter = ChipPainter{}
+// ChipFontSize returns the DevTools chip font size.
+func (ChipPainter) ChipFontSize() float32 { return dtChipFontSize }
+
+// ChipMinWidth returns the DevTools minimum chip width.
+func (ChipPainter) ChipMinWidth() float32 { return dtChipMinWidth }
+
+// ChipPadding returns the DevTools chip horizontal padding.
+func (ChipPainter) ChipPadding() float32 { return dtChipPadding }
+
+// ChipRadius returns the DevTools chip corner radius.
+func (ChipPainter) ChipRadius() float32 { return dtChipRadius }
+
+// DevTools chip layout constants.
+const (
+	dtChipFontSize float32 = 13 // JetBrains Int UI body
+	dtChipMinWidth float32 = 32 // compact touch target
+	dtChipPadding  float32 = 8  // compact padding
+	dtChipRadius   float32 = 4  // JetBrains Int UI small radius
+)
+
+// Compile-time checks.
+var (
+	_ chip.Painter       = ChipPainter{}
+	_ chip.LayoutMetrics = ChipPainter{}
+)

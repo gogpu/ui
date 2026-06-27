@@ -12,106 +12,106 @@ import (
 
 // --- TitleBarPainter Tests ---
 
-func TestTitleBarPainter_DrawBackground(t *testing.T) {
+func TestTitleBarPainter_PaintBackground(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 800, 40)
 
-	p.DrawBackground(canvas, bounds, titlebar.BackgroundState{Focused: true})
+	p.PaintBackground(canvas, bounds, titlebar.BackgroundState{Focused: true})
 
 	if len(canvas.drawRects) < 2 {
 		t.Error("should draw background + bottom border (at least 2 rects)")
 	}
 }
 
-func TestTitleBarPainter_DrawBackground_EmptyBounds(t *testing.T) {
+func TestTitleBarPainter_PaintBackground_EmptyBounds(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 
-	p.DrawBackground(canvas, geometry.Rect{}, titlebar.BackgroundState{})
+	p.PaintBackground(canvas, geometry.Rect{}, titlebar.BackgroundState{})
 
 	if len(canvas.drawRects) > 0 {
 		t.Error("should not draw with empty bounds")
 	}
 }
 
-func TestTitleBarPainter_DrawBackground_NilTheme(t *testing.T) {
+func TestTitleBarPainter_PaintBackground_NilTheme(t *testing.T) {
 	p := TitleBarPainter{Theme: nil}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 800, 40)
 
-	p.DrawBackground(canvas, bounds, titlebar.BackgroundState{})
+	p.PaintBackground(canvas, bounds, titlebar.BackgroundState{})
 
 	if len(canvas.drawRects) < 2 {
 		t.Error("nil theme should use default dark colors and draw background + border")
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_EmptyBounds(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_EmptyBounds(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 
-	p.DrawControlButton(canvas, geometry.Rect{}, titlebar.ControlClose, titlebar.ControlState{})
+	p.PaintControlButton(canvas, geometry.Rect{}, titlebar.ControlClose, titlebar.ControlState{})
 
 	if len(canvas.drawRects) > 0 || len(canvas.drawLines) > 0 {
 		t.Error("should not draw with empty bounds")
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_Minimize(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_Minimize(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlMinimize, titlebar.ControlState{})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlMinimize, titlebar.ControlState{})
 
 	if len(canvas.drawLines) == 0 {
 		t.Error("minimize should draw a line")
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_Maximize(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_Maximize(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlMaximize, titlebar.ControlState{})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlMaximize, titlebar.ControlState{})
 
 	if len(canvas.strokeRects) == 0 {
 		t.Error("maximize should draw a stroked rect")
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_Restore(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_Restore(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlRestore, titlebar.ControlState{})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlRestore, titlebar.ControlState{})
 
 	if len(canvas.strokeRects) < 2 {
 		t.Errorf("restore should draw 2 stroked rects, got %d", len(canvas.strokeRects))
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_Close(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_Close(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{})
 
 	if len(canvas.drawLines) != 2 {
 		t.Errorf("close should draw 2 lines (X), got %d", len(canvas.drawLines))
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_CloseHover(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_CloseHover(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{Hovered: true})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{Hovered: true})
 
 	// Should draw red background.
 	if len(canvas.drawRects) == 0 {
@@ -130,12 +130,12 @@ func TestTitleBarPainter_DrawControlButton_CloseHover(t *testing.T) {
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_ClosePressed(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_ClosePressed(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{Pressed: true})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{Pressed: true})
 
 	// Should draw darker red background.
 	if len(canvas.drawRects) == 0 {
@@ -143,24 +143,24 @@ func TestTitleBarPainter_DrawControlButton_ClosePressed(t *testing.T) {
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_MinimizeHover(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_MinimizeHover(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlMinimize, titlebar.ControlState{Hovered: true})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlMinimize, titlebar.ControlState{Hovered: true})
 
 	if len(canvas.drawRects) == 0 {
 		t.Error("minimize hover should draw hover background")
 	}
 }
 
-func TestTitleBarPainter_DrawControlButton_MaximizePressed(t *testing.T) {
+func TestTitleBarPainter_PaintControlButton_MaximizePressed(t *testing.T) {
 	p := TitleBarPainter{Theme: NewDarkTheme()}
 	canvas := &tbMockCanvas{}
 	bounds := geometry.NewRect(0, 0, 46, 40)
 
-	p.DrawControlButton(canvas, bounds, titlebar.ControlMaximize, titlebar.ControlState{Pressed: true})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlMaximize, titlebar.ControlState{Pressed: true})
 
 	if len(canvas.drawRects) == 0 {
 		t.Error("maximize pressed should draw pressed background")
@@ -173,8 +173,8 @@ func TestTitleBarPainter_LightTheme(t *testing.T) {
 	bounds := geometry.NewRect(0, 0, 800, 40)
 
 	// Should not panic with light theme.
-	p.DrawBackground(canvas, bounds, titlebar.BackgroundState{Focused: true})
-	p.DrawControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{})
+	p.PaintBackground(canvas, bounds, titlebar.BackgroundState{Focused: true})
+	p.PaintControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{})
 
 	if len(canvas.drawRects) == 0 {
 		t.Error("light theme should draw background")

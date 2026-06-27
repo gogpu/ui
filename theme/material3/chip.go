@@ -57,11 +57,30 @@ var m3DefaultChipColors = chip.ChipColorScheme{
 	DisabledLabel:      widget.RGBA(0.12, 0.12, 0.13, m3ChipDisabledFgAlpha), // M3 on-surface @ 38%
 }
 
+// ChipFontSize returns the M3 chip font size.
+func (ChipPainter) ChipFontSize() float32 { return m3ChipFontSize }
+
+// ChipMinWidth returns the M3 minimum chip width.
+func (ChipPainter) ChipMinWidth() float32 { return m3ChipMinWidth }
+
+// ChipPadding returns the M3 chip horizontal padding.
+func (ChipPainter) ChipPadding() float32 { return m3ChipPadding }
+
+// ChipRadius returns the M3 chip corner radius.
+func (ChipPainter) ChipRadius() float32 { return m3ChipRadius }
+
 // M3 chip constants.
 const (
 	m3ChipDisabledBgAlpha float32 = 0.12 // M3 disabled background opacity
 	m3ChipDisabledFgAlpha float32 = 0.38 // M3 disabled foreground opacity
+	m3ChipFontSize        float32 = 14   // M3 label-large body
+	m3ChipMinWidth        float32 = 48   // M3 min touch target
+	m3ChipPadding         float32 = 12   // M3 horizontal padding
+	m3ChipRadius          float32 = 8    // M3 corner radius
 )
 
-// Compile-time check that ChipPainter implements chip.Painter.
-var _ chip.Painter = ChipPainter{}
+// Compile-time checks.
+var (
+	_ chip.Painter       = ChipPainter{}
+	_ chip.LayoutMetrics = ChipPainter{}
+)

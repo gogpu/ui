@@ -112,12 +112,19 @@ func (w *Widget) applySelected(sel bool) {
 
 // Layout calculates the chip's preferred size within the given constraints.
 func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
-	text := w.cfg.ResolvedLabel()
-	textWidth := float32(len(text)) * defaultFontSize * charWidthRatio
+	// Query LayoutMetrics from painter (type assert with default fallback).
+	lm := resolveChipLayoutMetrics(w.painter)
 
-	contentW := textWidth + labelPaddingX*2
-	if contentW < minChipWidth {
-		contentW = minChipWidth
+	fontSize := lm.ChipFontSize()
+	minW := lm.ChipMinWidth()
+	padX := lm.ChipPadding()
+
+	text := w.cfg.ResolvedLabel()
+	textWidth := float32(len(text)) * fontSize * charWidthRatio
+
+	contentW := textWidth + padX*2
+	if contentW < minW {
+		contentW = minW
 	}
 
 	preferred := geometry.Sz(
@@ -129,11 +136,14 @@ func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geom
 
 // Draw renders the chip to the canvas.
 func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
+	// Query LayoutMetrics from painter (type assert with default fallback).
+	lm := resolveChipLayoutMetrics(w.painter)
+
 	w.painter.PaintChip(canvas, PaintState{
 		Label:       w.cfg.ResolvedLabel(),
 		Bounds:      w.contentBounds(),
-		Radius:      defaultChipRadius,
-		FontSize:    defaultFontSize,
+		Radius:      lm.ChipRadius(),
+		FontSize:    lm.ChipFontSize(),
 		Selectable:  w.cfg.selectable,
 		Selected:    w.cfg.ResolvedSelected(),
 		Hovered:     w.state == stateHover,
