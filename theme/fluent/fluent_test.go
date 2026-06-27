@@ -507,7 +507,7 @@ func TestTextFieldPainterImplementsInterface(t *testing.T) {
 func TestPaintTextField(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := fluent.TextFieldPainter{}
-	painter.PaintTextField(canvas, textfield.PaintState{
+	painter.PaintTextField(canvas, &textfield.PaintState{
 		Text:   "Hello",
 		Bounds: testBounds(),
 	})
@@ -526,7 +526,7 @@ func TestPaintTextField(t *testing.T) {
 func TestPaintTextFieldEmpty(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := fluent.TextFieldPainter{}
-	painter.PaintTextField(canvas, textfield.PaintState{Bounds: geometry.Rect{}})
+	painter.PaintTextField(canvas, &textfield.PaintState{Bounds: geometry.Rect{}})
 	if len(canvas.calls) != 0 {
 		t.Errorf("empty bounds should produce no calls, got %d", len(canvas.calls))
 	}

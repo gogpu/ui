@@ -8,13 +8,31 @@ import (
 
 // TextFieldPainter renders text fields using DevTools design tokens.
 // DevTools text fields use a deep InputBackground (#1E1F22) with 4px radius,
-// subtle Gray5 border, and Blue6 border on focus — matching JetBrains IDE
+// subtle Gray5 border, and Blue6 border on focus -- matching JetBrains IDE
 // input field styling.
+//
+// TextFieldPainter implements [textfield.LayoutMetrics] to provide DevTools
+// spatial metrics (13px font, 8/6px padding, 1px cursor) used by the widget
+// to compute pre-computed PaintState fields.
 //
 // If Theme is nil, TextFieldPainter falls back to the default DevTools dark palette.
 type TextFieldPainter struct {
 	Theme *Theme // nil uses default DevTools dark fallback
 }
+
+// ContentPadding returns the DevTools horizontal and vertical padding.
+func (TextFieldPainter) ContentPadding() (float32, float32) {
+	return dtTFContentPaddingH, dtTFContentPaddingV
+}
+
+// TextFieldFontSize returns the DevTools font size.
+func (TextFieldPainter) TextFieldFontSize() float32 { return dtTFFontSize }
+
+// TextFieldCursorWidth returns the DevTools cursor width.
+func (TextFieldPainter) TextFieldCursorWidth() float32 { return dtTFCursorWidth }
+
+// TextFieldCornerRadius returns the DevTools corner radius.
+func (TextFieldPainter) TextFieldCornerRadius() float32 { return dtTFCornerRadius }
 
 // resolveColors returns the TextFieldColorScheme derived from the painter's Theme.
 func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
@@ -38,21 +56,27 @@ func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
 }
 
 // PaintTextField renders a text field according to DevTools design specifications.
-func (p TextFieldPainter) PaintTextField(canvas widget.Canvas, st textfield.PaintState) {
+// Cursor and selection positions come from pre-computed PaintState fields.
+func (p TextFieldPainter) PaintTextField(canvas widget.Canvas, st *textfield.PaintState) {
 	if st.Bounds.IsEmpty() {
 		return
 	}
 
 	colors := p.resolveColors()
+	fontSize := st.FontSize
+	if fontSize <= 0 {
+		fontSize = dtTFFontSize
+	}
+
 	dtPaintTFBackground(canvas, st, colors)
 	dtPaintTFBorder(canvas, st, colors)
-	dtPaintTFContent(canvas, st, colors)
-	dtPaintTFCursor(canvas, st, colors)
+	dtPaintTFContent(canvas, st, colors, fontSize)
+	dtPaintTFCursorFromState(canvas, st, colors)
 	dtPaintTFError(canvas, st, colors)
 }
 
 // dtPaintTFBackground draws the text field background.
-func dtPaintTFBackground(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func dtPaintTFBackground(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	bg := colors.Background
 	if st.Disabled {
 		bg = colors.DisabledBg
@@ -61,7 +85,7 @@ func dtPaintTFBackground(canvas widget.Canvas, st textfield.PaintState, colors t
 }
 
 // dtPaintTFBorder draws the text field outline.
-func dtPaintTFBorder(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func dtPaintTFBorder(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	borderColor := colors.Border
 	strokeWidth := dtTFBorderWidth
 
@@ -81,24 +105,17 @@ func dtPaintTFBorder(canvas widget.Canvas, st textfield.PaintState, colors textf
 	canvas.StrokeRoundRect(st.Bounds, borderColor, dtTFCornerRadius, strokeWidth)
 }
 
-// dtPaintTFContent draws the text or placeholder.
-func dtPaintTFContent(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	contentBounds := dtTFContentRect(st.Bounds)
-
-	canvas.PushClip(contentBounds)
+// dtPaintTFContent draws the text or placeholder using pre-computed fields.
+func dtPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme, fontSize float32) {
+	canvas.PushClip(st.ContentRect)
 	defer canvas.PopClip()
 
-	displayText := st.Text
-	if st.InputType == textfield.TypePassword {
-		displayText = dtMaskText(len([]rune(st.Text)))
-	}
-
-	if displayText == "" && !st.Focused {
+	if st.DisplayText == "" && !st.Focused {
 		color := colors.Placeholder
 		if st.Disabled {
 			color = colors.DisabledFg
 		}
-		canvas.DrawText(st.Placeholder, contentBounds, dtTFFontSize, color, false, dtTFTextAlignLeft)
+		canvas.DrawText(st.Placeholder, st.ContentRect, fontSize, color, false, dtTFTextAlignLeft)
 		return
 	}
 
@@ -107,58 +124,27 @@ func dtPaintTFContent(canvas widget.Canvas, st textfield.PaintState, colors text
 		textColor = colors.DisabledFg
 	}
 
-	// Selection highlight.
-	if st.SelectStart != st.SelectEnd {
-		dtPaintTFSelection(canvas, contentBounds, st, colors)
+	// Selection highlight from pre-computed rect.
+	if st.ShowSelection {
+		canvas.DrawRect(st.SelectionRect, colors.SelectionBg)
 	}
 
-	canvas.DrawText(displayText, contentBounds, dtTFFontSize, textColor, false, dtTFTextAlignLeft)
+	canvas.DrawText(st.DisplayText, st.ContentRect, fontSize, textColor, false, dtTFTextAlignLeft)
 }
 
-// dtPaintTFSelection draws the selection highlight.
-func dtPaintTFSelection(canvas widget.Canvas, contentBounds geometry.Rect, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	selStart := st.SelectStart
-	selEnd := st.SelectEnd
-	if selStart > selEnd {
-		selStart, selEnd = selEnd, selStart
-	}
-
-	charWidth := dtTFFontSize * dtTFCharWidthRatio
-	x1 := contentBounds.Min.X + float32(selStart)*charWidth
-	x2 := contentBounds.Min.X + float32(selEnd)*charWidth
-
-	if x2 > contentBounds.Max.X {
-		x2 = contentBounds.Max.X
-	}
-
-	selRect := geometry.Rect{
-		Min: geometry.Pt(x1, contentBounds.Min.Y),
-		Max: geometry.Pt(x2, contentBounds.Max.Y),
-	}
-	canvas.DrawRect(selRect, colors.SelectionBg)
-}
-
-// dtPaintTFCursor draws the blinking caret.
-func dtPaintTFCursor(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	if !st.Focused || st.Disabled || st.SelectStart != st.SelectEnd {
+// dtPaintTFCursorFromState draws the cursor using pre-computed CursorRect.
+func dtPaintTFCursorFromState(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
+	if !st.ShowCursor {
 		return
 	}
 
-	content := dtTFContentRect(st.Bounds)
-	charWidth := dtTFFontSize * dtTFCharWidthRatio
-	cursorX := content.Min.X + float32(st.CursorPos)*charWidth
-
-	if cursorX > content.Max.X {
-		cursorX = content.Max.X
-	}
-
-	top := geometry.Pt(cursorX, content.Min.Y+dtTFCursorPadding)
-	bottom := geometry.Pt(cursorX, content.Max.Y-dtTFCursorPadding)
-	canvas.DrawLine(top, bottom, colors.CursorColor, dtTFCursorWidth)
+	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
+	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
+	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
 }
 
 // dtPaintTFError draws the error message below the text field.
-func dtPaintTFError(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func dtPaintTFError(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	if !st.HasError || st.ErrorMsg == "" {
 		return
 	}
@@ -168,23 +154,6 @@ func dtPaintTFError(canvas widget.Canvas, st textfield.PaintState, colors textfi
 		Max: geometry.Pt(st.Bounds.Max.X, st.Bounds.Max.Y+dtTFErrorTopGap+dtTFErrorFontSize+dtTFErrorBottomPad),
 	}
 	canvas.DrawText(st.ErrorMsg, errBounds, dtTFErrorFontSize, colors.ErrorText, false, dtTFTextAlignLeft)
-}
-
-// dtTFContentRect returns the inner content area for text.
-func dtTFContentRect(bounds geometry.Rect) geometry.Rect {
-	return geometry.Rect{
-		Min: geometry.Pt(bounds.Min.X+dtTFContentPaddingH, bounds.Min.Y+dtTFContentPaddingV),
-		Max: geometry.Pt(bounds.Max.X-dtTFContentPaddingH, bounds.Max.Y-dtTFContentPaddingV),
-	}
-}
-
-// dtMaskText returns a string of bullet characters.
-func dtMaskText(length int) string {
-	runes := make([]rune, length)
-	for i := range runes {
-		runes[i] = '\u2022'
-	}
-	return string(runes)
 }
 
 // dtDefaultTextFieldColors holds the default DevTools dark text field color scheme.
@@ -210,7 +179,6 @@ const (
 	dtTFContentPaddingH  float32 = 8
 	dtTFContentPaddingV  float32 = 6
 	dtTFFontSize         float32 = 13
-	dtTFCharWidthRatio   float32 = 0.55
 	dtTFTextAlignLeft            = widget.TextAlignLeft
 	dtTFCursorWidth      float32 = 1
 	dtTFCursorPadding    float32 = 2
@@ -219,5 +187,8 @@ const (
 	dtTFErrorBottomPad   float32 = 2
 )
 
-// Compile-time check that TextFieldPainter implements Painter.
-var _ textfield.Painter = TextFieldPainter{}
+// Compile-time checks.
+var (
+	_ textfield.Painter       = TextFieldPainter{}
+	_ textfield.LayoutMetrics = TextFieldPainter{}
+)

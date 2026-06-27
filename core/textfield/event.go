@@ -109,18 +109,35 @@ func handleDoubleClick(w *Widget, ctx widget.Context, e *event.MouseEvent) bool 
 }
 
 // positionFromMouse converts a mouse position to a rune index in the text.
+// Uses cached text metrics from the last Draw call for accurate hit-testing.
+// Falls back to proportional approximation when no cached metrics are available
+// (e.g., before the first draw).
 func positionFromMouse(w *Widget, e *event.MouseEvent) int {
+	runes := w.textRunes()
+
+	// Use cached metrics from last Draw if available.
+	if w.cachedMetrics != nil {
+		return w.cachedMetrics.RuneIndexFromX(
+			w.cachedContentRect,
+			w.cachedDisplayText,
+			e.Position.X,
+		)
+	}
+
+	// Fallback: approximate using layout metrics padding.
+	lm := resolveLayoutMetrics(w.painter)
+	hPad, _ := lm.ContentPadding()
 	bounds := w.Bounds()
-	localX := e.Position.X - bounds.Min.X - contentPaddingH
+	localX := e.Position.X - bounds.Min.X - hPad
 
 	if localX <= 0 {
 		return 0
 	}
 
-	charW := defaultFontSize * charWidthRatio
+	// Approximate proportional positioning.
+	fontSize := lm.TextFieldFontSize()
+	charW := fontSize * 0.55 // approximate average character width
 	pos := int(localX / charW)
-
-	runes := w.textRunes()
 	return clampPos(pos, len(runes))
 }
 

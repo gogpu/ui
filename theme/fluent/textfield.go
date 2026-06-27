@@ -10,10 +10,28 @@ import (
 // Fluent text fields feature a subtle bottom accent border on focus
 // and clean rectangular shape with small corner radius.
 //
+// TextFieldPainter implements [textfield.LayoutMetrics] to provide Fluent
+// spatial metrics (14px font, 12/8px padding, 1.5px cursor) used by the
+// widget to compute pre-computed PaintState fields.
+//
 // If Theme is nil, TextFieldPainter falls back to the default Fluent Blue palette.
 type TextFieldPainter struct {
 	Theme *Theme // nil uses default Fluent Blue fallback
 }
+
+// ContentPadding returns the Fluent horizontal and vertical padding.
+func (TextFieldPainter) ContentPadding() (float32, float32) {
+	return flTFContentPaddingH, flTFContentPaddingV
+}
+
+// TextFieldFontSize returns the Fluent font size.
+func (TextFieldPainter) TextFieldFontSize() float32 { return flTFFontSize }
+
+// TextFieldCursorWidth returns the Fluent cursor width.
+func (TextFieldPainter) TextFieldCursorWidth() float32 { return flTFCursorWidth }
+
+// TextFieldCornerRadius returns the Fluent corner radius.
+func (TextFieldPainter) TextFieldCornerRadius() float32 { return flTFCornerRadius }
 
 // resolveColors returns the TextFieldColorScheme derived from the painter's Theme.
 func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
@@ -37,21 +55,27 @@ func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
 }
 
 // PaintTextField renders a text field according to Fluent Design specifications.
-func (p TextFieldPainter) PaintTextField(canvas widget.Canvas, st textfield.PaintState) {
+// Cursor and selection positions come from pre-computed PaintState fields.
+func (p TextFieldPainter) PaintTextField(canvas widget.Canvas, st *textfield.PaintState) {
 	if st.Bounds.IsEmpty() {
 		return
 	}
 
 	colors := p.resolveColors()
+	fontSize := st.FontSize
+	if fontSize <= 0 {
+		fontSize = flTFFontSize
+	}
+
 	flPaintTFBackground(canvas, st, colors)
 	flPaintTFBorder(canvas, st, colors)
-	flPaintTFContent(canvas, st, colors)
-	flPaintTFCursor(canvas, st, colors)
+	flPaintTFContent(canvas, st, colors, fontSize)
+	flPaintTFCursorFromState(canvas, st, colors)
 	flPaintTFError(canvas, st, colors)
 }
 
 // flPaintTFBackground draws the text field background.
-func flPaintTFBackground(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func flPaintTFBackground(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	bg := colors.Background
 	if st.Disabled {
 		bg = colors.DisabledBg
@@ -60,7 +84,7 @@ func flPaintTFBackground(canvas widget.Canvas, st textfield.PaintState, colors t
 }
 
 // flPaintTFBorder draws the text field outline.
-func flPaintTFBorder(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func flPaintTFBorder(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	borderColor := colors.Border
 	strokeWidth := flTFBorderWidth
 
@@ -80,24 +104,17 @@ func flPaintTFBorder(canvas widget.Canvas, st textfield.PaintState, colors textf
 	canvas.StrokeRoundRect(st.Bounds, borderColor, flTFCornerRadius, strokeWidth)
 }
 
-// flPaintTFContent draws the text or placeholder.
-func flPaintTFContent(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	contentBounds := flTFContentRect(st.Bounds)
-
-	canvas.PushClip(contentBounds)
+// flPaintTFContent draws the text or placeholder using pre-computed fields.
+func flPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme, fontSize float32) {
+	canvas.PushClip(st.ContentRect)
 	defer canvas.PopClip()
 
-	displayText := st.Text
-	if st.InputType == textfield.TypePassword {
-		displayText = flMaskText(len([]rune(st.Text)))
-	}
-
-	if displayText == "" && !st.Focused {
+	if st.DisplayText == "" && !st.Focused {
 		color := colors.Placeholder
 		if st.Disabled {
 			color = colors.DisabledFg
 		}
-		canvas.DrawText(st.Placeholder, contentBounds, flTFFontSize, color, false, flTFTextAlignLeft)
+		canvas.DrawText(st.Placeholder, st.ContentRect, fontSize, color, false, flTFTextAlignLeft)
 		return
 	}
 
@@ -106,58 +123,27 @@ func flPaintTFContent(canvas widget.Canvas, st textfield.PaintState, colors text
 		textColor = colors.DisabledFg
 	}
 
-	// Selection highlight.
-	if st.SelectStart != st.SelectEnd {
-		flPaintTFSelection(canvas, contentBounds, st, colors)
+	// Selection highlight from pre-computed rect.
+	if st.ShowSelection {
+		canvas.DrawRect(st.SelectionRect, colors.SelectionBg)
 	}
 
-	canvas.DrawText(displayText, contentBounds, flTFFontSize, textColor, false, flTFTextAlignLeft)
+	canvas.DrawText(st.DisplayText, st.ContentRect, fontSize, textColor, false, flTFTextAlignLeft)
 }
 
-// flPaintTFSelection draws the selection highlight.
-func flPaintTFSelection(canvas widget.Canvas, contentBounds geometry.Rect, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	selStart := st.SelectStart
-	selEnd := st.SelectEnd
-	if selStart > selEnd {
-		selStart, selEnd = selEnd, selStart
-	}
-
-	charWidth := flTFFontSize * flTFCharWidthRatio
-	x1 := contentBounds.Min.X + float32(selStart)*charWidth
-	x2 := contentBounds.Min.X + float32(selEnd)*charWidth
-
-	if x2 > contentBounds.Max.X {
-		x2 = contentBounds.Max.X
-	}
-
-	selRect := geometry.Rect{
-		Min: geometry.Pt(x1, contentBounds.Min.Y),
-		Max: geometry.Pt(x2, contentBounds.Max.Y),
-	}
-	canvas.DrawRect(selRect, colors.SelectionBg)
-}
-
-// flPaintTFCursor draws the blinking caret.
-func flPaintTFCursor(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	if !st.Focused || st.Disabled || st.SelectStart != st.SelectEnd {
+// flPaintTFCursorFromState draws the cursor using pre-computed CursorRect.
+func flPaintTFCursorFromState(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
+	if !st.ShowCursor {
 		return
 	}
 
-	content := flTFContentRect(st.Bounds)
-	charWidth := flTFFontSize * flTFCharWidthRatio
-	cursorX := content.Min.X + float32(st.CursorPos)*charWidth
-
-	if cursorX > content.Max.X {
-		cursorX = content.Max.X
-	}
-
-	top := geometry.Pt(cursorX, content.Min.Y+flTFCursorPadding)
-	bottom := geometry.Pt(cursorX, content.Max.Y-flTFCursorPadding)
-	canvas.DrawLine(top, bottom, colors.CursorColor, flTFCursorWidth)
+	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
+	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
+	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
 }
 
 // flPaintTFError draws the error message below the text field.
-func flPaintTFError(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func flPaintTFError(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	if !st.HasError || st.ErrorMsg == "" {
 		return
 	}
@@ -167,23 +153,6 @@ func flPaintTFError(canvas widget.Canvas, st textfield.PaintState, colors textfi
 		Max: geometry.Pt(st.Bounds.Max.X, st.Bounds.Max.Y+flTFErrorTopGap+flTFErrorFontSize+flTFErrorBottomPad),
 	}
 	canvas.DrawText(st.ErrorMsg, errBounds, flTFErrorFontSize, colors.ErrorText, false, flTFTextAlignLeft)
-}
-
-// flTFContentRect returns the inner content area for text.
-func flTFContentRect(bounds geometry.Rect) geometry.Rect {
-	return geometry.Rect{
-		Min: geometry.Pt(bounds.Min.X+flTFContentPaddingH, bounds.Min.Y+flTFContentPaddingV),
-		Max: geometry.Pt(bounds.Max.X-flTFContentPaddingH, bounds.Max.Y-flTFContentPaddingV),
-	}
-}
-
-// flMaskText returns a string of bullet characters.
-func flMaskText(length int) string {
-	runes := make([]rune, length)
-	for i := range runes {
-		runes[i] = '\u2022'
-	}
-	return string(runes)
 }
 
 // flDefaultTextFieldColors holds the default Fluent text field color scheme.
@@ -209,14 +178,15 @@ const (
 	flTFContentPaddingH  float32 = 12
 	flTFContentPaddingV  float32 = 8
 	flTFFontSize         float32 = 14
-	flTFCharWidthRatio   float32 = 0.55
 	flTFTextAlignLeft            = widget.TextAlignLeft
 	flTFCursorWidth      float32 = 1.5
-	flTFCursorPadding    float32 = 2
 	flTFErrorFontSize    float32 = 12
 	flTFErrorTopGap      float32 = 4
 	flTFErrorBottomPad   float32 = 4
 )
 
-// Compile-time check that TextFieldPainter implements Painter.
-var _ textfield.Painter = TextFieldPainter{}
+// Compile-time checks.
+var (
+	_ textfield.Painter       = TextFieldPainter{}
+	_ textfield.LayoutMetrics = TextFieldPainter{}
+)

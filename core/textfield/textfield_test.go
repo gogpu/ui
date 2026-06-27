@@ -807,6 +807,192 @@ func TestDraw_DoesNotPanicWithBounds(t *testing.T) {
 	tf.Draw(ctx, canvas)
 }
 
+// --- Pre-computed PaintState Tests (ADR-034) ---
+
+func TestDraw_PrecomputedDisplayText(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue("secret"),
+		textfield.InputTypeOpt(textfield.TypePassword),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if p.state.DisplayText == "secret" {
+		t.Error("password DisplayText should be masked, not plaintext")
+	}
+	if len([]rune(p.state.DisplayText)) != 6 {
+		t.Errorf("password DisplayText should have 6 bullets, got %d runes", len([]rune(p.state.DisplayText)))
+	}
+}
+
+func TestDraw_PrecomputedDisplayText_PlainText(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue("hello"),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if p.state.DisplayText != "hello" {
+		t.Errorf("DisplayText = %q, want %q", p.state.DisplayText, "hello")
+	}
+}
+
+func TestDraw_PrecomputedContentRect(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue("test"),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(10, 20, 300, 48))
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	cr := p.state.ContentRect
+	if cr.IsEmpty() {
+		t.Error("ContentRect should not be empty")
+	}
+	// ContentRect should be inside bounds (inset by padding).
+	bounds := tf.Bounds()
+	if cr.Min.X <= bounds.Min.X || cr.Min.Y <= bounds.Min.Y {
+		t.Errorf("ContentRect.Min should be inset from bounds: cr=%v, bounds=%v", cr, bounds)
+	}
+	if cr.Max.X >= bounds.Max.X || cr.Max.Y >= bounds.Max.Y {
+		t.Errorf("ContentRect.Max should be inset from bounds: cr=%v, bounds=%v", cr, bounds)
+	}
+}
+
+func TestDraw_PrecomputedShowCursor_Focused(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue("hello"),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if !p.state.ShowCursor {
+		t.Error("ShowCursor should be true when focused with no selection")
+	}
+	if p.state.CursorRect.IsEmpty() {
+		t.Error("CursorRect should not be empty when ShowCursor is true")
+	}
+}
+
+func TestDraw_PrecomputedShowCursor_Unfocused(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue("hello"),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	// Not focused.
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if p.state.ShowCursor {
+		t.Error("ShowCursor should be false when not focused")
+	}
+}
+
+func TestDraw_PrecomputedShowCursor_Disabled(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue("hello"),
+		textfield.Disabled(true),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if p.state.ShowCursor {
+		t.Error("ShowCursor should be false when disabled")
+	}
+}
+
+func TestDraw_PrecomputedSelection(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue("hello"),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+
+	// Select last 2 chars.
+	pressKey(tf, ctx, event.KeyLeft, event.ModShift)
+	pressKey(tf, ctx, event.KeyLeft, event.ModShift)
+
+	canvas := &mockCanvas{}
+	tf.Draw(ctx, canvas)
+
+	if !p.state.ShowSelection {
+		t.Error("ShowSelection should be true when selection exists")
+	}
+	if p.state.SelectionRect.IsEmpty() {
+		t.Error("SelectionRect should not be empty when ShowSelection is true")
+	}
+	if p.state.ShowCursor {
+		t.Error("ShowCursor should be false when selection exists")
+	}
+}
+
+func TestDraw_PrecomputedFontSize(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if p.state.FontSize <= 0 {
+		t.Errorf("FontSize = %v, want > 0", p.state.FontSize)
+	}
+}
+
+func TestLayoutMetrics_DefaultPainter(t *testing.T) {
+	var lm textfield.LayoutMetrics = textfield.DefaultPainter{}
+
+	h, v := lm.ContentPadding()
+	if h <= 0 || v <= 0 {
+		t.Errorf("ContentPadding = (%v, %v), want positive values", h, v)
+	}
+	if lm.TextFieldFontSize() <= 0 {
+		t.Errorf("TextFieldFontSize = %v, want > 0", lm.TextFieldFontSize())
+	}
+	if lm.TextFieldCursorWidth() <= 0 {
+		t.Errorf("TextFieldCursorWidth = %v, want > 0", lm.TextFieldCursorWidth())
+	}
+	if lm.TextFieldCornerRadius() <= 0 {
+		t.Errorf("TextFieldCornerRadius = %v, want > 0", lm.TextFieldCornerRadius())
+	}
+}
+
 // --- Widget Interface Compliance ---
 
 func TestWidgetInterface(t *testing.T) {
@@ -995,9 +1181,9 @@ type testPainter struct {
 	state  textfield.PaintState
 }
 
-func (p *testPainter) PaintTextField(_ widget.Canvas, ps textfield.PaintState) {
+func (p *testPainter) PaintTextField(_ widget.Canvas, ps *textfield.PaintState) {
 	p.called = true
-	p.state = ps
+	p.state = *ps
 }
 
 // --- recordingCanvas records draw calls for verification ---

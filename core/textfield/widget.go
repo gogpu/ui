@@ -3,6 +3,7 @@ package textfield
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/internal/textmetrics"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -37,6 +38,14 @@ type Widget struct {
 
 	// Styling overrides set via fluent methods.
 	padding float32
+
+	// Cached text metrics from last Draw call, used by event handlers
+	// (positionFromMouse) that don't have access to canvas.
+	cachedMetrics *textmetrics.Metrics
+	// Cached layout values from last Draw call.
+	cachedContentRect geometry.Rect
+	cachedDisplayText string
+	cachedFontSize    float32
 }
 
 // New creates a new text field Widget with the given options.
@@ -113,20 +122,86 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		}
 	}
 
-	w.painter.PaintTextField(canvas, PaintState{
-		Text:        w.resolvedText(),
+	// Query LayoutMetrics from painter (type assert with default fallback).
+	lm := resolveLayoutMetrics(w.painter)
+
+	// Compute pre-computed fields.
+	text := w.resolvedText()
+	bounds := w.Bounds()
+	focused := w.IsFocused()
+	disabled := w.cfg.ResolvedDisabled()
+	hasSelection := w.sel.anchor != w.sel.cursor
+
+	displayText := text
+	if w.cfg.inputType == TypePassword {
+		displayText = maskText(len([]rune(text)))
+	}
+
+	hPad, vPad := lm.ContentPadding()
+	contentRect := geometry.Rect{
+		Min: geometry.Pt(bounds.Min.X+hPad, bounds.Min.Y+vPad),
+		Max: geometry.Pt(bounds.Max.X-hPad, bounds.Max.Y-vPad),
+	}
+
+	fontSize := lm.TextFieldFontSize()
+	cw := lm.TextFieldCursorWidth()
+
+	// Build text metrics for cursor/selection computation.
+	tm := &textmetrics.Metrics{Canvas: canvas, FontSize: fontSize}
+
+	// Cache for event handlers (positionFromMouse).
+	w.cachedMetrics = tm
+	w.cachedContentRect = contentRect
+	w.cachedDisplayText = displayText
+	w.cachedFontSize = fontSize
+
+	// Compute cursor rect (if applicable).
+	showCursor := focused && !disabled && !hasSelection
+	var cursorRect geometry.Rect
+	if showCursor {
+		cursorRect = tm.CursorRect(contentRect, displayText, w.sel.cursor, cw)
+	}
+
+	// Compute selection rect (if applicable).
+	showSelection := hasSelection
+	var selectionRect geometry.Rect
+	if showSelection {
+		selectionRect = tm.SelectionRect(contentRect, displayText, w.sel.anchor, w.sel.cursor)
+	}
+
+	w.painter.PaintTextField(canvas, &PaintState{
+		// Legacy fields.
+		Text:        text,
 		Placeholder: w.cfg.placeholder,
-		Focused:     w.IsFocused(),
+		Focused:     focused,
 		Hovered:     w.hovered,
-		Disabled:    w.cfg.ResolvedDisabled(),
+		Disabled:    disabled,
 		HasError:    w.errorMsg != "",
 		ErrorMsg:    w.errorMsg,
 		CursorPos:   w.sel.cursor,
 		SelectStart: w.sel.anchor,
 		SelectEnd:   w.sel.cursor,
 		InputType:   w.cfg.inputType,
-		Bounds:      w.Bounds(),
+		Bounds:      bounds,
+
+		// Pre-computed fields.
+		DisplayText:   displayText,
+		ContentRect:   contentRect,
+		CursorRect:    cursorRect,
+		SelectionRect: selectionRect,
+		ShowCursor:    showCursor,
+		ShowSelection: showSelection,
+		FontSize:      fontSize,
 	})
+}
+
+// resolveLayoutMetrics returns the LayoutMetrics from the painter if it
+// implements that interface, otherwise returns DefaultPainter metrics.
+func resolveLayoutMetrics(p Painter) LayoutMetrics {
+	if lm, ok := p.(LayoutMetrics); ok {
+		return lm
+	}
+	return DefaultPainter{}
 }
 
 // Event handles an input event and returns true if consumed.

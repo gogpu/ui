@@ -10,10 +10,28 @@ import (
 // Cupertino text fields use a rounded rectangle with a light background
 // and subtle border, following iOS text field conventions.
 //
+// TextFieldPainter implements [textfield.LayoutMetrics] to provide Cupertino
+// spatial metrics (15px font, 12/10px padding, 2px cursor) used by the widget
+// to compute pre-computed PaintState fields.
+//
 // If Theme is nil, TextFieldPainter falls back to the default system blue palette.
 type TextFieldPainter struct {
 	Theme *Theme // nil uses default system blue fallback
 }
+
+// ContentPadding returns the Cupertino horizontal and vertical padding.
+func (TextFieldPainter) ContentPadding() (float32, float32) {
+	return cupTFContentPaddingH, cupTFContentPaddingV
+}
+
+// TextFieldFontSize returns the Cupertino font size.
+func (TextFieldPainter) TextFieldFontSize() float32 { return cupTFFontSize }
+
+// TextFieldCursorWidth returns the Cupertino cursor width.
+func (TextFieldPainter) TextFieldCursorWidth() float32 { return cupTFCursorWidth }
+
+// TextFieldCornerRadius returns the Cupertino corner radius.
+func (TextFieldPainter) TextFieldCornerRadius() float32 { return cupTFCornerRadius }
 
 // resolveColors returns the TextFieldColorScheme derived from the painter's Theme.
 func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
@@ -37,21 +55,27 @@ func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
 }
 
 // PaintTextField renders a text field according to Apple HIG specifications.
-func (p TextFieldPainter) PaintTextField(canvas widget.Canvas, st textfield.PaintState) {
+// Cursor and selection positions come from pre-computed PaintState fields.
+func (p TextFieldPainter) PaintTextField(canvas widget.Canvas, st *textfield.PaintState) {
 	if st.Bounds.IsEmpty() {
 		return
 	}
 
 	colors := p.resolveColors()
+	fontSize := st.FontSize
+	if fontSize <= 0 {
+		fontSize = cupTFFontSize
+	}
+
 	cupPaintTFBackground(canvas, st, colors)
 	cupPaintTFBorder(canvas, st, colors)
-	cupPaintTFContent(canvas, st, colors)
-	cupPaintTFCursor(canvas, st, colors)
+	cupPaintTFContent(canvas, st, colors, fontSize)
+	cupPaintTFCursorFromState(canvas, st, colors)
 	cupPaintTFError(canvas, st, colors)
 }
 
 // cupPaintTFBackground draws the text field background.
-func cupPaintTFBackground(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func cupPaintTFBackground(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	bg := colors.Background
 	if st.Disabled {
 		bg = colors.DisabledBg
@@ -60,7 +84,7 @@ func cupPaintTFBackground(canvas widget.Canvas, st textfield.PaintState, colors 
 }
 
 // cupPaintTFBorder draws the text field outline.
-func cupPaintTFBorder(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func cupPaintTFBorder(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	borderColor := colors.Border
 	strokeWidth := cupTFBorderWidth
 
@@ -80,24 +104,17 @@ func cupPaintTFBorder(canvas widget.Canvas, st textfield.PaintState, colors text
 	canvas.StrokeRoundRect(st.Bounds, borderColor, cupTFCornerRadius, strokeWidth)
 }
 
-// cupPaintTFContent draws the text or placeholder.
-func cupPaintTFContent(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	contentBounds := cupTFContentRect(st.Bounds)
-
-	canvas.PushClip(contentBounds)
+// cupPaintTFContent draws the text or placeholder using pre-computed fields.
+func cupPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme, fontSize float32) {
+	canvas.PushClip(st.ContentRect)
 	defer canvas.PopClip()
 
-	displayText := st.Text
-	if st.InputType == textfield.TypePassword {
-		displayText = cupMaskText(len([]rune(st.Text)))
-	}
-
-	if displayText == "" && !st.Focused {
+	if st.DisplayText == "" && !st.Focused {
 		color := colors.Placeholder
 		if st.Disabled {
 			color = colors.DisabledFg
 		}
-		canvas.DrawText(st.Placeholder, contentBounds, cupTFFontSize, color, false, cupTFTextAlignLeft)
+		canvas.DrawText(st.Placeholder, st.ContentRect, fontSize, color, false, cupTFTextAlignLeft)
 		return
 	}
 
@@ -106,57 +123,26 @@ func cupPaintTFContent(canvas widget.Canvas, st textfield.PaintState, colors tex
 		textColor = colors.DisabledFg
 	}
 
-	if st.SelectStart != st.SelectEnd {
-		cupPaintTFSelection(canvas, contentBounds, st, colors)
+	if st.ShowSelection {
+		canvas.DrawRect(st.SelectionRect, colors.SelectionBg)
 	}
 
-	canvas.DrawText(displayText, contentBounds, cupTFFontSize, textColor, false, cupTFTextAlignLeft)
+	canvas.DrawText(st.DisplayText, st.ContentRect, fontSize, textColor, false, cupTFTextAlignLeft)
 }
 
-// cupPaintTFSelection draws the selection highlight.
-func cupPaintTFSelection(canvas widget.Canvas, contentBounds geometry.Rect, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	selStart := st.SelectStart
-	selEnd := st.SelectEnd
-	if selStart > selEnd {
-		selStart, selEnd = selEnd, selStart
-	}
-
-	charWidth := cupTFFontSize * cupTFCharWidthRatio
-	x1 := contentBounds.Min.X + float32(selStart)*charWidth
-	x2 := contentBounds.Min.X + float32(selEnd)*charWidth
-
-	if x2 > contentBounds.Max.X {
-		x2 = contentBounds.Max.X
-	}
-
-	selRect := geometry.Rect{
-		Min: geometry.Pt(x1, contentBounds.Min.Y),
-		Max: geometry.Pt(x2, contentBounds.Max.Y),
-	}
-	canvas.DrawRect(selRect, colors.SelectionBg)
-}
-
-// cupPaintTFCursor draws the blinking caret.
-func cupPaintTFCursor(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	if !st.Focused || st.Disabled || st.SelectStart != st.SelectEnd {
+// cupPaintTFCursorFromState draws the cursor using pre-computed CursorRect.
+func cupPaintTFCursorFromState(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
+	if !st.ShowCursor {
 		return
 	}
 
-	content := cupTFContentRect(st.Bounds)
-	charWidth := cupTFFontSize * cupTFCharWidthRatio
-	cursorX := content.Min.X + float32(st.CursorPos)*charWidth
-
-	if cursorX > content.Max.X {
-		cursorX = content.Max.X
-	}
-
-	top := geometry.Pt(cursorX, content.Min.Y+cupTFCursorPadding)
-	bottom := geometry.Pt(cursorX, content.Max.Y-cupTFCursorPadding)
-	canvas.DrawLine(top, bottom, colors.CursorColor, cupTFCursorWidth)
+	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
+	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
+	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
 }
 
 // cupPaintTFError draws the error message below the text field.
-func cupPaintTFError(canvas widget.Canvas, st textfield.PaintState, colors textfield.TextFieldColorScheme) {
+func cupPaintTFError(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
 	if !st.HasError || st.ErrorMsg == "" {
 		return
 	}
@@ -166,23 +152,6 @@ func cupPaintTFError(canvas widget.Canvas, st textfield.PaintState, colors textf
 		Max: geometry.Pt(st.Bounds.Max.X, st.Bounds.Max.Y+cupTFErrorTopGap+cupTFErrorFontSize+cupTFErrorBottomPad),
 	}
 	canvas.DrawText(st.ErrorMsg, errBounds, cupTFErrorFontSize, colors.ErrorText, false, cupTFTextAlignLeft)
-}
-
-// cupTFContentRect returns the inner content area for text.
-func cupTFContentRect(bounds geometry.Rect) geometry.Rect {
-	return geometry.Rect{
-		Min: geometry.Pt(bounds.Min.X+cupTFContentPaddingH, bounds.Min.Y+cupTFContentPaddingV),
-		Max: geometry.Pt(bounds.Max.X-cupTFContentPaddingH, bounds.Max.Y-cupTFContentPaddingV),
-	}
-}
-
-// cupMaskText returns a string of bullet characters with the given length.
-func cupMaskText(length int) string {
-	runes := make([]rune, length)
-	for i := range runes {
-		runes[i] = '\u2022'
-	}
-	return string(runes)
 }
 
 // cupDefaultTextFieldColors holds the default Cupertino text field color scheme.
@@ -208,15 +177,16 @@ const (
 	cupTFContentPaddingH  float32 = 12
 	cupTFContentPaddingV  float32 = 10
 	cupTFFontSize         float32 = 15
-	cupTFCharWidthRatio   float32 = 0.55
 	cupTFTextAlignLeft            = widget.TextAlignLeft
 	cupTFCursorWidth      float32 = 2
-	cupTFCursorPadding    float32 = 2
 	cupTFErrorFontSize    float32 = 12
 	cupTFErrorTopGap      float32 = 4
 	cupTFErrorBottomPad   float32 = 4
 	cupTFSelectionAlpha   float32 = 0.2
 )
 
-// Compile-time check that TextFieldPainter implements Painter.
-var _ textfield.Painter = TextFieldPainter{}
+// Compile-time checks.
+var (
+	_ textfield.Painter       = TextFieldPainter{}
+	_ textfield.LayoutMetrics = TextFieldPainter{}
+)

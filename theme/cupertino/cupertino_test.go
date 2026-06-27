@@ -623,7 +623,7 @@ func TestPaintTextFieldEmptyBounds(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := cupertino.TextFieldPainter{}
 
-	painter.PaintTextField(canvas, textfield.PaintState{Bounds: geometry.Rect{}})
+	painter.PaintTextField(canvas, &textfield.PaintState{Bounds: geometry.Rect{}})
 
 	if len(canvas.calls) != 0 {
 		t.Errorf("empty bounds should produce no draw calls, got %d", len(canvas.calls))
@@ -634,7 +634,7 @@ func TestPaintTextFieldNormal(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := cupertino.TextFieldPainter{}
 
-	painter.PaintTextField(canvas, textfield.PaintState{
+	painter.PaintTextField(canvas, &textfield.PaintState{
 		Text:   "Hello",
 		Bounds: testBounds(),
 	})
@@ -655,7 +655,7 @@ func TestPaintTextFieldPlaceholder(t *testing.T) {
 	canvas := &recordCanvas{}
 	painter := cupertino.TextFieldPainter{}
 
-	painter.PaintTextField(canvas, textfield.PaintState{
+	painter.PaintTextField(canvas, &textfield.PaintState{
 		Text:        "",
 		Placeholder: "Enter text...",
 		Bounds:      testBounds(),
@@ -675,7 +675,7 @@ func TestPaintTextFieldWithTheme(t *testing.T) {
 	painter := cupertino.TextFieldPainter{Theme: theme}
 	canvas := &recordCanvas{}
 
-	painter.PaintTextField(canvas, textfield.PaintState{
+	painter.PaintTextField(canvas, &textfield.PaintState{
 		Text:   "Themed",
 		Bounds: testBounds(),
 	})
