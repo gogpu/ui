@@ -40,8 +40,7 @@ func main() {
 
     gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
         WithTitle("My App").
-        WithSize(800, 600).
-        WithContinuousRender(false))
+        WithSize(800, 600))
 
     uiApp := app.New(
         app.WithWindowProvider(gogpuApp),

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.40] — 2026-06-29
+
+### Fixed
+
+- **Damage blit on software GPU** — disable damage-aware blit (`LoadOpLoad`) on software Vulkan adapters (llvmpipe, SwiftShader, WARP). Software drivers don't guarantee swapchain content preservation between frames, causing stale pixels and unresponsive UI. Uses `gg.AcceleratorCanRenderDirect()` for auto-detection. (BUG-UI-DAMAGE-BLIT-001)
+
+### Changed
+
+- **Event-driven rendering by default** (ADR-035) — removed `WithContinuousRender(false)` from all 6 examples and documentation. No longer needed since gogpu v0.43.0 defaults to event-driven rendering, following the winit 0.29 pattern. Enterprise research: 8/8 UI frameworks (Flutter, Qt, GTK4, SwiftUI, Compose, Iced, Gio, Chromium) enforce event-driven at entry point.
+- **deps:** gg v0.49.2 → v0.49.3, gogpu v0.42.11 → v0.43.0
+
 ## [0.1.39] — 2026-06-28
 
 ### Changed

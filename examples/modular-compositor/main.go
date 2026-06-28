@@ -18,7 +18,7 @@
 // without a window or GPU. The compositor receives frames via channels and
 // composites them onto the window using [gg.DrawImage].
 //
-// Rendering: event-driven (ContinuousRender=false).
+// Rendering: event-driven (default since gogpu v0.43.0).
 // Modules send frames only when content changes. The compositor redraws
 // only when a new frame arrives.
 package main
@@ -59,8 +59,7 @@ func main() {
 
 	app := gogpu.NewApp(gogpu.DefaultConfig().
 		WithTitle("gogpu/ui — Modular Compositor").
-		WithSize(windowW, windowH).
-		WithContinuousRender(false))
+		WithSize(windowW, windowH))
 
 	// Start module goroutines.
 	go clockModule(frames)

@@ -89,8 +89,7 @@ func main() {
 
 	gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
 		WithTitle("gogpu/ui — Task Manager").
-		WithSize(700, 800).
-		WithContinuousRender(false))
+		WithSize(700, 800))
 
 	uiApp := app.New(
 		app.WithWindowProvider(gogpuApp),

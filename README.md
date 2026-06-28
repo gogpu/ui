@@ -91,8 +91,7 @@ import (
 func main() {
     gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
         WithTitle("My App").
-        WithSize(800, 600).
-        WithContinuousRender(false)) // Event-driven: 0% CPU when idle
+        WithSize(800, 600))
 
     uiApp := app.New(
         app.WithWindowProvider(gogpuApp),

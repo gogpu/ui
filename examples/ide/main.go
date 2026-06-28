@@ -35,8 +35,7 @@ func main() {
 	gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
 		WithTitle("GoLand — myproject").
 		WithSize(1024, 700).
-		WithFrameless(true).
-		WithContinuousRender(false))
+		WithFrameless(true))
 
 	dt := devtools.NewDarkTheme()
 	cs := dt.Colors

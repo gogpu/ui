@@ -442,6 +442,12 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	if isDebugDamageEnabled() {
 		damageBlitEnabled = false
 	}
+	// Disable damage blit on software adapters (llvmpipe, SwiftShader, WARP).
+	// LoadOpLoad assumes swapchain content preserved between frames, which
+	// software Vulkan drivers don't guarantee (Mesa #3730).
+	if damageBlitEnabled && !gg.AcceleratorCanRenderDirect() {
+		damageBlitEnabled = false
+	}
 	if damageBlitEnabled && skipRootBlit && !hasOverlays && len(rl.frameDamageRects) > 0 { //nolint:nestif // damage blit feature flag path selection
 		// ADR-030: Multi-rect damage-aware path.
 		// Accumulate damage across N swapchain buffers (ring buffer).

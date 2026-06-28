@@ -51,8 +51,7 @@ import (
 func main() {
     gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
         WithTitle("My First App").
-        WithSize(600, 400).
-        WithContinuousRender(false))
+        WithSize(600, 400))
 
     m3 := material3.New(widget.Hex(0x6750A4))
 
