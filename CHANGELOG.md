@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.39] — 2026-06-28
+
+### Changed
+
+- **deps:** gg v0.49.0 → v0.49.2, gogpu v0.42.8 → v0.42.11, wgpu v0.30.5 → v0.30.7, gputypes v0.5.0 → v0.5.1
+  - **gg v0.49.2:** Software Vulkan (llvmpipe/SwiftShader/WARP) now fully supported for offscreen boundary textures (ADR-046). Removes `softwareMode` blanket disable — software adapters treated as full GPU implementations per enterprise pattern (Skia Graphite, Flutter Impeller, wgpu). MSAA runtime fallback 4x→1x. Error logging in `CreateOffscreenTexture` instead of silent nil return.
+  - **wgpu v0.30.7:** Software backend format-aware copy + GLES LockOSThread fix.
+  - **gputypes v0.5.1:** `BlockCopySize()` for format-aware buffer sizing.
+
 ## [0.1.38] — 2026-06-28
 
 ### Added

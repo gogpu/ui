@@ -24,7 +24,7 @@
 | core/dialog/      |  core/scrollview/ |  ThemeScope,         |
 | core/tabview/     |  core/listview/   |  RepaintBoundary     |
 | core/gridview/    |  core/linechart/  |                      |
-| core/progressbar/ |  core/progress/   |  22 interactive      |
+| core/progressbar/ |  core/progress/   |  24 interactive      |
 | core/collapsible/ |  core/popover/    |  widgets in core/    |
 | core/splitview/   |  core/treeview/   |                      |
 | core/datatable/   |  core/toolbar/    |                      |
@@ -102,7 +102,7 @@
 |---------|---------|-----------|
 | `cdk/` | Headless behaviors, polymorphic content | `Content[C]`, `StringContent`, `FuncContent[C]`, `WidgetContent` |
 
-### Layer 3a: Generic Widgets (22 interactive widgets in core/)
+### Layer 3a: Generic Widgets (24 interactive widgets in core/)
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
