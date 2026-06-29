@@ -5,12 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Collapsible animation glitch on Wayland** ([#152](https://github.com/gogpu/ui/issues/152)) — two fixes: (1) force final redraw after animation completes so render loop doesn't go idle with stale content; (2) send full-window `wl_surface.damage_buffer` on root repaint so Wayland compositors update the entire display, not just partial damage rects. Without full damage, vacated areas from collapsed content showed stale pixels on physical display (visible on camera, not in screen recordings).
+
 ## [0.1.40] — 2026-06-29
 
 ### Changed
 
 - **Event-driven rendering by default** (ADR-035) — removed `WithContinuousRender(false)` from all 6 examples and documentation. No longer needed since gogpu v0.43.0 defaults to event-driven rendering, following the winit 0.29 pattern. Enterprise research: 8/8 UI frameworks (Flutter, Qt, GTK4, SwiftUI, Compose, Iced, Gio, Chromium) enforce event-driven at entry point.
-- **deps:** gg v0.49.2 → v0.49.3, gogpu v0.42.11 → v0.43.0
+- **deps:** gg v0.49.2 → v0.50.1, gogpu v0.42.11 → v0.43.1, wgpu v0.30.7 → v0.30.8
 
 ## [0.1.39] — 2026-06-28
 

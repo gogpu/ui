@@ -372,11 +372,13 @@ func (w *Widget) tickAnimation(ctx widget.Context) {
 	if dt > 32*time.Millisecond {
 		dt = 32 * time.Millisecond
 	}
+	wasActive := w.animCtrl.HasActive()
 	w.animCtrl.Tick(dt)
 
-	// Keep requesting redraws while animating.
-	// ADR-028: layout change — animation changes widget height each frame.
 	if w.animCtrl.HasActive() {
+		w.SetNeedsRedraw(true)
+		ctx.Invalidate()
+	} else if wasActive {
 		w.SetNeedsRedraw(true)
 		ctx.Invalidate()
 	}

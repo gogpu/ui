@@ -402,9 +402,18 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	}
 
 	// ADR-021 Phase 7: Pass damage rects to gg for partial present.
-	// ui knows which boundaries are dirty → their screen bounds = damage rects.
 	// Chain: ui → gg SetPresentDamage → gogpu SetDamageRects → wgpu PresentWithDamage → OS.
-	if dirtyRegions := win.DirtyRegions(); len(dirtyRegions) > 0 {
+	//
+	// When root texture changed (full repaint), send full-window damage to the
+	// OS compositor. Wayland compositors use wl_surface.damage_buffer as an
+	// optimization hint — without full damage on full repaint, vacated areas
+	// (e.g. collapsed content) may show stale pixels on the physical display
+	// because the compositor doesn't know those pixels changed.
+	if rl.rootTextureChanged || rl.fullRedrawNeeded {
+		rl.canvas.SetPresentDamage([]image.Rectangle{
+			image.Rect(0, 0, cw, ch),
+		})
+	} else if dirtyRegions := win.DirtyRegions(); len(dirtyRegions) > 0 {
 		rects := make([]image.Rectangle, len(dirtyRegions))
 		for i, r := range dirtyRegions {
 			rects[i] = image.Rect(
