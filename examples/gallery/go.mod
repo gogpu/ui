@@ -12,7 +12,6 @@ require (
 
 require (
 	github.com/coregx/signals v0.1.0 // indirect
-	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/go-webgpu/goffi v0.5.5 // indirect
 	github.com/go-webgpu/webgpu v0.5.2 // indirect
 	github.com/gogpu/gpucontext v0.21.0 // indirect
