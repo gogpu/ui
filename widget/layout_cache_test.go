@@ -328,61 +328,6 @@ func TestDebugVerifier_SentinelSuppressesCount(t *testing.T) {
 	}
 }
 
-// clwContainer is a clwWidget that holds children, for testing tree walks.
-type clwContainer struct {
-	clwWidget
-	children []widget.Widget
-}
-
-func (c *clwContainer) Children() []widget.Widget { return c.children }
-
-// --- MarkLayoutCleanRecursive ---
-
-func TestMarkLayoutCleanRecursive_SetsCleanOnTree(t *testing.T) {
-	child := newWB()
-	parent := &clwContainer{
-		clwWidget: *newWB(),
-		children:  []widget.Widget{child},
-	}
-
-	if parent.IsLayoutCacheValid() || child.IsLayoutCacheValid() {
-		t.Fatal("fresh widgets should start with invalid cache")
-	}
-
-	widget.MarkLayoutCleanRecursive(parent)
-
-	if !parent.IsLayoutCacheValid() {
-		t.Error("parent should be layout-clean after MarkLayoutCleanRecursive")
-	}
-	if !child.IsLayoutCacheValid() {
-		t.Error("child should be layout-clean after MarkLayoutCleanRecursive")
-	}
-}
-
-func TestMarkLayoutCleanRecursive_EnablesMarkNeedsLayout(t *testing.T) {
-	w := newWB()
-	widget.MarkLayoutCleanRecursive(w)
-
-	if !w.IsLayoutCacheValid() {
-		t.Fatal("should be clean after MarkLayoutCleanRecursive")
-	}
-
-	w.MarkNeedsLayout()
-
-	if w.IsLayoutCacheValid() {
-		t.Error("MarkNeedsLayout should invalidate after MarkLayoutCleanRecursive")
-	}
-}
-
-func TestMarkLayoutCleanRecursive_NilSafe(t *testing.T) {
-	widget.MarkLayoutCleanRecursive(nil) // must not panic
-}
-
-func TestMarkLayoutCleanRecursive_SkipsNonWidgetBase(t *testing.T) {
-	nb := &noBaseWidget{}
-	widget.MarkLayoutCleanRecursive(nb) // must not panic
-}
-
 func TestSetLayoutDebug_RestoresPrevious(t *testing.T) {
 	prev := widget.SetLayoutDebug(true)
 	if widget.SetLayoutDebug(prev) != true {

@@ -215,6 +215,11 @@ func newWindow(
 	ctx.SetOnInvalidate(func() {
 		w.needsLayout = true
 		w.needsRedraw = true
+		if w.root != nil {
+			if lm, ok := w.root.(interface{ InvalidateLayoutCache() }); ok {
+				lm.InvalidateLayoutCache()
+			}
+		}
 		if w.wp != nil {
 			w.wp.RequestRedraw()
 		}
@@ -565,11 +570,6 @@ func (w *Window) Frame() {
 		w.needsLayout = false
 		w.layout()
 		layoutDur = time.Since(layoutStart)
-		// ADR-032: mark all widgets layout-clean so MarkNeedsLayout()'s
-		// idempotency guard works before LayoutChild activates per-widget
-		// caching. Redundant once LayoutChild is adopted (layoutCacheStore
-		// handles the lifecycle).
-		widget.MarkLayoutCleanRecursive(w.root)
 		// Layout completed — widgets with changed positions need redraw.
 		// ADR-028: do NOT MarkRedrawInTree(root) — that marks ALL widgets
 		// dirty → full screen repaint. Only widgets that actually changed
@@ -783,8 +783,10 @@ func (w *Window) layout() {
 	// Create tight constraints matching the window size.
 	constraints := geometry.Tight(w.windowSize)
 
-	// Layout the root widget.
-	size := w.root.Layout(w.ctx, constraints)
+	// Layout the root widget through LayoutChild so the root's cache is
+	// managed by layoutCacheStore, eliminating the need for the former
+	// MarkLayoutCleanRecursive shim.
+	size := widget.LayoutChild(w.root, w.ctx, constraints)
 
 	// Set root bounds to fill the window from origin.
 	if setter, ok := w.root.(interface{ SetBounds(geometry.Rect) }); ok {
