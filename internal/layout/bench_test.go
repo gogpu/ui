@@ -18,14 +18,6 @@ func (b *benchLayoutable) Layout(_ geometry.Constraints) geometry.Size {
 func (b *benchLayoutable) Children() []Layoutable { return nil }
 func (b *benchLayoutable) ID() uint64             { return 0 }
 
-// cachableLayoutable is a Layoutable with a non-zero ID for cache benchmarks.
-type cachableLayoutable struct {
-	benchLayoutable
-	id uint64
-}
-
-func (c *cachableLayoutable) ID() uint64 { return c.id }
-
 // --- Flex layout benchmarks ---
 
 func newFlexWithChildren(n int) *FlexContainer {
@@ -156,46 +148,5 @@ func BenchmarkGridLayout10x10(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		grid.Layout(constraints)
-	}
-}
-
-// --- Layout engine cache benchmarks ---
-
-func BenchmarkLayoutCacheHit(b *testing.B) {
-	engine := NewEngine()
-	engine.EnableCache(true)
-
-	child := &cachableLayoutable{
-		benchLayoutable: benchLayoutable{preferredSize: geometry.Sz(100, 50)},
-		id:              42,
-	}
-	constraints := geometry.BoxConstraints(0, 800, 0, 600)
-
-	// Warm up cache with one layout call.
-	engine.Layout(child, constraints)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		engine.Layout(child, constraints)
-	}
-}
-
-func BenchmarkLayoutCacheMiss(b *testing.B) {
-	engine := NewEngine()
-	engine.EnableCache(true)
-
-	child := &cachableLayoutable{
-		benchLayoutable: benchLayoutable{preferredSize: geometry.Sz(100, 50)},
-		id:              42,
-	}
-	constraints := geometry.BoxConstraints(0, 800, 0, 600)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		// Mark dirty before each layout to force recomputation.
-		engine.MarkDirty(child.ID())
-		engine.Layout(child, constraints)
 	}
 }

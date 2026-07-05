@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Collapsible animation glitch on Wayland** ([#152](https://github.com/gogpu/ui/issues/152)) — force final redraw after animation completes + full-window `wl_surface.damage_buffer` on root repaint. Confirmed by @porjo.
 
+### Removed
+
+- **`internal/layout/Engine`** (ADR-032 CACHE-030) — centralized layout engine with 0 production usage. Per-widget layout caching is now fully handled by `widget.LayoutChild` on `WidgetBase`. -769 lines of dead code.
+
 ### Changed
 
 - **deps:** gg v0.50.1 → v0.50.2, gogpu v0.43.1 → v0.43.4, wgpu v0.30.8 → v0.30.9, goffi v0.5.5 → v0.5.6

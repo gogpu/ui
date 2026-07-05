@@ -1,4 +1,4 @@
-// Package layout provides the internal layout engine implementation for gogpu/ui.
+// Package layout provides internal layout algorithm implementations for gogpu/ui.
 //
 // This package is INTERNAL and not intended for public use. It implements
 // constraint-based layout algorithms used by the widget system.
@@ -7,10 +7,13 @@
 //
 // The layout package provides several layout algorithms:
 //
-//   - [Engine]: Manages layout passes with caching and dirty tracking
 //   - [FlexContainer]: CSS Flexbox-style layout (row, column, wrap)
 //   - [VStack], [HStack], [ZStack]: Simplified stack layouts
 //   - [GridContainer]: Basic grid layout with rows and columns
+//
+// Per-widget layout caching is handled by [widget.LayoutChild] (ADR-032),
+// not by this package. Container widgets call LayoutChild instead of
+// child.Layout directly, which checks the per-widget cache on WidgetBase.
 //
 // # Constraint-Based Layout
 //
@@ -24,15 +27,6 @@
 // Constraints specify minimum and maximum dimensions. A "tight" constraint
 // forces a specific size (min == max), while a "loose" constraint allows
 // flexibility (min = 0).
-//
-// # Layout Engine
-//
-// The Engine manages layout passes efficiently:
-//
-//   - Single-pass layout for simple hierarchies
-//   - Multi-pass layout for intrinsic sizing
-//   - Caching of layout results to avoid redundant calculations
-//   - Dirty tracking for incremental layout updates
 //
 // # Flexbox Layout
 //
@@ -70,11 +64,4 @@
 //
 // This package is used internally by the UI framework. Application code should
 // use the public layout widgets instead of directly using this package.
-//
-//	// Internal framework usage
-//	engine := layout.NewEngine()
-//	flex := layout.NewFlexContainer(layout.Row, layout.JustifyStart, layout.AlignStretch)
-//	flex.AddChild(child1, layout.FlexItem{Grow: 1})
-//	flex.AddChild(child2, layout.FlexItem{Grow: 2})
-//	size := engine.Layout(flex, constraints)
 package layout
