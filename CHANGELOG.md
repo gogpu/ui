@@ -5,16 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.42] — 2026-07-05
 
 ### Added
 
 - **Layout cache activation** (ADR-032 Phase 2b, [#160](https://github.com/gogpu/ui/pull/160), @TimLai666) — convert 32 parent→child Layout calls to `widget.LayoutChild` across 23 files, activating per-widget layout caching. Layout cost: O(total nodes) → O(affected subtree). Removes `MarkLayoutCleanRecursive` shim. Adds `InvalidateLayoutTree` for downward cache propagation on signal fires. `IsLayoutVerifying` sentinel for debug verifier (Flutter `debugCheckingIntrinsics` pattern).
 - **Animation tick before layout** (ADR-032 GAP-3) — `AnimationTicker` interface + `tickAnimationsInTree` walk before layout pass. Collapsible and Transition animations now tick BEFORE layout (Flutter `handleBeginFrame` → `handleDrawFrame` pattern). Layout is a pure function of constraints + widget state, required for RelayoutBoundary (Phase 5).
-
-### Fixed
-
-- **Collapsible animation glitch on Wayland** ([#152](https://github.com/gogpu/ui/issues/152)) — force final redraw after animation completes + full-window `wl_surface.damage_buffer` on root repaint. Confirmed by @porjo.
 
 ### Removed
 
@@ -23,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **deps:** gg v0.50.1 → v0.50.2, gogpu v0.43.1 → v0.43.4, wgpu v0.30.8 → v0.30.9, goffi v0.5.5 → v0.5.6
+
+## [0.1.41] — 2026-07-01
+
+### Fixed
+
+- **Collapsible animation glitch on Wayland** ([#152](https://github.com/gogpu/ui/issues/152), [#157](https://github.com/gogpu/ui/pull/157)) — force final redraw after animation completes + full-window `wl_surface.damage_buffer` on root repaint. Confirmed by @porjo (Intel Iris Plus ICL GT2, Fedora 44, GNOME/Mutter).
+
+### Changed
+
+- **Event-driven rendering by default** (ADR-035) — removed `WithContinuousRender(false)` boilerplate from all examples. gogpu v0.43.0+ defaults to event-driven (winit 0.29 pattern).
+- **deps:** gg v0.49.2 → v0.50.1, gogpu v0.42.11 → v0.43.1, wgpu v0.30.7 → v0.30.8
 
 ## [0.1.40] — 2026-06-29
 

@@ -1,7 +1,7 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.1.30-dev
-> **Updated:** June 2026
+> **Version:** 0.1.42
+> **Updated:** July 2026
 > **Go Version:** 1.25+
 
 ---
@@ -10,7 +10,7 @@
 
 **gogpu/ui** is the first enterprise-grade GUI toolkit for Go — zero CGO, GPU-accelerated, signal-driven.
 
-Go has waited 17 years for a professional graphics ecosystem. We're building it: 1.1M+ LOC across the gogpu ecosystem, all platforms, native menus and dialogs, triple-backend WebGPU, shader compiler, and a complete GUI toolkit.
+Go has waited 17 years for a professional graphics ecosystem. We're building it: 1.14M+ LOC across the gogpu ecosystem, all platforms, native menus and dialogs, triple-backend WebGPU, shader compiler, and a complete GUI toolkit.
 
 **Target applications:**
 - **IDEs** — GoLand/VS Code class (docking, tabs, tree, toolbar, menus, code editor)
@@ -36,15 +36,14 @@ Go has waited 17 years for a professional graphics ecosystem. We're building it:
 | Metric | Value |
 |--------|-------|
 | Packages | 56+ |
-| Go Source Files | ~413 |
-| Test Files | ~202 |
-| Total LOC | ~198,000+ |
-| Test Functions | ~7,300+ |
+| Total LOC (scc) | ~207,000+ |
+| Test Functions | ~7,500+ |
 | Test Coverage | 97%+ |
 | Linter Issues | 0 |
-| Interactive Widgets | 22 |
+| Interactive Widgets | 24 |
 | Design Systems | 4 (M3, DevTools, Fluent, Cupertino) |
 | Painters | 61 (21 + 22 + 9 + 9) |
+| Layout Cache | Per-widget (ADR-032), O(affected subtree) |
 
 ---
 
@@ -141,6 +140,12 @@ Slider, Dialog, Animation engine (Tween, Spring, M3 motion), ScrollView, TabView
 | Custom font pipeline | FontRegistry, StyledTextDrawer |
 | PointerCapturer | ADR-031, widget-level mouse capture |
 | 34 integration tests | Multi-frame lifecycle, visibility matrix |
+| Badge widget | Notification badge (dot/count), signal bindings |
+| Chip widget | Action/filter chip (M3 spec), toggleable, two-way signal |
+| Layout cache (ADR-032) | Per-widget caching via LayoutChild, O(n)→O(subtree) |
+| Animation before layout (GAP-3) | Flutter BeginFrame pattern, layout = pure function |
+| Stripe widget | Alternating row backgrounds |
+| TitleBar widget | Window title bar widget |
 
 **Remaining Phase 4:**
 
@@ -164,8 +169,8 @@ Essential widgets for production applications.
 | **RichText** | Styled text with bold/italic/links, inline formatting | Medium | Content display, help text |
 | **NumberField** | Numeric input: spinner buttons, range, step | Low | Forms, settings |
 | **ToggleSwitch** | iOS/Material on/off switch with animation | Low | Settings, preferences |
-| **Badge** | Notification badge (dot or count) on any widget | Low | Navigation, status |
-| **Chip** | Filter/action chips (M3 spec) | Low | Tags, filters |
+| ~~**Badge**~~ | ~~Notification badge~~ | — | ✅ Done (v0.1.35) |
+| ~~**Chip**~~ | ~~Filter/action chips~~ | — | ✅ Done (v0.1.35) |
 | **SegmentedControl** | Toggle button group (iOS/Fluent style) | Medium | View switching |
 | **SearchField** | Text input with search icon, clear, suggestions | Medium | Data filtering |
 

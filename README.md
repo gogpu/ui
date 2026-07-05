@@ -209,7 +209,7 @@ func main() {
 
 | `compositor` | Layer Tree compositor: OffsetLayer, PictureLayer, ClipRectLayer, OpacityLayer — production render pipeline | 95%+ |
 
-**Total: ~198,000+ lines of code | 56+ packages | ~7,300+ tests | 97%+ average coverage**
+**Total: ~207,000+ lines of code | 56+ packages | ~7,500+ tests | 97%+ average coverage**
 
 ---
 
