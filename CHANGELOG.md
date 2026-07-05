@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Layout cache activation** (ADR-032 Phase 2b, [#160](https://github.com/gogpu/ui/pull/160), @TimLai666) — convert 32 parent→child Layout calls to `widget.LayoutChild` across 23 files, activating per-widget layout caching. Layout cost: O(total nodes) → O(affected subtree). Removes `MarkLayoutCleanRecursive` shim. Adds `InvalidateLayoutTree` for downward cache propagation on signal fires. `IsLayoutVerifying` sentinel for debug verifier (Flutter `debugCheckingIntrinsics` pattern).
+
 ### Fixed
 
-- **Collapsible animation glitch on Wayland** ([#152](https://github.com/gogpu/ui/issues/152)) — two fixes: (1) force final redraw after animation completes so render loop doesn't go idle with stale content; (2) send full-window `wl_surface.damage_buffer` on root repaint so Wayland compositors update the entire display, not just partial damage rects. Without full damage, vacated areas from collapsed content showed stale pixels on physical display (visible on camera, not in screen recordings).
+- **Collapsible animation glitch on Wayland** ([#152](https://github.com/gogpu/ui/issues/152)) — force final redraw after animation completes + full-window `wl_surface.damage_buffer` on root repaint. Confirmed by @porjo.
 
 ## [0.1.40] — 2026-06-29
 

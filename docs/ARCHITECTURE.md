@@ -188,7 +188,7 @@ type Widget interface {
 }
 ```
 
-- **Layout** -- Calculate size given constraints from the parent. Containers layout their children and set child bounds.
+- **Layout** -- Calculate size given constraints from the parent. Containers call `widget.LayoutChild(child, ctx, constraints)` which checks the per-widget layout cache before calling `child.Layout()`. On a cache hit (same constraints, no `MarkNeedsLayout()` call), the child's Layout is skipped entirely (ADR-032).
 - **Draw** -- Render to a canvas. Called after layout when bounds are established.
 - **Event** -- Handle user input. Returns true if the event was consumed.
 - **Children** -- Return child widgets in z-order. Leaf widgets return nil.
