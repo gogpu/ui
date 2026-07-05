@@ -365,6 +365,7 @@ func TestLayout_Collapsed(t *testing.T) {
 	ctx := widget.NewContext()
 	constraints := geometry.Loose(geometry.Sz(300, 500))
 
+	w.TickAnimation(ctx)
 	size := w.Layout(ctx, constraints)
 
 	if size.Height != 40 {
@@ -382,6 +383,7 @@ func TestLayout_Expanded(t *testing.T) {
 	ctx := widget.NewContext()
 	constraints := geometry.Loose(geometry.Sz(300, 500))
 
+	w.TickAnimation(ctx)
 	size := w.Layout(ctx, constraints)
 
 	if size.Height != 140 {
@@ -398,6 +400,7 @@ func TestLayout_NoContent(t *testing.T) {
 	ctx := widget.NewContext()
 	constraints := geometry.Loose(geometry.Sz(300, 500))
 
+	w.TickAnimation(ctx)
 	size := w.Layout(ctx, constraints)
 
 	if size.Height != 36 {
@@ -410,6 +413,7 @@ func TestLayout_UsesMaxWidth(t *testing.T) {
 	ctx := widget.NewContext()
 	constraints := geometry.Loose(geometry.Sz(400, 500))
 
+	w.TickAnimation(ctx)
 	size := w.Layout(ctx, constraints)
 
 	if size.Width != 400 {
@@ -537,6 +541,7 @@ func TestAnimation_Expand(t *testing.T) {
 
 	// Advance 16ms ticks until animation completes (simulates ~60fps).
 	ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
+	w.TickAnimation(ctx)
 	w.Layout(ctx, constraints)
 
 	if w.Progress() <= 0.0 || w.Progress() >= 1.0 {
@@ -546,6 +551,7 @@ func TestAnimation_Expand(t *testing.T) {
 	// Run remaining ticks until animation is done.
 	for i := 0; i < 20 && w.IsAnimating(); i++ {
 		ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
+		w.TickAnimation(ctx)
 		w.Layout(ctx, constraints)
 	}
 
@@ -573,6 +579,7 @@ func TestAnimation_Collapse(t *testing.T) {
 	// Run ticks until animation completes.
 	for i := 0; i < 20 && w.IsAnimating(); i++ {
 		ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
+		w.TickAnimation(ctx)
 		w.Layout(ctx, constraints)
 	}
 
@@ -753,6 +760,7 @@ func TestAnimation_ProgressAdapter_InvalidatesScene(t *testing.T) {
 	ctx := widget.NewContext()
 	constraints := geometry.Loose(geometry.Sz(200, 500))
 	ctx.BeginFrame(ctx.Now().Add(16 * time.Millisecond))
+	w.TickAnimation(ctx)
 	w.Layout(ctx, constraints)
 
 	// progressAdapter.Set should have called InvalidateScene.
@@ -940,6 +948,7 @@ func TestAnimation_ProgressesWithoutMouseEvents(t *testing.T) {
 	for range 10 {
 		now = now.Add(16 * time.Millisecond)
 		ctx.BeginFrame(now)
+		w.TickAnimation(ctx)
 		w.Layout(ctx, constraints)
 		progresses = append(progresses, w.Progress())
 	}
@@ -979,6 +988,7 @@ func TestAnimation_DeltaTimeClamping_MinimumOneMilli(t *testing.T) {
 	now := ctx.Now()
 	ctx.BeginFrame(now)
 	ctx.BeginFrame(now) // dt=0
+	w.TickAnimation(ctx)
 	w.Layout(ctx, constraints)
 
 	if w.Progress() <= initialProgress {
@@ -1007,6 +1017,7 @@ func TestAnimation_DeltaTimeClamping_MaximumThirtyTwoMilli(t *testing.T) {
 	ctx.BeginFrame(now)
 	bigDelta := now.Add(100 * time.Millisecond)
 	ctx.BeginFrame(bigDelta)
+	w.TickAnimation(ctx)
 	w.Layout(ctx, constraints)
 
 	// With 200ms duration and 32ms max tick, progress should be at most ~16%.
@@ -1239,6 +1250,7 @@ func TestTitleSignal_ResolvesTitle(t *testing.T) {
 	// Signal > Fn > Static
 	ctx := widget.NewContext()
 	constraints := geometry.Tight(geometry.Sz(400, 40))
+	w.TickAnimation(ctx)
 	w.Layout(ctx, constraints)
 	w.SetBounds(geometry.NewRect(0, 0, 400, 40))
 

@@ -207,10 +207,8 @@ func (t *Transition) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 
-	// Update animation progress.
-	if t.animating {
-		t.updateAnimation(ctx)
-	}
+	// Animation progress is updated by TickAnimation (called before layout).
+	// Draw only reads the current progress — no mutation here.
 
 	// Determine the active effect and eased progress.
 	eff, easedProgress := t.currentEffect()
@@ -219,11 +217,16 @@ func (t *Transition) Draw(ctx widget.Context, canvas widget.Canvas) {
 	t.drawWithEffects(ctx, canvas, eff, easedProgress)
 }
 
-// updateAnimation advances the animation based on elapsed time.
-func (t *Transition) updateAnimation(ctx widget.Context) {
+// TickAnimation advances the transition animation based on elapsed time.
+// Called by the framework BEFORE layout (ADR-032 GAP-3, Flutter pattern).
+// Draw reads t.progress without mutation.
+func (t *Transition) TickAnimation(ctx widget.Context) {
+	if !t.animating {
+		return
+	}
+
 	now := ctx.Now()
 
-	// Initialize start time on first tick.
 	if t.startTime.IsZero() {
 		t.startTime = now
 	}
@@ -239,13 +242,13 @@ func (t *Transition) updateAnimation(ctx widget.Context) {
 		t.progress = 1.0
 		t.animating = false
 		if !t.entering {
-			t.shown = false // exit complete: hide
+			t.shown = false
 		}
-	} else {
-		// Request another frame while animating.
-		// ADR-028: layout-dependent — animation tick may change widget size.
+		t.MarkNeedsLayout()
 		t.SetNeedsRedraw(true)
-		ctx.Invalidate()
+	} else {
+		t.MarkNeedsLayout()
+		t.SetNeedsRedraw(true)
 	}
 }
 

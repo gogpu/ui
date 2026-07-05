@@ -546,7 +546,7 @@ func TestTickAnimation_NilCtrl(t *testing.T) {
 	w.animCtrl = nil
 	ctx := widget.NewContext()
 	// Should not panic.
-	w.tickAnimation(ctx)
+	w.TickAnimation(ctx)
 }
 
 // --- Draw Content With Non-Settable Bounds Widget ---

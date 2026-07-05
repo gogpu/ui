@@ -244,9 +244,7 @@ func (s *Slide) updateAnimation(ctx widget.Context) {
 		s.progress = 1.0
 		s.animating = false
 	} else {
-		// Request another frame while animating.
 		s.SetNeedsRedraw(true)
-		ctx.InvalidateRect(s.Bounds())
 	}
 }
 

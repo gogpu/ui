@@ -252,9 +252,7 @@ func (f *Fade) updateAnimation(ctx widget.Context) {
 		f.progress = 1.0
 		f.animating = false
 	} else {
-		// Request another frame while animating.
 		f.SetNeedsRedraw(true)
-		ctx.InvalidateRect(f.Bounds())
 	}
 
 	// Compute opacity from eased progress.

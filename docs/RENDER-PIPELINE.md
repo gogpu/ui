@@ -42,13 +42,17 @@ Each frame executes these steps in order:
 ### Step 1: Frame Setup
 
 ```
-Frame()                         // flush signals, layout, animations
+Frame()                         // signals, animation ticks, layout (see below)
 BeginAcceleratorFrame()          // reset GPU frame state
 BeginGPUFrame()                  // prepare gg render context
 ResetFrameDamage()               // clear damage tracking
 ```
 
-`Frame()` runs the signal scheduler (up to 2 re-flushes for cascading changes), layout pass if needed, and animation tick.
+`Frame()` runs in Flutter-correct order (ADR-032 GAP-3):
+1. **BeginFrame** — set DeltaTime
+2. **Signal flush** — process pending signal changes (up to 2 re-flushes)
+3. **Animation tick** — `tickAnimationsInTree()` walks the tree, calls `AnimationTicker.TickAnimation()` on widgets with layout-affecting animations (Collapsible, Transition). All animation values are final BEFORE layout runs.
+4. **Layout** — pure function of (constraints + widget state). No mutation.
 
 ### Step 2: Root Invalidation
 

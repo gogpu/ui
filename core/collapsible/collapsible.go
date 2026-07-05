@@ -146,9 +146,6 @@ func (w *Widget) IsAnimating() bool {
 //   - Expanded: headerHeight + content height
 //   - Animating: headerHeight + content height * progress
 func (w *Widget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
-	// Tick animation if active.
-	w.tickAnimation(ctx)
-
 	headerH := w.cfg.headerHeight
 
 	// Layout content to determine its natural height.
@@ -359,8 +356,10 @@ func (w *Widget) startAnimation(expanding bool) {
 		Start(w.animCtrl)
 }
 
-// tickAnimation advances animation by delta time from context.
-func (w *Widget) tickAnimation(ctx widget.Context) {
+// TickAnimation advances the expand/collapse animation by delta time.
+// Called by the framework BEFORE layout (ADR-032 GAP-3, Flutter pattern).
+// Layout reads w.progress without mutation.
+func (w *Widget) TickAnimation(ctx widget.Context) {
 	if w.animCtrl == nil || !w.animCtrl.HasActive() {
 		return
 	}
@@ -375,12 +374,9 @@ func (w *Widget) tickAnimation(ctx widget.Context) {
 	wasActive := w.animCtrl.HasActive()
 	w.animCtrl.Tick(dt)
 
-	if w.animCtrl.HasActive() {
+	if w.animCtrl.HasActive() || wasActive {
+		w.MarkNeedsLayout()
 		w.SetNeedsRedraw(true)
-		ctx.Invalidate()
-	} else if wasActive {
-		w.SetNeedsRedraw(true)
-		ctx.Invalidate()
 	}
 }
 

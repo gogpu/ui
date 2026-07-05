@@ -552,6 +552,13 @@ func (w *Window) Frame() {
 		}
 	}
 
+	// ADR-032 GAP-3: Tick layout-affecting animations BEFORE layout.
+	// Flutter pattern: handleBeginFrame (Animate) → handleDrawFrame (Layout).
+	// Layout must be a pure function of (constraints + widget state) for
+	// RelayoutBoundary correctness (Phase 5). Animation ticks mutate state
+	// (e.g., Collapsible.progress) so they must complete before layout reads it.
+	tickAnimationsInTree(w.root, w.ctx)
+
 	// Update scale factor (may change between frames on multi-monitor setups).
 	w.updateScale()
 
@@ -768,6 +775,22 @@ func (w *Window) syncContextFocusToManager() {
 	// Context has no focus (or non-focusable widget); clear manager focus.
 	if mgrFocused != nil {
 		w.focusMgr.Blur()
+	}
+}
+
+// tickAnimationsInTree walks the widget tree and calls TickAnimation on
+// widgets that implement [widget.AnimationTicker]. Called BEFORE layout
+// so that animation state is final when Layout reads it (Flutter pattern:
+// handleBeginFrame → Animate → handleDrawFrame → Layout).
+func tickAnimationsInTree(w widget.Widget, ctx widget.Context) {
+	if w == nil {
+		return
+	}
+	if ticker, ok := w.(widget.AnimationTicker); ok {
+		ticker.TickAnimation(ctx)
+	}
+	for _, child := range w.Children() {
+		tickAnimationsInTree(child, ctx)
 	}
 }
 

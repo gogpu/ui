@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Layout cache activation** (ADR-032 Phase 2b, [#160](https://github.com/gogpu/ui/pull/160), @TimLai666) — convert 32 parent→child Layout calls to `widget.LayoutChild` across 23 files, activating per-widget layout caching. Layout cost: O(total nodes) → O(affected subtree). Removes `MarkLayoutCleanRecursive` shim. Adds `InvalidateLayoutTree` for downward cache propagation on signal fires. `IsLayoutVerifying` sentinel for debug verifier (Flutter `debugCheckingIntrinsics` pattern).
+- **Animation tick before layout** (ADR-032 GAP-3) — `AnimationTicker` interface + `tickAnimationsInTree` walk before layout pass. Collapsible and Transition animations now tick BEFORE layout (Flutter `handleBeginFrame` → `handleDrawFrame` pattern). Layout is a pure function of constraints + widget state, required for RelayoutBoundary (Phase 5).
 
 ### Fixed
 
