@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.43] — 2026-07-08
+
+### Changed
+
+- **deps:** gg v0.50.2 → v0.50.3, gogpu v0.43.4 → v0.44.1, wgpu v0.30.9 → v0.30.10
+  - **gogpu v0.44.1:** Multi-backend auto-selection (old GPUs get DX12/GLES instead of software), macOS live resize fix.
+  - **gg v0.50.3:** TT hinter improvements.
+
 ## [0.1.42] — 2026-07-05
 
 ### Added
