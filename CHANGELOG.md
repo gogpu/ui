@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.44] — 2026-07-09
+
+### Changed
+
+- **deps:** gg v0.50.3 → v0.50.4, x/image v0.43.0 → v0.44.0, x/text v0.39.0 → v0.40.0
+  - **gg v0.50.4:** Composite hardening (nil-safe `WithTransform`, `BeginClip`/`EndClip` balanced check, GlyphRun empty guard).
+
+### Documentation
+
+- **ARCHITECTURE.md:** comprehensive update — 26 widgets (added badge, chip, stripe, titlebar), 4 design systems with 70 painters (added DevTools 24), removed Engine references (CACHE-030), per-widget layout caching (ADR-032), updated all dependency versions.
+
 ## [0.1.43] — 2026-07-08
 
 ### Changed

@@ -13,10 +13,14 @@
 |                    User Application                          |
 +==============================================================+
 |            Layer 3b: Design Systems (styling)                |
-| theme/material3/  |  theme/fluent/    |  theme/cupertino/    |
-| 21 Painters       |  9 Painters       |  9 Painters          |
-| (M3 HCT colors)   |  (Acrylic/Mica)  |  (Apple HIG)          |
-+-------------------+-------------------+----------------------+
+| theme/material3/  |  theme/devtools/  |  theme/fluent/        |
+| 24 Painters       |  24 Painters      |  11 Painters          |
+| (M3 HCT colors)   |  (JetBrains UI)  |  (Acrylic/Mica)       |
++-------------------+-------------------+-----------------------+
+| theme/cupertino/  |                   |                       |
+| 11 Painters       |  70 painters total across 4 systems      |
+| (Apple HIG)        |                                          |
++-------------------+-------------------+-----------------------+
 |         Layer 3a: Generic Widgets (behavior)                 |
 | core/button/      |  core/checkbox/   |  primitives/         |
 | core/radio/       |  core/textfield/  |  Box (HBox/VBox),    |
@@ -24,11 +28,13 @@
 | core/dialog/      |  core/scrollview/ |  ThemeScope,         |
 | core/tabview/     |  core/listview/   |  RepaintBoundary     |
 | core/gridview/    |  core/linechart/  |                      |
-| core/progressbar/ |  core/progress/   |  24 interactive      |
+| core/progressbar/ |  core/progress/   |  26 interactive      |
 | core/collapsible/ |  core/popover/    |  widgets in core/    |
 | core/splitview/   |  core/treeview/   |                      |
 | core/datatable/   |  core/toolbar/    |                      |
 | core/menu/        |  core/docking/    |                      |
+| core/badge/       |  core/chip/       |                      |
+| core/stripe/      |  core/titlebar/   |                      |
 +-------------------+-------------------+----------------------+
 |         Layer 2: Component Development Kit                   |
 | cdk/              |                                          |
@@ -72,7 +78,7 @@
 |                 Internal Implementation                      |
 | internal/render  |  internal/layout  |  internal/focus       |
 | Canvas (gg)      |  Flex, Stack,     |  Manager, Ring,       |
-| SceneCanvas      |  Grid, Engine     |  Traversal, Shortcut  |
+| SceneCanvas      |  Grid, Layoutable |  Traversal, Shortcut  |
 +------------------+-------------------+-----------------------+
 | internal/dirty   |                   |                       |
 | Region Tracker,  |  Merge algorithm, |  Partial repaints     |
@@ -102,7 +108,7 @@
 |---------|---------|-----------|
 | `cdk/` | Headless behaviors, polymorphic content | `Content[C]`, `StringContent`, `FuncContent[C]`, `WidgetContent` |
 
-### Layer 3a: Generic Widgets (24 interactive widgets in core/)
+### Layer 3a: Generic Widgets (26 interactive widgets in core/)
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
@@ -128,15 +134,20 @@
 | `core/toolbar/` | Horizontal action bar (icon buttons, separators) | `Widget`, `Painter`, spacers, custom items |
 | `core/menu/` | MenuBar + ContextMenu (submenus, shortcuts) | `MenuBar`, `ContextMenu`, `Painter`, overlay |
 | `core/docking/` | IDE-style dockable panels (border layout, tabbed groups) | `Host`, `Panel`, `Painter`, Dock/Undock API |
+| `core/badge/` | Notification badge (count or dot) | `Widget`, `Painter`, count/max, signal binding |
+| `core/chip/` | Compact interactive chip (tag/filter) | `Widget`, `Painter`, label, dismiss, signal binding |
+| `core/stripe/` | Vertical sidebar strip (tool window buttons) | `Widget`, `Painter`, top/bottom items, icon buttons |
+| `core/titlebar/` | Window title bar (CSD, drag, min/max/close) | `Widget`, `Painter`, `WindowChrome`, hit-test regions |
 | `primitives/` | Display-only widgets + RepaintBoundary | `BoxWidget` (HBox/VBox), `TextWidget`, `ImageWidget`, `ThemeScope`, `RepaintBoundary` |
 
 ### Layer 3b: Design Systems
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `theme/material3/` | M3 design tokens + 21 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `GridViewPainter`, `LineChartPainter`, `ProgressBarPainter`, `ProgressPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
-| `theme/fluent/` | Microsoft Fluent Design + 9 painters | `Theme`, accent color system, inner focus ring, 4px radii, light/dark |
-| `theme/cupertino/` | Apple HIG + 9 painters | `Theme`, iOS toggle switch, segmented control, pill buttons |
+| `theme/material3/` | M3 design tokens + 24 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `GridViewPainter`, `LineChartPainter`, `ProgressBarPainter`, `ProgressPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
+| `theme/devtools/` | JetBrains DevTools (Int UI) + 24 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `LineChartPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `StripePainter`, `TitleBarPainter`, `ProgressPainter` |
+| `theme/fluent/` | Microsoft Fluent Design + 11 painters | `Theme`, accent color system, inner focus ring, 4px radii, light/dark |
+| `theme/cupertino/` | Apple HIG + 11 painters | `Theme`, iOS toggle switch, segmented control, pill buttons |
 
 ### Infrastructure
 
@@ -166,7 +177,7 @@
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
 | `internal/render/` | Canvas, SceneCanvas, FontRegistry, Renderer backed by gg | `Canvas`, `SceneCanvas`, `FontRegistry`, `Renderer`, `SoftwareTarget`, `RenderConfig` |
-| `internal/layout/` | Layout engines | `FlexContainer`, `VStack`, `HStack`, `GridContainer`, `Engine` |
+| `internal/layout/` | Layout algorithms | `FlexContainer`, `VStack`, `HStack`, `GridContainer`, `Layoutable` |
 | `internal/focus/` | Focus manager implementation | `Manager`, `Shortcut`, `DrawFocusRing`, traversal helpers |
 | `internal/dirty/` | Dirty region tracking | `Tracker`, `Collector`, merge algorithm, partial repaints |
 
@@ -1254,11 +1265,19 @@ Changing the seed color produces an entirely different palette -- a red seed giv
 - Track sizing: `TrackAuto`, `TrackFixed`, `TrackFraction` (like CSS `fr` units)
 - Row and column track definitions
 
-**Engine** -- Layout orchestrator with optional caching:
-- Cache keyed by element ID + constraints
-- Dirty tracking for incremental updates
-- Two-pass intrinsic sizing via `LayoutWithIntrinsics`
-- Statistics tracking (cache hits/misses, layout calls)
+**Layoutable** -- Interface for widgets that participate in cached layout.
+
+### Per-Widget Layout Caching (ADR-032)
+
+Layout caching is built into `widget.WidgetBase`, not a centralized engine. The `widget.LayoutChild(child, ctx, constraints)` function checks the per-widget cache before calling `child.Layout()`:
+
+- **Cache hit** (same constraints + no `MarkNeedsLayout()`) → child's Layout is skipped entirely
+- **Cache miss** → `child.Layout()` executes, result is cached
+- **Invalidation** → `MarkNeedsLayout()` marks a widget dirty; `InvalidateLayoutTree()` propagates downward
+
+This is the Flutter `RenderObject.layout(parentUsesSize)` pattern: layout cost goes from O(total nodes) to O(affected subtree). The centralized `Engine` was removed in CACHE-030 (-769 LOC) as it had zero production usage.
+
+**Animation before layout (GAP-3):** `AnimationTicker` interface + `tickAnimationsInTree` walk runs BEFORE the layout pass (Flutter `handleBeginFrame` → `handleDrawFrame` pattern). Layout is a pure function of constraints + widget state.
 
 ---
 
@@ -1444,13 +1463,13 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.48.11 |
+| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.50.4 |
 | `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.21.0 |
-| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.42.0 |
+| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.44.1 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.0 |
-| `golang.org/x/image` | Font rendering infrastructure | v0.41.0 |
+| `golang.org/x/image` | Font rendering infrastructure | v0.44.0 |
 
-**Indirect:** gogpu/wgpu v0.30.1, gogpu/naga v0.17.15, gogpu/gputypes v0.5.0, go-text/typesetting v0.3.4, golang.org/x/text v0.36.0
+**Indirect:** gogpu/wgpu v0.30.10, gogpu/naga v0.17.15, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
 
 Go version: **1.25.0**
 
@@ -1534,4 +1553,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of June 15, 2026 (v0.1.29 — PointerCapturer ADR-031, Layer Tree compositor, damage-aware blit, 12 bug fixes, 4 design systems with 61 painters).*
+*This document reflects the actual codebase as of July 9, 2026 (v0.1.44 — 26 interactive widgets, 4 design systems with 70 painters, per-widget layout caching ADR-032, Layer Tree compositor, damage-aware blit).*
