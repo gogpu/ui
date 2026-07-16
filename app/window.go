@@ -1120,21 +1120,42 @@ func (m *windowOverlayManager) PushOverlay(w widget.Widget, onDismiss func()) {
 		}),
 	)
 	m.window.overlays.Push(container)
+
+	// Mount the overlay container tree so signal bindings activate (#171).
+	widget.MountTree(container, m.window.ctx)
 }
 
-// PopOverlay removes the topmost overlay.
+// PopOverlay removes the topmost overlay and unmounts its widget tree.
 func (m *windowOverlayManager) PopOverlay() {
-	m.window.overlays.Pop()
+	top := m.window.overlays.Pop()
+	if top != nil {
+		widget.UnmountTree(top)
+	}
 }
 
 // RemoveOverlay finds and removes the overlay containing the given widget.
+// All overlays above the target are also unmounted (stack semantics).
 func (m *windowOverlayManager) RemoveOverlay(w widget.Widget) {
 	for _, o := range m.window.overlays.List() {
 		if c, ok := o.(*overlay.Container); ok {
 			if c.Content() == w {
+				// overlay.Stack.Remove pops everything above 'o' too.
+				// Unmount all overlays at and above the target.
+				m.unmountOverlaysAbove(o)
 				m.window.overlays.Remove(o)
 				return
 			}
+		}
+	}
+}
+
+// unmountOverlaysAbove unmounts the given overlay and all overlays above it.
+func (m *windowOverlayManager) unmountOverlaysAbove(target overlay.Overlay) {
+	list := m.window.overlays.List()
+	for i := len(list) - 1; i >= 0; i-- {
+		widget.UnmountTree(list[i])
+		if list[i] == target {
+			return
 		}
 	}
 }
