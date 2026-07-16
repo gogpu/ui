@@ -197,6 +197,11 @@ type Widget struct {
 	mu     sync.Mutex
 	series []Series
 
+	// scheduler routes invalidation from background goroutines through the
+	// main-thread scheduler instead of calling SetNeedsRedraw directly (#182).
+	// Set during Mount, cleared during Unmount.
+	scheduler widget.SchedulerRef
+
 	// Styling overrides set via fluent methods.
 	padding float32
 }
@@ -257,7 +262,7 @@ func (w *Widget) AddSeries(label string, color widget.Color) {
 		Points: make([]DataPoint, 0, w.cfg.maxPoints),
 	})
 	w.syncToSignal()
-	w.SetNeedsRedraw(true)
+	w.requestRedraw()
 }
 
 // PushValue appends a data point to the named series. If the series has
@@ -282,7 +287,7 @@ func (w *Widget) PushValue(label string, value float64) {
 		}
 		w.series[i].Points = pts
 		w.syncToSignal()
-		w.SetNeedsRedraw(true)
+		w.requestRedraw()
 		return
 	}
 }
@@ -297,7 +302,7 @@ func (w *Widget) ClearSeries(label string) {
 		if w.series[i].Label == label {
 			w.series[i].Points = w.series[i].Points[:0]
 			w.syncToSignal()
-			w.SetNeedsRedraw(true)
+			w.requestRedraw()
 			return
 		}
 	}
@@ -308,6 +313,17 @@ func (w *Widget) SeriesCount() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return len(w.series)
+}
+
+// requestRedraw routes invalidation through the scheduler when available,
+// falling back to direct SetNeedsRedraw for unmounted usage.
+// Must be called with w.mu held (scheduler field is read-only after Mount).
+func (w *Widget) requestRedraw() {
+	if w.scheduler != nil {
+		w.scheduler.MarkDirty(w)
+	} else {
+		w.SetNeedsRedraw(true)
+	}
 }
 
 // syncToSignal writes the current series data back to the signal if bound.
@@ -452,6 +468,12 @@ func (w *Widget) Children() []widget.Widget {
 // Implements [widget.Lifecycle].
 func (w *Widget) Mount(ctx widget.Context) {
 	sched := ctx.Scheduler()
+
+	// Store scheduler for goroutine-safe invalidation (#182).
+	w.mu.Lock()
+	w.scheduler = sched
+	w.mu.Unlock()
+
 	if sched == nil {
 		return
 	}
@@ -467,6 +489,10 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the chart is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	// Clear scheduler reference — after unmount, direct SetNeedsRedraw is used.
+	w.mu.Lock()
+	w.scheduler = nil
+	w.mu.Unlock()
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
 }
 
