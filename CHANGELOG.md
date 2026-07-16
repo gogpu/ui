@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.45] — 2026-07-16
+
+### Changed
+
+- **deps:** gg v0.50.4 → v0.50.6, gogpu v0.44.1 → v0.44.8, wgpu v0.30.10 → v0.30.21, signals v0.1.0 → v0.1.1
+  - **gg v0.50.6:** Unified backend-agnostic draw queue (ADR-051) + three-tier clip architecture (ADR-052). All rendering commands (shapes, text, GPU textures) now flow through a single dispatch pipeline regardless of backend. Software backend rendering is now architecturally correct — offscreen boundary textures, Layer Tree compositing, and damage-aware blit work on CPU adapters.
+  - **gogpu v0.44.8:** Multi-backend auto-selection improvements, Wayland fractional scale, pixelPresented frame lifecycle.
+  - **wgpu v0.30.21:** Software backend correctness fixes (BGRA swizzle, MSAA rejection, WriteTexture, blit optimization), format-aware copy commands.
+  - **signals v0.1.1:** Minor improvements.
+
+### Known Issues
+
+- **Software backend performance:** The unified pipeline ensures correctness on CPU adapters, but performance is significantly slower than GPU backends. The SPIR-V interpreter processes shaders instruction-by-instruction on the CPU. Community contributions for optimization are welcome — see [Optimization Roadmap](#software-backend-optimization) below.
+
+### Software Backend Optimization Roadmap
+
+The software backend (`GOGPU_GRAPHICS_API=software`) now renders correctly through the same Layer Tree compositor pipeline as GPU backends. Performance optimization is the next priority:
+
+1. **gg direct CPU rasterization** ([ADR-053](https://github.com/gogpu/gg)): gg already has fast native Go CPU rasterizers inspired by tiny-skia and Vello — AnalyticFiller (scanline AA), SparseStrips (4×4 tiles), TileCompute (16×16 Vello 9-stage). These are orders of magnitude faster than the SPIR-V interpreter. Smart dispatch routing: shapes/text rendered directly by gg's CPU rasterizers, only GPU-specific operations (texture compositing) go through the software HAL. This is the highest-impact optimization with minimal code changes.
+2. **naga Go+SIMD backend** ([NAGA-FEAT-004](https://github.com/gogpu/naga)): Generate native Go code from WGSL shaders with `goexperiment.simd` (AVX-512/NEON) vectorization. Replaces SPIR-V interpreter entirely for shader execution. Expected 100x+ speedup. Reference: GoMLX PackGEMM achieved 14x speedup with pure Go SIMD on MatMul.
+3. **SPIR-V interpreter SIMD** ([FEAT-SW-008](https://github.com/gogpu/wgpu)): `goexperiment.simd` Float32x4 for vec4 ops in the existing interpreter — estimated 2-4x speedup with ~500 LOC. Interim solution before naga Go backend.
+4. **Multi-threaded CPU dispatch** ([ADR-053](https://github.com/gogpu/gg)): Parallel CPU dispatch for independent boundary textures. Each boundary = isolated pixmap → trivially parallel.
+
+Contributions and profiling reports are welcome — see [issue #158](https://github.com/gogpu/ui/issues/158) for the software backend tracker.
+
 ## [0.1.44] — 2026-07-09
 
 ### Changed

@@ -1,6 +1,6 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.1.44
+> **Version:** 0.1.45
 > **Updated:** July 2026
 > **Go Version:** 1.25+
 
@@ -40,10 +40,11 @@ Go has waited 17 years for a professional graphics ecosystem. We're building it:
 | Test Functions | ~7,500+ |
 | Test Coverage | 97%+ |
 | Linter Issues | 0 |
-| Interactive Widgets | 24 |
+| Interactive Widgets | 26 |
 | Design Systems | 4 (M3, DevTools, Fluent, Cupertino) |
-| Painters | 61 (21 + 22 + 9 + 9) |
+| Painters | 70 (24 + 24 + 11 + 11) |
 | Layout Cache | Per-widget (ADR-032), O(affected subtree) |
+| Render Pipeline | Unified draw queue (ADR-051/052), backend-agnostic |
 
 ---
 
@@ -265,6 +266,25 @@ Platform-specific features for native feel.
 | Phase 3 | Per-boundary GPU textures (MSAA offscreen, DrawChild skip) | ✅ |
 | Phase 4 | Layer Tree + Damage-aware blit (persistent tree, multi-rect scissor, LoadOpLoad) | ✅ |
 
+### Unified Draw Queue (ADR-051/052) — v0.1.45
+
+gg v0.50.6 introduced a **backend-agnostic draw queue** (ADR-051) and **three-tier clip architecture** (ADR-052). All rendering commands — shapes, text, GPU textures — flow through a single dispatch pipeline. On GPU backends, commands are batched into scissor groups and dispatched via render passes. On software adapters (`strategyRasterAtlas`), the same commands dispatch through CPU rasterizer paths.
+
+This architectural change ensures **correctness on all backends** — the software renderer uses the same Layer Tree compositor, offscreen boundary textures, and damage-aware blit as GPU backends. Performance optimization is the next step.
+
+### Software Backend Optimization Roadmap
+
+The software backend (`GOGPU_GRAPHICS_API=software`) is architecturally correct but requires performance work. The CPU renders every pixel via a SPIR-V interpreter — inherently slower than GPU parallel execution. Planned optimization tiers:
+
+| Tier | What | Expected Speedup | Status |
+|------|------|-------------------|--------|
+| **1. gg direct CPU rasterization** | gg already has fast native Go CPU rasterizers (AnalyticFiller from tiny-skia/Skia, SparseStrips 4×4 from Vello, TileCompute 16×16 from Vello 9-stage). Smart dispatch: shapes/text rendered by gg directly, only texture compositing through software HAL. Highest impact, minimal changes. | **10-50x** | Research ([ADR-053](https://github.com/gogpu/gg)) |
+| **2. naga Go+SIMD backend** | WGSL → naga IR → generated Go + `goexperiment.simd` (AVX-512/NEON). Replaces SPIR-V interpreter entirely for shader execution. Reference: GoMLX PackGEMM 14x on MatMul. | **100x+** | Backlog ([NAGA-FEAT-004](https://github.com/gogpu/naga)) |
+| **3. SPIR-V interpreter SIMD** | `goexperiment.simd` Float32x4 for vec4 ops in existing interpreter. ~500 LOC change. Interim solution before naga Go backend. | 2-4x | Backlog ([FEAT-SW-008](https://github.com/gogpu/wgpu)) |
+| **4. Multi-threaded CPU dispatch** | Parallel dispatch for independent boundary textures. Each boundary = isolated pixmap → no shared state → trivially parallel. | 2-8x (multi-core) | Design |
+
+**Community contributions welcome** — profiling reports, optimization PRs, SIMD expertise. See [issue #158](https://github.com/gogpu/ui/issues/158).
+
 ### Future Rendering
 
 | Phase | What | Target |
@@ -292,6 +312,7 @@ gogpu/ui is one part of a larger ecosystem. Future integration points:
 
 | Integration | Description | Timeline |
 |-------------|-------------|----------|
+| **Android** | Android/arm64 Vulkan support ([wgpu#268](https://github.com/gogpu/wgpu/pull/268)). Full Vulkan WSI, Rust wgpu v29 parity, ANativeWindow lifecycle. Contributed by [@besmpl](https://github.com/besmpl) for [Hearth](https://github.com/besmpl/hearth) game engine. | In Review |
 | **gogpu/compute** | GPU compute via ComputeProvider (Born ML pattern) | Q3 2026 |
 | **gogpu/editor** | Native code editor widget (ADR-028) | Q4 2026 |
 | **gogpu/g3d** | 3D viewport widget for CAD/games | 2027 |
@@ -342,13 +363,13 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| gogpu/gg | v0.48.11 | 2D rendering + scene.Scene |
-| gogpu/gogpu | v0.42.0 | Windowing, input (examples) |
-| gogpu/gpucontext | v0.21.0 | Shared interfaces (opaque struct tokens) |
-| coregx/signals | v0.1.0 | Reactive state management |
-| golang.org/x/image | v0.41.0 | Inter font (standard) |
+| gogpu/gg | v0.50.6 | 2D rendering + unified draw queue (ADR-051/052) |
+| gogpu/gogpu | v0.44.8 | Windowing, input (examples) |
+| gogpu/gpucontext | v0.21.1 | Shared interfaces (opaque struct tokens) |
+| coregx/signals | v0.1.1 | Reactive state management |
+| golang.org/x/image | v0.44.0 | Inter font (standard) |
 
-**Indirect:** gogpu/wgpu v0.30.1, gogpu/naga v0.17.15, gogpu/gputypes v0.5.0, go-text/typesetting v0.3.4
+**Indirect:** gogpu/wgpu v0.30.21, gogpu/naga v0.17.15, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4
 
 ---
 
@@ -388,4 +409,4 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 
 ---
 
-*This roadmap evolves with the project. Last updated: June 2026.*
+*This roadmap evolves with the project. Last updated: July 2026.*

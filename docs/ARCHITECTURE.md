@@ -1463,13 +1463,13 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + scene.Scene tile-parallel rendering | v0.50.4 |
-| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.21.0 |
-| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.44.1 |
-| `github.com/coregx/signals` | Reactive state management | v0.1.0 |
+| `github.com/gogpu/gg` | 2D graphics + unified draw queue (ADR-051/052) | v0.50.6 |
+| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.21.1 |
+| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.44.8 |
+| `github.com/coregx/signals` | Reactive state management | v0.1.1 |
 | `golang.org/x/image` | Font rendering infrastructure | v0.44.0 |
 
-**Indirect:** gogpu/wgpu v0.30.10, gogpu/naga v0.17.15, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
+**Indirect:** gogpu/wgpu v0.30.21, gogpu/naga v0.17.15, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
 
 Go version: **1.25.0**
 
@@ -1553,4 +1553,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of July 9, 2026 (v0.1.44 — 26 interactive widgets, 4 design systems with 70 painters, per-widget layout caching ADR-032, Layer Tree compositor, damage-aware blit).*
+*This document reflects the actual codebase as of July 16, 2026 (v0.1.45 — 26 interactive widgets, 4 design systems with 70 painters, per-widget layout caching ADR-032, Layer Tree compositor, damage-aware blit, unified draw queue ADR-051/052).*

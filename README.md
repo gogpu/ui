@@ -42,11 +42,14 @@
 | Feature | gogpu/ui | Fyne | Gio |
 |---------|----------|------|-----|
 | **CGO-free** | Yes | No | Yes |
-| **WebGPU rendering** | Yes | OpenGL | Direct GPU |
-| **Reactive state** | Signals | Binding | Events |
-| **Layout engine** | Flexbox + Grid | Custom | Flex |
-| **Accessibility** | Day 1 (ARIA roles) | Limited | Limited |
-| **Plugin system** | Yes | No | No |
+| **WebGPU rendering** | Yes (Vulkan/DX12/Metal/GLES/Software) | OpenGL | Direct GPU |
+| **Reactive state** | Signals (push-pull, zero glitch) | Binding | Events |
+| **Layout engine** | Flexbox + Grid + per-widget cache | Custom | Flex |
+| **Accessibility** | Day 1 (35+ ARIA roles) | Limited | Limited |
+| **Design systems** | 4 (M3, DevTools, Fluent, Cupertino) | 1 | 1 |
+| **Widgets** | 26 interactive + primitives | ~20 | ~15 |
+| **Plugin system** | Yes (deps, assets, fonts) | No | No |
+| **Android** | In review ([wgpu#268](https://github.com/gogpu/wgpu/pull/268)) | Yes | Yes |
 
 ---
 
@@ -162,7 +165,7 @@ func main() {
 | `core/dropdown` | Dropdown/select with overlay menu, keyboard navigation, signal bindings | 96%+ |
 | `overlay` | Overlay/popup stack, container, position helper | 95%+ |
 | `primitives` | Box, Text, Image, RepaintBoundary (GPU texture caching via Layer Tree compositor) | 94.4% |
-| `theme/material3` | Material Design 3 — theme (HCT color science) + 21 component painters | 97%+ |
+| `theme/material3` | Material Design 3 — theme (HCT color science) + 24 component painters | 97%+ |
 | `focus` | Keyboard focus management with Tab/Shift+Tab navigation | 95.2% |
 | `internal/focus` | Internal focus manager implementation | 15.2% |
 
@@ -195,10 +198,10 @@ func main() {
 | `core/docking` | IDE-style dockable panels: border layout, tabbed groups, Dock/Undock API | 95.3% |
 | `core/badge` | Notification badge: count mode (pill, "99+" overflow), dot mode, signal bindings with dedup | 99.3% |
 | `core/chip` | Action/filter chip (M3 spec): toggleable selection, two-way signal write-back, state layers | 99.0% |
-| `theme/material3` | 21 component painters (all widgets covered) | 97%+ |
-| `theme/devtools` | **JetBrains DevTools**: 22 painters, Int UI gray scale, dark/light, IDE-style | 96%+ |
-| `theme/fluent` | Microsoft Fluent Design: 9 painters, accent colors, inner focus ring, light/dark | 96%+ |
-| `theme/cupertino` | Apple HIG: 9 painters, iOS toggle switch, segmented control, pill buttons | 96%+ |
+| `theme/material3` | 24 component painters (all widgets covered) | 97%+ |
+| `theme/devtools` | **JetBrains DevTools**: 24 painters, Int UI gray scale, dark/light, IDE-style | 96%+ |
+| `theme/fluent` | Microsoft Fluent Design: 11 painters, accent colors, inner focus ring, light/dark | 96%+ |
+| `theme/cupertino` | Apple HIG: 11 painters, iOS toggle switch, segmented control, pill buttons | 96%+ |
 | `theme/font` | Font Registry: CSS weight matching (W3C spec), Weight 100-900, Style, Family/Face | 97.7% |
 | `icon` | SVG icons (JetBrains expui), 2-level cache, DPI-aware rasterization, gg/svg renderer | 97%+ |
 | `i18n` | Internationalization: Locale, Bundle, Translator, CLDR plural rules, RTL, LocaleSignal | 97.9% |
@@ -207,9 +210,28 @@ func main() {
 | `uitest` | Testing utilities: MockCanvas, MockContext, event factories, widget helpers, assertions | 93.1% |
 | `internal/dirty` | Dirty region tracking: Collector, Tracker, merge algorithm, partial repaints | 100% |
 
+| `core/stripe` | Vertical sidebar strip: tool window buttons, top/bottom items, icon buttons | 96%+ |
+| `core/titlebar` | Window title bar: CSD, drag, minimize/maximize/close, WindowChrome interface | 96%+ |
 | `compositor` | Layer Tree compositor: OffsetLayer, PictureLayer, ClipRectLayer, OpacityLayer — production render pipeline | 95%+ |
+| `desktop` | Production render loop: Layer Tree → GPU textures → damage-aware blit | — |
 
 **Total: ~207,000+ lines of code | 56+ packages | ~7,500+ tests | 97%+ average coverage**
+
+### Backend Selection
+
+gogpu/ui renders through any GPU backend via the gogpu ecosystem — no code changes needed:
+
+```bash
+GOGPU_GRAPHICS_API=vulkan   go run ./examples/hello/   # Vulkan (default on Linux)
+GOGPU_GRAPHICS_API=dx12     go run ./examples/hello/   # DirectX 12 (Windows)
+GOGPU_GRAPHICS_API=metal    go run ./examples/hello/   # Metal (macOS)
+GOGPU_GRAPHICS_API=gles     go run ./examples/hello/   # OpenGL ES
+GOGPU_GRAPHICS_API=software go run ./examples/hello/   # CPU software renderer
+```
+
+The **software backend** runs on any machine without GPU drivers. It uses the same unified render pipeline (Layer Tree compositor, offscreen boundary textures, damage-aware blit) as GPU backends. Performance is significantly slower than GPU — optimization via naga Go+SIMD backend ([NAGA-FEAT-004](https://github.com/gogpu/naga)) is planned.
+
+**Android support** is in review ([wgpu#268](https://github.com/gogpu/wgpu/pull/268)) — Vulkan on arm64, contributed by [@besmpl](https://github.com/besmpl) for [Hearth](https://github.com/besmpl/hearth) game engine.
 
 ---
 
@@ -220,15 +242,16 @@ func main() {
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
 │  theme/material3/  │  theme/devtools/ │  theme/fluent/      │
-│  21 Painters       │  22 Painters     │  9 Painters         │
+│  24 Painters       │  24 Painters     │  11 Painters        │
 │  theme/cupertino/  │                  │                     │
-│  9 Painters        │                  │                     │
+│  11 Painters       │  70 painters total across 4 systems   │
 ├─────────────────────────────────────────────────────────────┤
-│  24 Interactive Widgets (core/)                             │
+│  26 Interactive Widgets (core/)                             │
 │  button, checkbox, radio, textfield, dropdown, slider,      │
 │  dialog, scrollview, tabview, listview, gridview, linechart,│
 │  progressbar, progress, collapsible, popover, splitview,    │
-│  treeview, datatable, toolbar, menu, docking                │
+│  treeview, datatable, toolbar, menu, docking, badge, chip,  │
+│  stripe, titlebar                                           │
 ├──────────────┬──────────────────────────────────────────────┤
 │  cdk/        │  Content[C] polymorphic pattern              │
 ├──────────────┴──────────────────────────────────────────────┤
@@ -278,16 +301,17 @@ gg → wgpu → naga                   ← internal to gg
 
 ### Render Pipeline
 
-Enterprise-grade retained-mode rendering (ADR-007):
+Enterprise-grade retained-mode rendering (ADR-007) with unified draw queue (ADR-051/052):
 
-1. **O(1) frame skip** -- flat dirty boundary set, no tree walks when idle (0% GPU)
-2. **Layer Tree composition** -- OffsetLayer, PictureLayer, OpacityLayer, ClipRectLayer
-3. **Per-boundary GPU textures** -- dirty boundaries re-render to MSAA offscreen texture, clean reuse cached
-4. **Damage-aware blit** -- LoadOpLoad + multi-rect scissor, only dirty pixels touch the GPU
-5. **Persistent tree** -- layer objects reused across frames (97.9% fewer allocations)
+1. **O(1) frame skip** — flat dirty boundary set, no tree walks when idle (0% GPU)
+2. **Layer Tree composition** — OffsetLayer, PictureLayer, OpacityLayer, ClipRectLayer
+3. **Per-boundary GPU textures** — dirty boundaries re-render to MSAA offscreen texture, clean reuse cached
+4. **Damage-aware blit** — LoadOpLoad + multi-rect scissor, only dirty pixels touch the GPU
+5. **Persistent tree** — layer objects reused across frames (97.9% fewer allocations)
+6. **Unified draw queue** — backend-agnostic command dispatch (shapes, text, GPU textures through single pipeline). GPU backends batch into render passes; software dispatches through CPU rasterizer.
 
 Validated by enterprise research: Flutter, Chrome, Qt6, Android, Skia patterns.
-Software backend e2e tests prove scissor=48x48 at HAL level.
+Works on all backends: Vulkan, DX12, Metal, GLES, Software, Browser (WASM).
 
 ---
 
@@ -298,7 +322,7 @@ Software backend e2e tests prove scissor=48x48 at HAL level.
 | [`examples/hello`](examples/hello) | Widget demo: checkbox, radio, ListView (1000 items), M3 theme, event-driven GPU rendering |
 | [`examples/signals`](examples/signals) | Reactive signals: TextSignal, ContentSignal, CheckedSignal, SelectedSignal, DisabledSignal |
 | [`examples/taskmanager`](examples/taskmanager) | Full task manager: charts, tables, animations, real-time data |
-| [`examples/gallery`](examples/gallery) | Widget gallery: all 24 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
+| [`examples/gallery`](examples/gallery) | Widget gallery: all 26 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
 | [`examples/ide`](examples/ide) | GoLand-inspired IDE layout: DevTools theme, toolbar, tree, tabs, terminal, SVG icons |
 | [`examples/modular-compositor`](examples/modular-compositor) | Multi-module offscreen rendering: clock + notification compositor ([#75](https://github.com/gogpu/ui/issues/75)) |
 
@@ -610,7 +634,7 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] TextField widget (cursor, selection, clipboard, validation)
 - [x] Dropdown/Select widget (overlay menu, keyboard nav, scroll)
 - [x] Overlay infrastructure (stack, container, position)
-- [x] Material Design 3 theme (HCT color science, 21 painters)
+- [x] Material Design 3 theme (HCT color science, 24 painters)
 - [x] Keyboard navigation (focus management, Tab/Shift+Tab, shortcuts)
 - [x] ThemeScope (theme override for widget subtrees)
 - [x] Event-driven rendering (0% CPU when idle)
@@ -648,8 +672,12 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Menu system (MenuBar + ContextMenu, submenus, shortcuts)
 - [x] IDE-style docking system (border layout, tabbed groups)
 - [x] Drag & drop foundation (DragSource, DropTarget, Manager)
-- [x] Fluent Design theme (9 painters, accent colors)
-- [x] Cupertino theme (9 painters, iOS-style)
+- [x] Fluent Design theme (11 painters, accent colors)
+- [x] Cupertino theme (11 painters, iOS-style)
+- [x] Badge widget (notification count/dot, signal bindings)
+- [x] Chip widget (action/filter, toggleable, two-way signal)
+- [x] Stripe widget (sidebar tool buttons)
+- [x] TitleBar widget (CSD window title bar)
 - [x] i18n (CLDR plural rules, RTL detection, LocaleSignal)
 - [x] Icon system (vector paths, 10 Material icons, De Casteljau)
 - [x] Font registry (CSS weight matching, W3C spec)
@@ -671,8 +699,12 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Tracker.Intersects() fast path in RepaintBoundary
 - [x] Centralized ImageCache with LRU eviction (64MB, thread-safe)
 - [x] Offscreen renderer (headless widget → *image.RGBA, no GPU/window)
+- [x] Layout cache per-widget (ADR-032, LayoutChild, O(subtree))
+- [x] Animation before layout (GAP-3, Flutter BeginFrame pattern)
+- [x] Unified draw queue (ADR-051/052, backend-agnostic pipeline)
 - [ ] Platform accessibility adapters (UIA, AT-SPI2, NSAccessibility)
-- [ ] Performance optimization pass
+- [ ] Software backend performance optimization (naga Go+SIMD, SPIR-V SIMD)
+- [ ] Android support (wgpu#268, Vulkan arm64)
 
 ---
 
@@ -710,10 +742,13 @@ go get github.com/gogpu/gg@latest
 |---------|-------------|
 | [gogpu/gogpu](https://github.com/gogpu/gogpu) | Graphics framework — GPU abstraction, windowing, input |
 | [gogpu/gg](https://github.com/gogpu/gg) | 2D graphics — Canvas API, GPU text |
-| [gogpu/wgpu](https://github.com/gogpu/wgpu) | Pure Go WebGPU — Vulkan, Metal, GLES, Software |
-| [gogpu/naga](https://github.com/gogpu/naga) | Shader compiler — WGSL to SPIR-V, MSL, GLSL |
+| [gogpu/wgpu](https://github.com/gogpu/wgpu) | Pure Go WebGPU — Vulkan, Metal, DX12, GLES, Software, Browser |
+| [gogpu/naga](https://github.com/gogpu/naga) | Shader compiler — WGSL to SPIR-V, MSL, GLSL, HLSL, DXIL |
+| [gogpu/g3d](https://github.com/gogpu/g3d) | Pure Go 3D rendering — scene graph, PBR, forward renderer |
+| [gogpu/compose](https://github.com/gogpu/compose) | Multi-process composition — Unix socket, LZ4, hot-plug |
+| [gogpu/audio](https://github.com/gogpu/audio) | Pure Go audio engine — WASAPI, WAV decoder, Mixer |
 
-**Total ecosystem: 1.1M+ lines of Pure Go** — zero CGO, Rust optional via `-tags rust` (ADR-038).
+**Total ecosystem: 1.14M+ lines of Pure Go** — zero CGO, Rust optional via `-tags rust` (ADR-038). Android/arm64 in review.
 
 ---
 
@@ -725,7 +760,8 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 - Test the packages, report bugs
 - API feedback and suggestions
 - Documentation improvements
-- Spread the word (Reddit, Hacker News, Dev.to)
+- Software backend profiling and optimization
+- Spread the word (Hacker News, Dev.to, GitHub Discussions)
 - Code contributions (see open issues)
 
 ---
