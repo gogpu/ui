@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.46] — 2026-07-16
+
+### Fixed
+
+- **ListView scene leak on scroll** ([#173](https://github.com/gogpu/ui/issues/173)) — evicted decorators now properly unmount (`UnmountTree`) and release cached `scene.Scene`. Previously, scrolling accumulated orphaned scene objects on the heap.
+- **ListView row content never mounted** ([#174](https://github.com/gogpu/ui/issues/174)) — widgets created by `Content[C].Render()` now receive `MountTree` after creation, so signal bindings via `BindToScheduler` activate correctly. Previously, reactive updates in list item content were silently dead.
+- **GridView cell content never mounted** ([#181](https://github.com/gogpu/ui/issues/181)) — same lifecycle fix as ListView applied to GridView cells. `UnmountTree` on eviction, `MountTree` after `Content[C].Render()`.
+- **Overlay lifecycle bypass** ([#171](https://github.com/gogpu/ui/issues/171)) — `PushOverlay` now calls `MountTree` on the overlay container, `PopOverlay`/`RemoveOverlay` call `UnmountTree`. Previously, signal bindings in overlay content (dropdowns, dialogs) never registered, and cleanup never ran on dismiss — leaking goroutines and heap allocations.
+- **Window.Close teardown** ([#175](https://github.com/gogpu/ui/issues/175)) — added `Window.Close()` method that stops the animation pumper goroutine, unmounts all overlay trees, and unmounts the root widget tree. Wired into `desktop.Run` OnClose callback. Previously, the animation pumper goroutine outlived the window.
+- **linechart goroutine-safety** ([#182](https://github.com/gogpu/ui/issues/182)) — `PushValue`, `AddSeries`, `ClearSeries` now route invalidation through the scheduler (`MarkDirty`) instead of direct `SetNeedsRedraw`, eliminating data races when called from background goroutines. Falls back to `SetNeedsRedraw` when unmounted.
+
+### Tests
+
+- **28 regression tests** across 5 new test files covering all lifecycle fixes:
+  - `core/listview/lifecycle_test.go` — mount/unmount on scroll, eviction, clear, re-scroll
+  - `core/gridview/lifecycle_test.go` — cell mount/unmount, update, clear, invalidate
+  - `app/overlay_lifecycle_test.go` — push/pop lifecycle, signal bindings, dismiss callback
+  - `app/window_close_test.go` — close idempotency, unmount root + overlays, stop pumper
+  - `core/linechart/safety_test.go` — concurrent PushValue (10 goroutines × 100 values), scheduler routing
+
 ## [0.1.45] — 2026-07-16
 
 ### Changed

@@ -1,6 +1,6 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.1.45
+> **Version:** 0.1.46
 > **Updated:** July 2026
 > **Go Version:** 1.25+
 
