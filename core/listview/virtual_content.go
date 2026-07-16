@@ -63,7 +63,7 @@ func (vc *virtualContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 
 	// Update the widget cache for the visible range.
 	// Hover is NOT passed — decorators read it at Draw time from lv.hoveredIndex.
-	lv.cache.update(start, end, lv.cfg.itemContent, selectedIdx)
+	lv.cache.update(start, end, lv.cfg.itemContent, selectedIdx, ctx)
 
 	// Wire parent chain on decorator widgets so dirty propagation
 	// (SetNeedsRedraw -> propagateDirtyUpward) can reach the root WidgetBase

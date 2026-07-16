@@ -54,7 +54,12 @@ func (wc *widgetCache) rebuildAffected(start int, content cdk.Content[ItemContex
 }
 
 // fullRebuild recreates all items in the range (scroll or first build).
-func (wc *widgetCache) fullRebuild(start, _, count int, content cdk.Content[ItemContext], selectedIndex int) {
+func (wc *widgetCache) fullRebuild(start, _, count int, content cdk.Content[ItemContext], selectedIndex int, ctx widget.Context) {
+	// Unmount all old widgets before replacing the slice (#173).
+	for _, w := range wc.widgets {
+		cleanupWidget(w)
+	}
+
 	if cap(wc.widgets) >= count {
 		wc.widgets = wc.widgets[:count]
 	} else {
@@ -65,20 +70,26 @@ func (wc *widgetCache) fullRebuild(start, _, count int, content cdk.Content[Item
 		for i := range wc.widgets {
 			wc.widgets[i] = nil
 		}
-	} else {
-		for i := range count {
-			idx := start + i
-			w := content.Render(ItemContext{
-				Index:    idx,
-				Selected: idx == selectedIndex,
-				Focused:  idx == selectedIndex,
-			})
-			if w != nil {
-				wc.widgets[i] = newItemDecorator(w, wc.list, idx)
-			} else {
-				wc.widgets[i] = nil
-			}
+		return
+	}
+
+	for i := range count {
+		idx := start + i
+		w := content.Render(ItemContext{
+			Index:    idx,
+			Selected: idx == selectedIndex,
+			Focused:  idx == selectedIndex,
+		})
+		if w == nil {
+			wc.widgets[i] = nil
+			continue
 		}
+		dec := newItemDecorator(w, wc.list, idx)
+		// Mount the decorator+child tree so signal bindings activate (#174).
+		if ctx != nil {
+			widget.MountTree(dec, ctx)
+		}
+		wc.widgets[i] = dec
 	}
 }
 
@@ -89,7 +100,7 @@ func (wc *widgetCache) fullRebuild(start, _, count int, content cdk.Content[Item
 //
 // Hover state is NOT tracked here — decorators read it at Draw time from
 // list.hoveredIndex, so hover changes require no cache action.
-func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], selectedIndex int) {
+func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], selectedIndex int, ctx widget.Context) {
 	count := end - start
 	if count <= 0 {
 		wc.clear()
@@ -110,9 +121,9 @@ func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], 
 	// Incremental update: reuse decorators for overlapping indices,
 	// create new ones only at viewport edges. RecyclerView/Flutter pattern.
 	if wc.valid && content != nil {
-		wc.incrementalUpdate(start, end, count, content, selectedIndex)
+		wc.incrementalUpdate(start, end, count, content, selectedIndex, ctx)
 	} else {
-		wc.fullRebuild(start, end, count, content, selectedIndex)
+		wc.fullRebuild(start, end, count, content, selectedIndex, ctx)
 	}
 	wc.startIndex = start
 	wc.endIndex = end
@@ -123,13 +134,21 @@ func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], 
 // incrementalUpdate reuses decorators for indices that remain visible and
 // creates new ones only at the edges. RecyclerView/Flutter pattern: items in
 // the middle of the viewport are never destroyed during scroll.
-func (wc *widgetCache) incrementalUpdate(start, end, count int, content cdk.Content[ItemContext], selectedIndex int) {
+func (wc *widgetCache) incrementalUpdate(start, end, count int, content cdk.Content[ItemContext], selectedIndex int, ctx widget.Context) {
 	overlapStart := max(start, wc.startIndex)
 	overlapEnd := min(end, wc.endIndex)
 
 	if overlapStart >= overlapEnd {
-		wc.fullRebuild(start, end, count, content, selectedIndex)
+		wc.fullRebuild(start, end, count, content, selectedIndex, ctx)
 		return
+	}
+
+	// Unmount evicted widgets outside the overlap range (#173).
+	for i := wc.startIndex; i < overlapStart; i++ {
+		cleanupWidget(wc.widgets[i-wc.startIndex])
+	}
+	for i := overlapEnd; i < wc.endIndex; i++ {
+		cleanupWidget(wc.widgets[i-wc.startIndex])
 	}
 
 	newWidgets := make([]widget.Widget, count)
@@ -139,17 +158,17 @@ func (wc *widgetCache) incrementalUpdate(start, end, count int, content cdk.Cont
 	}
 
 	for i := start; i < overlapStart; i++ {
-		newWidgets[i-start] = wc.buildDecorator(i, content, selectedIndex)
+		newWidgets[i-start] = wc.buildDecorator(i, content, selectedIndex, ctx)
 	}
 
 	for i := overlapEnd; i < end; i++ {
-		newWidgets[i-start] = wc.buildDecorator(i, content, selectedIndex)
+		newWidgets[i-start] = wc.buildDecorator(i, content, selectedIndex, ctx)
 	}
 
 	wc.widgets = newWidgets
 }
 
-func (wc *widgetCache) buildDecorator(index int, content cdk.Content[ItemContext], selectedIndex int) widget.Widget {
+func (wc *widgetCache) buildDecorator(index int, content cdk.Content[ItemContext], selectedIndex int, ctx widget.Context) widget.Widget {
 	w := content.Render(ItemContext{
 		Index:    index,
 		Selected: index == selectedIndex,
@@ -158,7 +177,12 @@ func (wc *widgetCache) buildDecorator(index int, content cdk.Content[ItemContext
 	if w == nil {
 		return nil
 	}
-	return newItemDecorator(w, wc.list, index)
+	dec := newItemDecorator(w, wc.list, index)
+	// Mount the decorator+child tree so signal bindings activate (#174).
+	if ctx != nil {
+		widget.MountTree(dec, ctx)
+	}
+	return dec
 }
 
 // widgetAt returns the cached decorator at the given offset from startIndex.
@@ -189,11 +213,21 @@ func (wc *widgetCache) invalidate() {
 
 // clear resets the cache entirely and unmounts boundaries to free pixel caches.
 func (wc *widgetCache) clear() {
-	for i := range wc.widgets {
+	for i, w := range wc.widgets {
+		cleanupWidget(w)
 		wc.widgets[i] = nil
 	}
 	wc.widgets = wc.widgets[:0]
 	wc.startIndex = 0
 	wc.endIndex = 0
 	wc.valid = false
+}
+
+// cleanupWidget unmounts a widget and clears its cached scene.
+// Called when evicting widgets from the cache (#173).
+func cleanupWidget(w widget.Widget) {
+	if w == nil {
+		return
+	}
+	widget.UnmountTree(w)
 }
