@@ -1128,7 +1128,7 @@ func (w *Widget) drawVisibleCells(ctx widget.Context, canvas widget.Canvas) {
 	}
 
 	// Update cell widget cache.
-	w.cache.update(startIdx, endIdx, w.cfg.cellContent, selectedIdx, w.hoveredIndex, cols)
+	w.cache.update(startIdx, endIdx, w.cfg.cellContent, selectedIdx, w.hoveredIndex, cols, ctx)
 
 	contentWidth := w.viewportWidth - w.scroll.ScrollbarInset()
 	_ = contentWidth // Used for future cell width scaling.
@@ -1193,7 +1193,7 @@ type cellCache struct {
 }
 
 // update ensures the cache contains widgets for the range [start, end).
-func (cc *cellCache) update(start, end int, content cdk.Content[CellContext], selectedIndex, hoveredIndex, cols int) {
+func (cc *cellCache) update(start, end int, content cdk.Content[CellContext], selectedIndex, hoveredIndex, cols int, ctx widget.Context) {
 	count := end - start
 	if count <= 0 {
 		cc.clear()
@@ -1202,6 +1202,13 @@ func (cc *cellCache) update(start, end int, content cdk.Content[CellContext], se
 
 	if cc.valid && cc.startIndex == start && cc.endIndex == end {
 		return
+	}
+
+	// Unmount old cell widgets before replacing the slice (#181).
+	for _, w := range cc.widgets {
+		if w != nil {
+			widget.UnmountTree(w)
+		}
 	}
 
 	if cap(cc.widgets) >= count {
@@ -1214,23 +1221,32 @@ func (cc *cellCache) update(start, end int, content cdk.Content[CellContext], se
 		for i := range cc.widgets {
 			cc.widgets[i] = nil
 		}
-	} else {
-		safeCols := cols
-		if safeCols <= 0 {
-			safeCols = 1
+		cc.startIndex = start
+		cc.endIndex = end
+		cc.valid = true
+		return
+	}
+
+	safeCols := cols
+	if safeCols <= 0 {
+		safeCols = 1
+	}
+	for i := range count {
+		idx := start + i
+		row := idx / safeCols
+		col := idx % safeCols
+		w := content.Render(CellContext{
+			Index:      idx,
+			Row:        row,
+			Col:        col,
+			IsSelected: idx == selectedIndex,
+			IsHovered:  idx == hoveredIndex,
+		})
+		// Mount cell widget so signal bindings activate (#181).
+		if w != nil && ctx != nil {
+			widget.MountTree(w, ctx)
 		}
-		for i := range count {
-			idx := start + i
-			row := idx / safeCols
-			col := idx % safeCols
-			cc.widgets[i] = content.Render(CellContext{
-				Index:      idx,
-				Row:        row,
-				Col:        col,
-				IsSelected: idx == selectedIndex,
-				IsHovered:  idx == hoveredIndex,
-			})
-		}
+		cc.widgets[i] = w
 	}
 
 	cc.startIndex = start
@@ -1251,9 +1267,12 @@ func (cc *cellCache) invalidate() {
 	cc.valid = false
 }
 
-// clear resets the cache entirely.
+// clear resets the cache entirely and unmounts all cell widgets.
 func (cc *cellCache) clear() {
-	for i := range cc.widgets {
+	for i, w := range cc.widgets {
+		if w != nil {
+			widget.UnmountTree(w)
+		}
 		cc.widgets[i] = nil
 	}
 	cc.widgets = cc.widgets[:0]
