@@ -71,6 +71,8 @@ func Run(gogpuApp *gogpu.App, uiApp *app.App) error {
 	gogpuApp.OnDraw(rl.draw)
 
 	gogpuApp.OnClose(func() {
+		// Teardown widget trees, stop animation pumper (#175).
+		uiApp.Window().Close()
 		rl.releaseBoundaryTextures()
 		gg.CloseAccelerator()
 		if rl.canvas != nil {

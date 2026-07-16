@@ -838,6 +838,42 @@ func (w *Window) draw() {
 	widget.ClearRedrawInTree(w.root)
 }
 
+// Close performs teardown of the window's widget trees and animation state.
+//
+// This stops the animation pumper goroutine, unmounts all overlay trees,
+// and unmounts the root widget tree. After Close, the window should not
+// be used for rendering.
+//
+// Close is idempotent — calling it multiple times is safe.
+func (w *Window) Close() {
+	// Stop animation pumper goroutine.
+	if w.animToken != nil {
+		w.animToken.Stop()
+		w.animToken = nil
+	}
+
+	// Unmount all overlay widget trees.
+	if w.overlays != nil {
+		for _, o := range w.overlays.List() {
+			widget.UnmountTree(o)
+		}
+		// Pop all overlays (Stack has no Clear method).
+		for w.overlays.Len() > 0 {
+			w.overlays.Pop()
+		}
+	}
+
+	// Unmount root widget tree.
+	if w.root != nil {
+		widget.UnmountTree(w.root)
+		w.root = nil
+	}
+
+	// Clear references to prevent pinning unmounted widgets.
+	w.hoveredWidget = nil
+	w.capturedWidget = nil
+}
+
 // RenderMode returns the window's current rendering mode.
 func (w *Window) RenderMode() RenderMode {
 	return w.renderMode
