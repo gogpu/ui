@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.47] — 2026-07-16
+
+### Changed
+
+- **deps:** gg v0.50.6 → v0.50.7, gogpu v0.44.8 → v0.44.9, wgpu v0.30.21 → v0.30.22
+  - **wgpu v0.30.22:** Metal MSAA storage mode fix — Intel integrated GPUs (Iris Plus) no longer crash on texture creation ([wgpu#271](https://github.com/gogpu/wgpu/issues/271)).
+  - **gg v0.50.7:** Variable font gvar fix under transforms ([gg#405](https://github.com/gogpu/gg/issues/405)).
+
 ## [0.1.46] — 2026-07-16
 
 ### Fixed
