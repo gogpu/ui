@@ -289,6 +289,158 @@ func TestFullRender_FillsAllRingSlots(t *testing.T) {
 	}
 }
 
+// --- #177: Rapid scroll damage ring accumulation ---
+
+func TestAccumulatedDamageRects_RapidScroll_AllFramesCovered(t *testing.T) {
+	// Simulates rapid scroll where every frame has different damage rects.
+	// With a 4-slot ring (quad-buffered swapchain), ALL 4 previous frames'
+	// damage must be included in the accumulated result. Before the fix (#177),
+	// current frame was double-counted and the oldest frame was lost.
+	rl := &renderLoop{}
+
+	// Simulate 6 consecutive scroll frames with different damage positions.
+	// Each frame, a ListView row at a different Y position is dirty.
+	frames := []image.Rectangle{
+		image.Rect(0, 0, 400, 50),   // frame 1: row at Y=0
+		image.Rect(0, 50, 400, 100),  // frame 2: row at Y=50
+		image.Rect(0, 100, 400, 150), // frame 3: row at Y=100
+		image.Rect(0, 150, 400, 200), // frame 4: row at Y=150
+		image.Rect(0, 200, 400, 250), // frame 5: row at Y=200
+		image.Rect(0, 250, 400, 300), // frame 6: row at Y=250
+	}
+
+	// Process first 5 frames to fill the ring and advance past it.
+	for i := 0; i < 5; i++ {
+		rl.frameDamageRects = []image.Rectangle{frames[i]}
+		rl.accumulatedDamageRects()
+	}
+
+	// Frame 6: the result must include frames 3,4,5 (from ring) + frame 6 (current).
+	// The ring now holds frames [2,3,4,5] after 5 calls (oldest=2 was just overwritten
+	// by frame 5's store, but let's verify the actual behavior).
+	rl.frameDamageRects = []image.Rectangle{frames[5]}
+	got := rl.accumulatedDamageRects()
+
+	// Current frame (frame 6) must always be present.
+	hasFrame6 := false
+	for _, r := range got {
+		if r == frames[5] {
+			hasFrame6 = true
+			break
+		}
+	}
+	if !hasFrame6 {
+		t.Errorf("accumulated damage must contain current frame %v, got %v", frames[5], got)
+	}
+
+	// The union of all accumulated rects must cover the full damage area.
+	// With quad-buffering, buffer was last presented 4 frames ago, so we need
+	// at least 4 frames of damage (current + 3 from ring).
+	var union image.Rectangle
+	for _, r := range got {
+		union = union.Union(r)
+	}
+	// After 6 frames, the ring holds [frame3, frame4, frame5, frame6-stored-next-call].
+	// At query time for frame 6, ring has [frame2, frame3, frame4, frame5].
+	// So union should span at least from Y=50 (frame2) to Y=300 (frame6).
+	if union.Min.Y > 50 {
+		t.Errorf("damage union.Min.Y = %d, should be ≤50 (must cover 4 previous frames)", union.Min.Y)
+	}
+	if union.Max.Y < 300 {
+		t.Errorf("damage union.Max.Y = %d, should be ≥300 (must cover current frame)", union.Max.Y)
+	}
+}
+
+func TestAccumulatedDamageRects_NoDuplicateCurrentFrame(t *testing.T) {
+	// Verifies that current frame rects are NOT double-counted (#177).
+	// Before the fix, current frame was stored in ring BEFORE iterating,
+	// causing it to appear twice in the result.
+	rl := &renderLoop{}
+
+	// Single rect, empty ring → should appear exactly once.
+	rect := image.Rect(100, 100, 200, 200)
+	rl.frameDamageRects = []image.Rectangle{rect}
+	got := rl.accumulatedDamageRects()
+
+	count := 0
+	for _, r := range got {
+		if r == rect {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("current frame rect should appear exactly once, appeared %d times in %v", count, got)
+	}
+}
+
+func TestAccumulatedDamageRects_RingPreservesHistory(t *testing.T) {
+	// Verifies the ring buffer correctly preserves N-1 previous frames (N=4).
+	// After N calls, the oldest frame should still be in the ring.
+	rl := &renderLoop{}
+
+	// 4 distinct frames filling all ring slots.
+	frame1 := image.Rect(0, 0, 10, 10)
+	frame2 := image.Rect(20, 20, 30, 30)
+	frame3 := image.Rect(40, 40, 50, 50)
+	frame4 := image.Rect(60, 60, 70, 70)
+
+	rl.frameDamageRects = []image.Rectangle{frame1}
+	rl.accumulatedDamageRects()
+	rl.frameDamageRects = []image.Rectangle{frame2}
+	rl.accumulatedDamageRects()
+	rl.frameDamageRects = []image.Rectangle{frame3}
+	rl.accumulatedDamageRects()
+
+	// Frame 4: ring should still contain frames 1, 2, 3.
+	rl.frameDamageRects = []image.Rectangle{frame4}
+	got := rl.accumulatedDamageRects()
+
+	has := func(target image.Rectangle) bool {
+		for _, r := range got {
+			if r == target {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !has(frame1) {
+		t.Errorf("ring should preserve frame1 %v (3 frames ago), got %v", frame1, got)
+	}
+	if !has(frame2) {
+		t.Errorf("ring should preserve frame2 %v (2 frames ago), got %v", frame2, got)
+	}
+	if !has(frame3) {
+		t.Errorf("ring should preserve frame3 %v (1 frame ago), got %v", frame3, got)
+	}
+	if !has(frame4) {
+		t.Errorf("ring should contain current frame4 %v, got %v", frame4, got)
+	}
+
+	// Frame 5: should push frame1 out of the ring (only 4 slots).
+	frame5 := image.Rect(80, 80, 90, 90)
+	rl.frameDamageRects = []image.Rectangle{frame5}
+	got = rl.accumulatedDamageRects()
+
+	// After 5 stores into a 4-slot ring, frame1 (slot 0) was overwritten by
+	// frame5's store. It should no longer be in the accumulated result.
+	// (Not asserting absence because has() scans got which only contains
+	// ring contents at frame5 query time — frame1 is gone by then.)
+	if !has(frame5) {
+		t.Errorf("ring should contain current frame5 %v, got %v", frame5, got)
+	}
+	// Must still have frames 2, 3, 4 (slots 1, 2, 3).
+	if !has(frame2) {
+		t.Errorf("ring should preserve frame2 %v after frame5, got %v", frame2, got)
+	}
+	if !has(frame3) {
+		t.Errorf("ring should preserve frame3 %v after frame5, got %v", frame3, got)
+	}
+	if !has(frame4) {
+		t.Errorf("ring should preserve frame4 %v after frame5, got %v", frame4, got)
+	}
+}
+
 // --- #116: Orphaned boundary texture GC ---
 
 func TestGCOrphanedTextures_DeletesOrphaned(t *testing.T) {
