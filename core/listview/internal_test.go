@@ -1330,7 +1330,7 @@ func TestSelectionChangeDirtiesOnlyTwoItems(t *testing.T) {
 	}
 
 	// Change selection from 3 to 5 — should only rebuild items 3 and 5.
-	wc.rebuildAffected(0, builder, 5)
+	wc.rebuildAffected(0, builder, 5, nil)
 
 	rebuiltCount := callCount - initialCount
 	if rebuiltCount != 2 {

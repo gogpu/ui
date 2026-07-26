@@ -263,3 +263,75 @@ func TestLifecycle_FullRebuildUnmountsOld(t *testing.T) {
 		}
 	}
 }
+
+func TestLifecycle_SelectionChangeMountsNewDecorator(t *testing.T) {
+	// Verifies that changing selection unmounts the old decorator's content
+	// and mounts the new decorator's content (#178). Before the fix,
+	// rebuildAffected created new decorators without MountTree, leaving
+	// signal bindings inactive until an unrelated repaint.
+	var trackers []*lifecycleTracker
+	selectedSig := state.NewSignal(-1)
+	scrollY := state.NewSignal[float32](0)
+
+	lv := listview.New(
+		listview.ItemCount(10),
+		listview.FixedItemHeight(36),
+		listview.ScrollYSignal(scrollY),
+		listview.SelectedIndexSignal(selectedSig),
+		listview.BuildItem(func(_ listview.ItemContext) widget.Widget {
+			lt := &lifecycleTracker{}
+			trackers = append(trackers, lt)
+			return lt
+		}),
+	)
+
+	ctx := widget.NewContext()
+	// Viewport fits all 10 items (10 * 36 = 360).
+	layoutAndDraw(t, lv, ctx, geometry.Sz(300, 360))
+
+	initialCount := len(trackers)
+	if initialCount == 0 {
+		t.Fatal("no trackers created on first draw")
+	}
+
+	// Select item 3.
+	selectedSig.Set(3)
+	layoutAndDraw(t, lv, ctx, geometry.Sz(300, 360))
+
+	// rebuildAffected should create new trackers for affected items.
+	afterFirstSelect := len(trackers)
+	if afterFirstSelect <= initialCount {
+		t.Fatalf("expected new trackers after selection; had %d, now %d",
+			initialCount, afterFirstSelect)
+	}
+
+	// The newly created tracker (for item 3) should be mounted.
+	newTracker := trackers[initialCount]
+	if !newTracker.mounted {
+		t.Error("new tracker for selected item should be mounted after rebuildAffected")
+	}
+	if newTracker.mountCount != 1 {
+		t.Errorf("new tracker mountCount = %d, want 1", newTracker.mountCount)
+	}
+
+	// Now change selection from 3 to 7.
+	selectedSig.Set(7)
+	layoutAndDraw(t, lv, ctx, geometry.Sz(300, 360))
+
+	afterSecondSelect := len(trackers)
+	if afterSecondSelect <= afterFirstSelect {
+		t.Fatalf("expected new trackers after second selection; had %d, now %d",
+			afterFirstSelect, afterSecondSelect)
+	}
+
+	// The tracker for the deselected item (3) should be unmounted.
+	if newTracker.unmountCount == 0 {
+		t.Error("old tracker for deselected item 3 should be unmounted")
+	}
+
+	// The newly created tracker for item 7 should be mounted.
+	secondNewTracker := trackers[afterFirstSelect]
+	if !secondNewTracker.mounted {
+		t.Error("new tracker for selected item 7 should be mounted")
+	}
+}
