@@ -301,7 +301,7 @@ func TestAccumulatedDamageRects_RapidScroll_AllFramesCovered(t *testing.T) {
 	// Simulate 6 consecutive scroll frames with different damage positions.
 	// Each frame, a ListView row at a different Y position is dirty.
 	frames := []image.Rectangle{
-		image.Rect(0, 0, 400, 50),   // frame 1: row at Y=0
+		image.Rect(0, 0, 400, 50),    // frame 1: row at Y=0
 		image.Rect(0, 50, 400, 100),  // frame 2: row at Y=50
 		image.Rect(0, 100, 400, 150), // frame 3: row at Y=100
 		image.Rect(0, 150, 400, 200), // frame 4: row at Y=150
