@@ -24,6 +24,7 @@
 package main
 
 import (
+	"context"
 	"image"
 	"log"
 	"sync"
@@ -57,13 +58,16 @@ func main() {
 	var mu sync.Mutex
 	latest := make(map[string]Frame)
 
+	// Context for graceful shutdown of module goroutines (#180).
+	ctx, cancel := context.WithCancel(context.Background())
+
 	app := gogpu.NewApp(gogpu.DefaultConfig().
 		WithTitle("gogpu/ui — Modular Compositor").
 		WithSize(windowW, windowH))
 
-	// Start module goroutines.
-	go clockModule(frames)
-	go notificationModule(frames)
+	// Start module goroutines with cancellation context.
+	go clockModule(ctx, frames)
+	go notificationModule(ctx, frames)
 
 	// Drain frames into latest map and request redraw.
 	go func() {
@@ -128,6 +132,11 @@ func main() {
 	})
 
 	app.OnClose(func() {
+		// Signal module goroutines to stop, then close the frames channel
+		// so the drain goroutine exits cleanly (#180).
+		cancel()
+		close(frames)
+
 		gg.CloseAccelerator()
 		if canvas != nil {
 			_ = canvas.Close()
@@ -145,7 +154,8 @@ func main() {
 
 // clockModule renders the current time at 1 Hz and sends frames to the
 // compositor. Uses offscreen.NewRenderer to render ui widgets without a window.
-func clockModule(out chan<- Frame) {
+// Exits cleanly when ctx is canceled.
+func clockModule(ctx context.Context, out chan<- Frame) {
 	const (
 		modW = 280
 		modH = 60
@@ -171,14 +181,22 @@ func clockModule(out chan<- Frame) {
 
 		r.Render(label)
 
-		out <- Frame{
+		select {
+		case <-ctx.Done():
+			return
+		case out <- Frame{
 			ModuleID: "clock",
 			Image:    r.Image(),
 			X:        160, // centered horizontally: (600-280)/2
 			Y:        20,
+		}:
 		}
 
-		<-ticker.C
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -188,7 +206,8 @@ func clockModule(out chan<- Frame) {
 
 // notificationModule renders a notification card that slides in from the bottom
 // every 5 seconds and sends frames at 60 Hz during the animation.
-func notificationModule(out chan<- Frame) {
+// Exits cleanly when ctx is canceled.
+func notificationModule(ctx context.Context, out chan<- Frame) {
 	const (
 		modW     = 300
 		modH     = 80
@@ -240,35 +259,60 @@ func notificationModule(out chan<- Frame) {
 			ease := 1.0 - inv*inv*inv
 			y := int(float64(targetY+modH) - ease*float64(modH))
 
-			out <- Frame{
+			select {
+			case <-ctx.Done():
+				return
+			case out <- Frame{
 				ModuleID: notificationModule,
 				Image:    img,
 				X:        150, // centered: (600-300)/2
 				Y:        y,
+			}:
 			}
-			time.Sleep(16 * time.Millisecond) // ~60 Hz
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(16 * time.Millisecond): // ~60 Hz
+			}
 		}
 
 		// Hold at final position.
-		out <- Frame{
+		select {
+		case <-ctx.Done():
+			return
+		case out <- Frame{
 			ModuleID: notificationModule,
 			Image:    img,
 			X:        150,
 			Y:        targetY,
+		}:
 		}
 
 		// Display for a few seconds, then clear.
-		time.Sleep(displayS * time.Second)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(displayS * time.Second):
+		}
 
-		out <- Frame{
+		select {
+		case <-ctx.Done():
+			return
+		case out <- Frame{
 			ModuleID: notificationModule,
 			Image:    nil, // hide
 			X:        150,
 			Y:        targetY,
+		}:
 		}
 
 		// Pause before next notification.
-		time.Sleep(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+		}
 	}
 }
 
