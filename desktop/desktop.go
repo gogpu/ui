@@ -783,6 +783,15 @@ func (rl *renderLoop) compositeFromTreeRecursive(layer compositor.Layer, cc *gg.
 		return
 	}
 
+	// ExternalTextureLayer: blit external GPU texture (Viewport3D, video).
+	if ext, ok := layer.(*compositor.ExternalTextureLayer); ok {
+		if !ext.Texture().IsNil() && ext.Width() > 0 && ext.Height() > 0 {
+			cc.DrawGPUTexture(ext.Texture(), ext.X(), ext.Y(), ext.Width(), ext.Height())
+			rl.blitCount++
+		}
+		return
+	}
+
 	// PictureLayer: blit its texture (skip invisible boundaries).
 	if pic, ok := layer.(*compositor.PictureLayerImpl); ok {
 		bw, bh := pic.Size()
