@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.48] — 2026-07-18
+## [0.1.48] — 2026-07-27
+
+### Fixed
+
+- **Stale ghost rows on ListView scroll** ([#177](https://github.com/gogpu/ui/issues/177)) — damage ring accumulation reordered: current frame stored after iterating previous slots, preventing double-counting that reduced effective history depth during rapid scroll.
+- **ListView selection content styling** ([#178](https://github.com/gogpu/ui/issues/178)) — `rebuildAffected` now unmounts old decorators and mounts new ones via `MountTree`, so signal bindings activate and selection styling updates immediately.
+- **Example goroutine leak** ([#180](https://github.com/gogpu/ui/issues/180)) — `context.Context` cancellation added to modular-compositor module goroutines.
+
+### Tests
+
+- 3 damage ring regression tests (`desktop/damage_blit_test.go`)
+- 1 selection lifecycle test (`core/listview/lifecycle_test.go`)
 
 ### Changed
 

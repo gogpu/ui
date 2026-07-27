@@ -505,16 +505,22 @@ func (rl *renderLoop) accumulatedDamageRects() []image.Rectangle {
 	rects := make([]image.Rectangle, 0, len(rl.frameDamageRects)+8)
 	rects = append(rects, rl.frameDamageRects...)
 
+	// Accumulate with PREVIOUS frames' damage BEFORE storing current.
+	// The ring holds damage from the last N-1 frames (N = ring size).
+	// With a quad-buffered swapchain, the buffer being presented was last used
+	// 4 frames ago — we need damage from frames [N-3, N-2, N-1, current].
+	// Iterating the ring BEFORE storing current ensures it contains only
+	// previous frames, avoiding double-counting current frame rects (#177).
+	for _, prev := range rl.damageRingRects {
+		rects = append(rects, prev...)
+	}
+
 	// Store current frame rects in ring buffer (copy to avoid aliasing).
+	// This overwrites the oldest slot for the NEXT frame's accumulation.
 	stored := make([]image.Rectangle, len(rl.frameDamageRects))
 	copy(stored, rl.frameDamageRects)
 	rl.damageRingRects[rl.damageRingIdx] = stored
 	rl.damageRingIdx = (rl.damageRingIdx + 1) % len(rl.damageRingRects)
-
-	// Accumulate with previous frames' damage.
-	for _, prev := range rl.damageRingRects {
-		rects = append(rects, prev...)
-	}
 
 	// ADR-030 threshold: merge to single union when too many rects.
 	// GPU scissor state changes are cheap but not free. Enterprise

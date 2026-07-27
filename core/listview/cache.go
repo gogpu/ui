@@ -28,7 +28,7 @@ type widgetCache struct {
 //
 // Hover changes do NOT trigger rebuilds — the decorator reads hover state
 // from list.hoveredIndex at Draw time (visual-only, no content change).
-func (wc *widgetCache) rebuildAffected(start int, content cdk.Content[ItemContext], selectedIndex int) {
+func (wc *widgetCache) rebuildAffected(start int, content cdk.Content[ItemContext], selectedIndex int, ctx widget.Context) {
 	affectedIndices := make(map[int]bool)
 	if wc.selectedIndex != selectedIndex {
 		affectedIndices[wc.selectedIndex] = true
@@ -40,13 +40,22 @@ func (wc *widgetCache) rebuildAffected(start int, content cdk.Content[ItemContex
 		if offset < 0 || offset >= len(wc.widgets) {
 			continue
 		}
+		// Unmount old decorator to release signal bindings and lifecycle (#178).
+		cleanupWidget(wc.widgets[offset])
+
 		w := content.Render(ItemContext{
 			Index:    idx,
 			Selected: idx == selectedIndex,
 			Focused:  idx == selectedIndex,
 		})
 		if w != nil {
-			wc.widgets[offset] = newItemDecorator(w, wc.list, idx)
+			dec := newItemDecorator(w, wc.list, idx)
+			// Mount new decorator so signal bindings activate and the dirty
+			// boundary callback can be wired during recordBoundary (#178).
+			if ctx != nil {
+				widget.MountTree(dec, ctx)
+			}
+			wc.widgets[offset] = dec
 		} else {
 			wc.widgets[offset] = nil
 		}
@@ -111,7 +120,7 @@ func (wc *widgetCache) update(start, end int, content cdk.Content[ItemContext], 
 	// Android RecyclerView pattern: notifyItemChanged(pos) rebinds single ViewHolder.
 	if wc.valid && wc.startIndex == start && wc.endIndex == end && content != nil {
 		if wc.selectedIndex != selectedIndex {
-			wc.rebuildAffected(start, content, selectedIndex)
+			wc.rebuildAffected(start, content, selectedIndex, ctx)
 			wc.selectedIndex = selectedIndex
 			return
 		}
