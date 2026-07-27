@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.48] — 2026-07-27
 
+### Added
+
+- **Viewport3D widget** ([#150](https://github.com/gogpu/ui/issues/150)) — GPU viewport for 3D content, video, or custom shader output. Flutter Texture widget pattern: widget owns offscreen GPU texture, external renderer draws into it via `OnRender` callback, Layer Tree compositor blits to surface. Functional options: `Size`, `OnRender`, `Continuous`. RepaintBoundary by default.
+- **ExternalTextureLayer** — new Layer Tree node for pre-rendered GPU textures. Unlike PictureLayer (scene replay), ExternalTextureLayer composites external textures directly.
+- **GPUTextureProvider** — optional `widget.Context` interface for widgets needing offscreen GPU textures (viewport3d, video player, custom shaders).
+- **OS file drag-and-drop bridge** ([#189](https://github.com/gogpu/ui/issues/189)) — bridges gogpu `OnDragDrop` into ui's `dnd` package. `KindFile` constant, `FilePayload` type, `Manager.DropExternal` for atomic external drops with hit-testing. Works on Windows, macOS, Linux (X11 + Wayland).
+
 ### Fixed
 
 - **Stale ghost rows on ListView scroll** ([#177](https://github.com/gogpu/ui/issues/177)) — damage ring accumulation reordered: current frame stored after iterating previous slots, preventing double-counting that reduced effective history depth during rapid scroll.
@@ -15,15 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- 3 damage ring regression tests (`desktop/damage_blit_test.go`)
-- 1 selection lifecycle test (`core/listview/lifecycle_test.go`)
+- 26 new tests: DnD (7), ExternalTextureLayer (5), Viewport3D (14)
+- 4 rendering regression tests: damage ring (3), selection lifecycle (1)
 
 ### Changed
 
-- **deps:** gg v0.50.7 → v0.50.8, gogpu v0.44.9 → v0.44.11, wgpu v0.30.22 → v0.30.23, naga v0.17.15 → v0.17.16
+- **deps:** gg v0.50.7 → v0.50.8, gogpu v0.44.9 → v0.45.1, wgpu v0.30.22 → v0.30.23, naga v0.17.15 → v0.17.16
+  - **gogpu v0.45.1:** OS drag-and-drop on all 4 platforms (Win32 WM_DROPFILES, macOS NSView dragging, X11 XDnD, Wayland wl_data_device), MarkExternalContent for 3D compositing, Wayland/macOS fixes.
   - **gg v0.50.8:** Variable font outlines ignore gvar under transforms fix ([gg#405](https://github.com/gogpu/gg/issues/405)).
   - **wgpu v0.30.23:** Software backend CopyTextureToBuffer row stride, blend state, BGRA readTexel fixes.
-  - **gogpu v0.44.11:** Deps cascade.
   - **naga v0.17.16:** Shader compiler improvements (indirect).
 
 ## [0.1.47] — 2026-07-16
