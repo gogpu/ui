@@ -15,6 +15,7 @@ import (
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/app"
 	"github.com/gogpu/ui/compositor"
+	"github.com/gogpu/ui/dnd"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/render"
 )
@@ -69,6 +70,18 @@ func Run(gogpuApp *gogpu.App, uiApp *app.App) error {
 	}
 
 	gogpuApp.OnDraw(rl.draw)
+
+	// Bridge OS file drag-and-drop to ui dnd system.
+	// When the OS delivers a file drop event, hit-test registered
+	// DropTargets at the drop position and deliver the DragData.
+	gogpuApp.OnDragDrop(func(paths []string, x, y float64) {
+		mgr := uiApp.Window().DndManager()
+		data := dnd.DragData{
+			Kind:    dnd.KindFile,
+			Payload: dnd.FilePayload{Paths: paths},
+		}
+		mgr.DropExternal(data, x, y)
+	})
 
 	gogpuApp.OnClose(func() {
 		// Teardown widget trees, stop animation pumper (#175).
@@ -767,6 +780,15 @@ func (rl *renderLoop) compositeTexturesFromTree(root compositor.Layer, cc *gg.Co
 
 func (rl *renderLoop) compositeFromTreeRecursive(layer compositor.Layer, cc *gg.Context, parentOpacity float32) {
 	if layer == nil {
+		return
+	}
+
+	// ExternalTextureLayer: blit external GPU texture (Viewport3D, video).
+	if ext, ok := layer.(*compositor.ExternalTextureLayer); ok {
+		if !ext.Texture().IsNil() && ext.Width() > 0 && ext.Height() > 0 {
+			cc.DrawGPUTexture(ext.Texture(), ext.X(), ext.Y(), ext.Width(), ext.Height())
+			rl.blitCount++
+		}
 		return
 	}
 
