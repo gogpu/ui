@@ -194,6 +194,32 @@ func (m *Manager) TargetCount() int {
 	return len(m.targets)
 }
 
+// DropExternal delivers an external drop (e.g., OS file drag-and-drop) to the
+// first registered [DropTarget] that accepts the data at the given position.
+//
+// Unlike internal widget-to-widget drags (which go through the full
+// press-threshold-move-release lifecycle), external drops arrive as a single
+// atomic event from the platform layer. This method performs hit-testing
+// against registered targets, calls [DropTarget.CanAccept], and delivers
+// the data via [DropTarget.Drop].
+//
+// Returns true if a target accepted the drop.
+func (m *Manager) DropExternal(data DragData, x, y float64) bool {
+	pos := geometry.Pt(float32(x), float32(y))
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, entry := range m.targets {
+		if entry.bounds.Contains(pos) && entry.target.CanAccept(data) {
+			entry.target.DragEnter(data)
+			accepted := entry.target.Drop(data, pos)
+			return accepted
+		}
+	}
+	return false
+}
+
 // handlePress starts tracking a potential drag.
 func (m *Manager) handlePress(evt *event.MouseEvent, source DragSource) {
 	// Only left button initiates drag.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gogpu/gpucontext"
 	ui "github.com/gogpu/ui"
+	"github.com/gogpu/ui/dnd"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/internal/dirty"
@@ -147,6 +148,11 @@ type Window struct {
 	// onBoundaryDirty callback wired during mount. Used by future Phase 2
 	// PaintDirtyBoundaries to repaint only changed boundaries.
 	dirtyBoundaries map[uint64]dirtyBoundaryEntry
+
+	// dndManager coordinates drag-and-drop operations for this window.
+	// Used by both internal widget-to-widget drags and OS file drops
+	// bridged via desktop.Run's OnDragDrop callback.
+	dndManager *dnd.Manager
 }
 
 // newWindow creates a Window with the given providers.
@@ -1128,6 +1134,18 @@ func (w *Window) Overlays() *overlay.Stack {
 // widgets and supports registering global keyboard shortcuts.
 func (w *Window) FocusManager() *ifocus.Manager {
 	return w.focusMgr
+}
+
+// DndManager returns the window's drag-and-drop manager.
+//
+// The Manager is created lazily on first access. It coordinates both
+// internal widget-to-widget drags and OS file drops bridged via the
+// desktop render loop's OnDragDrop callback.
+func (w *Window) DndManager() *dnd.Manager {
+	if w.dndManager == nil {
+		w.dndManager = dnd.NewManager()
+	}
+	return w.dndManager
 }
 
 // windowOverlayManager adapts the Window's overlay.Stack to the
