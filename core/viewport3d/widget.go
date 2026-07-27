@@ -195,9 +195,9 @@ func (w *Widget) initTexture(ctx widget.Context) {
 // viewportAccessible provides accessibility info for the viewport widget.
 type viewportAccessible struct{}
 
-func (va *viewportAccessible) AccessibilityRole() a11y.Role      { return a11y.RoleImage }
-func (va *viewportAccessible) AccessibilityLabel() string         { return "3D Viewport" }
-func (va *viewportAccessible) AccessibilityHint() string          { return "" }
-func (va *viewportAccessible) AccessibilityValue() string         { return "" }
-func (va *viewportAccessible) AccessibilityState() a11y.State     { return a11y.State{} }
+func (va *viewportAccessible) AccessibilityRole() a11y.Role        { return a11y.RoleImage }
+func (va *viewportAccessible) AccessibilityLabel() string          { return "3D Viewport" }
+func (va *viewportAccessible) AccessibilityHint() string           { return "" }
+func (va *viewportAccessible) AccessibilityValue() string          { return "" }
+func (va *viewportAccessible) AccessibilityState() a11y.State      { return a11y.State{} }
 func (va *viewportAccessible) AccessibilityActions() []a11y.Action { return nil }
