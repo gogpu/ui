@@ -288,7 +288,7 @@ type PointerCapturer interface {
 // GPUTextureProvider is an optional interface implemented by Context
 // implementations that can create offscreen GPU textures.
 //
-// The Viewport3D widget uses this to allocate its render target. The
+// The GPUView widget uses this to allocate its render target. The
 // concrete implementation delegates to gg.Context.CreateOffscreenTexture.
 //
 // This uses the established "interface extension via type assertion"
@@ -296,7 +296,7 @@ type PointerCapturer interface {
 // to avoid adding methods to the Context interface.
 //
 // The returned texture and release function are typed as any to avoid
-// importing gpucontext from the widget package. The consumer (viewport3d)
+// importing gpucontext from the widget package. The consumer (gpuview)
 // type-asserts to gpucontext.TextureView at the call site.
 //
 // Example usage in a widget:
@@ -466,7 +466,7 @@ type ContextImpl struct {
 	onRegisterDirtyBoundary func(key uint64)
 
 	// onCreateGPUTexture is called when a widget requests an offscreen GPU
-	// texture (Viewport3D). The Window wires this callback to delegate to
+	// texture (GPUView). The Window wires this callback to delegate to
 	// gg.Context.CreateOffscreenTexture. Returns (gpucontext.TextureView, func()).
 	onCreateGPUTexture func(width, height int) (any, func())
 
@@ -993,7 +993,7 @@ func (c *ContextImpl) CreateGPUTexture(width, height int) (any, func()) {
 
 // SetOnCreateGPUTexture sets the callback for CreateGPUTexture.
 // The Window wires this during initialization to delegate to
-// gg.Context.CreateOffscreenTexture for Viewport3D widgets.
+// gg.Context.CreateOffscreenTexture for GPUView widgets.
 func (c *ContextImpl) SetOnCreateGPUTexture(callback func(width, height int) (any, func())) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

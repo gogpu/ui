@@ -2,10 +2,29 @@ package app
 
 import (
 	"github.com/gogpu/gg/scene"
+	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/compositor"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
+
+// externalTextureWidget is implemented by widgets that own a GPU texture
+// rendered by an external producer (GPUView, video players, custom shaders).
+// When detected, buildBoundaryLayer appends an ExternalTextureLayer alongside
+// the PictureLayer so the compositor blits the external texture.
+//
+// This is a local interface (unexported) following the established type-assertion
+// pattern in this file (compositorClipper, callbackSetter, etc.).
+//
+// Flutter equivalent: TextureLayer (rendering/layer.dart).
+type externalTextureWidget interface {
+	// Texture returns the external GPU texture view. Returns a nil/zero
+	// TextureView if the texture has not been initialized yet.
+	Texture() gpucontext.TextureView
+
+	// ViewportSize returns the viewport dimensions in logical pixels.
+	ViewportSize() (width, height int)
+}
 
 // boundaryInfo describes a widget that is a RepaintBoundary.
 type boundaryInfo interface {
@@ -167,6 +186,11 @@ func updateBoundaryLayer(bi boundaryInfo, w widget.Widget, offset geometry.Point
 		syncPictureLayer(existing.pic, bi, w)
 		existing.offset.Append(existing.pic)
 
+		// ExternalTextureWidget: re-append ExternalTextureLayer with current
+		// texture state. RemoveAll() cleared previous layers — fresh append
+		// ensures the texture reference and position are up-to-date.
+		appendExternalTextureLayer(existing.offset, w, bi)
+
 		// Mark as consumed so cleanup can detect removed boundaries.
 		delete(index, key)
 
@@ -286,7 +310,39 @@ func buildBoundaryLayer(bi boundaryInfo, w widget.Widget, offset geometry.Point)
 	}
 
 	childOffset.Append(pic)
+
+	// ExternalTextureWidget (GPUView, video): append an ExternalTextureLayer
+	// so the compositor blits the external GPU texture. The PictureLayer stays
+	// for scene recording compatibility; the ExternalTextureLayer provides the
+	// actual content. compositeFromTreeRecursive handles both layer types.
+	appendExternalTextureLayer(childOffset, w, bi)
+
 	return childOffset
+}
+
+// appendExternalTextureLayer checks whether a boundary widget implements
+// externalTextureWidget (GPUView, video players). If so and the texture
+// is valid, appends an ExternalTextureLayer to the parent OffsetLayer.
+//
+// Called by buildBoundaryLayer (fresh build) and updateBoundaryLayer (reuse).
+// The ExternalTextureLayer is a sibling of the PictureLayer — both live
+// inside the same OffsetLayer.
+func appendExternalTextureLayer(parent *compositor.OffsetLayerImpl, w widget.Widget, bi boundaryInfo) {
+	etw, ok := w.(externalTextureWidget)
+	if !ok {
+		return
+	}
+	tex := etw.Texture()
+	if tex.IsNil() {
+		return
+	}
+	vw, vh := etw.ViewportSize()
+	if vw <= 0 || vh <= 0 {
+		return
+	}
+	origin := bi.ScreenOrigin()
+	ext := compositor.NewExternalTextureLayer(tex, vw, vh, float64(origin.X), float64(origin.Y))
+	parent.Append(ext)
 }
 
 // PaintBoundaryLayers walks the widget tree and re-records dirty boundaries.

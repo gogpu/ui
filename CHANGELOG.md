@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Viewport3D widget** ([#150](https://github.com/gogpu/ui/issues/150)) — GPU viewport for 3D content, video, or custom shader output. Flutter Texture widget pattern: widget owns offscreen GPU texture, external renderer draws into it via `OnRender` callback, Layer Tree compositor blits to surface. Functional options: `Size`, `OnRender`, `Continuous`. RepaintBoundary by default.
+- **GPUView widget** ([#150](https://github.com/gogpu/ui/issues/150)) — GPU-rendered view for external content: 3D scenes, video, compute visualization, or custom shader output. Flutter Texture widget pattern: widget owns offscreen GPU texture, external renderer draws into it via `OnRender` callback, Layer Tree compositor blits to surface. Functional options: `Size`, `OnRender`, `Continuous`. RepaintBoundary by default. (Renamed from Viewport3D in v0.1.49.)
 - **ExternalTextureLayer** — new Layer Tree node for pre-rendered GPU textures. Unlike PictureLayer (scene replay), ExternalTextureLayer composites external textures directly.
-- **GPUTextureProvider** — optional `widget.Context` interface for widgets needing offscreen GPU textures (viewport3d, video player, custom shaders).
+- **GPUTextureProvider** — optional `widget.Context` interface for widgets needing offscreen GPU textures (gpuview, video player, custom shaders).
 - **OS file drag-and-drop bridge** ([#189](https://github.com/gogpu/ui/issues/189)) — bridges gogpu `OnDragDrop` into ui's `dnd` package. `KindFile` constant, `FilePayload` type, `Manager.DropExternal` for atomic external drops with hit-testing. Works on Windows, macOS, Linux (X11 + Wayland).
 
 ### Fixed
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- 26 new tests: DnD (7), ExternalTextureLayer (5), Viewport3D (14)
+- 26 new tests: DnD (7), ExternalTextureLayer (5), GPUView (14)
 - 4 rendering regression tests: damage ring (3), selection lifecycle (1)
 
 ### Changed

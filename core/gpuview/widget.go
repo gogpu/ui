@@ -1,4 +1,4 @@
-package viewport3d
+package gpuview
 
 import (
 	"github.com/gogpu/gpucontext"
@@ -8,13 +8,13 @@ import (
 	"github.com/gogpu/ui/widget"
 )
 
-// Widget provides a GPU-rendered viewport for 3D content, video, or custom
-// shader output. Uses the Flutter Texture widget pattern: the widget owns an
-// offscreen GPU texture, an external renderer draws into it, and the Layer
-// Tree compositor blits it to the surface.
+// Widget provides a GPU-rendered view for external content: 3D scenes, video,
+// compute visualization, or custom shader output. Uses the Flutter Texture
+// widget pattern: the widget owns an offscreen GPU texture, an external
+// renderer draws into it, and the Layer Tree compositor blits it to the surface.
 //
 // The widget is a RepaintBoundary for compositor isolation — re-rendering
-// the 3D content does not invalidate sibling widgets.
+// the external content does not invalidate sibling widgets.
 //
 // Widget implements [widget.Lifecycle] for GPU resource cleanup on unmount.
 type Widget struct {
@@ -37,7 +37,7 @@ var (
 	_ widget.Lifecycle = (*Widget)(nil)
 )
 
-// New creates a new Viewport3D widget with the given options.
+// New creates a new GPUView widget with the given options.
 func New(opts ...Option) *Widget {
 	cfg := defaultConfig()
 	for _, o := range opts {
@@ -54,15 +54,15 @@ func New(opts ...Option) *Widget {
 	return w
 }
 
-// Layout returns the configured viewport size, constrained by the parent.
+// Layout returns the configured view size, constrained by the parent.
 func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
 	preferred := geometry.Sz(float32(w.cfg.width), float32(w.cfg.height))
 	return constraints.Constrain(preferred)
 }
 
-// Draw renders the viewport content. On the first call, the GPU texture is
+// Draw renders the view content. On the first call, the GPU texture is
 // allocated via the Context's [widget.GPUTextureProvider]. On subsequent
-// calls, the OnRender callback is invoked only when the viewport is dirty
+// calls, the OnRender callback is invoked only when the view is dirty
 // or in continuous mode.
 func (w *Widget) Draw(ctx widget.Context, _ widget.Canvas) {
 	if !w.IsVisible() {
@@ -97,12 +97,12 @@ func (w *Widget) Draw(ctx widget.Context, _ widget.Canvas) {
 	}
 }
 
-// Event handles input events. Viewport3D does not consume events by default.
+// Event handles input events. GPUView does not consume events by default.
 func (w *Widget) Event(_ widget.Context, _ event.Event) bool {
 	return false
 }
 
-// Children returns nil — Viewport3D is a leaf widget.
+// Children returns nil — GPUView is a leaf widget.
 func (w *Widget) Children() []widget.Widget {
 	return nil
 }
@@ -119,7 +119,7 @@ func (w *Widget) Unmount() {
 	w.Release()
 }
 
-// Invalidate marks the viewport as needing a re-render on the next frame.
+// Invalidate marks the view as needing a re-render on the next frame.
 // Use this for on-demand rendering when the external content has changed.
 func (w *Widget) Invalidate() {
 	w.dirty = true
@@ -132,12 +132,12 @@ func (w *Widget) Texture() gpucontext.TextureView {
 	return w.texture
 }
 
-// ViewportSize returns the configured viewport dimensions.
+// ViewportSize returns the configured view dimensions.
 func (w *Widget) ViewportSize() (width, height int) {
 	return w.cfg.width, w.cfg.height
 }
 
-// IsContinuous reports whether the viewport renders every frame.
+// IsContinuous reports whether the view renders every frame.
 func (w *Widget) IsContinuous() bool {
 	return w.cfg.continuous
 }
@@ -161,9 +161,9 @@ func (w *Widget) Release() {
 	w.initialized = false
 }
 
-// Accessible returns accessibility information for the viewport.
+// Accessible returns accessibility information for the view.
 func (w *Widget) Accessible() a11y.Accessible {
-	return &viewportAccessible{}
+	return &viewAccessible{}
 }
 
 // initTexture creates the GPU texture via the Context's GPUTextureProvider.
@@ -192,12 +192,12 @@ func (w *Widget) initTexture(ctx widget.Context) {
 	w.initialized = true
 }
 
-// viewportAccessible provides accessibility info for the viewport widget.
-type viewportAccessible struct{}
+// viewAccessible provides accessibility info for the GPU view widget.
+type viewAccessible struct{}
 
-func (va *viewportAccessible) AccessibilityRole() a11y.Role        { return a11y.RoleImage }
-func (va *viewportAccessible) AccessibilityLabel() string          { return "3D Viewport" }
-func (va *viewportAccessible) AccessibilityHint() string           { return "" }
-func (va *viewportAccessible) AccessibilityValue() string          { return "" }
-func (va *viewportAccessible) AccessibilityState() a11y.State      { return a11y.State{} }
-func (va *viewportAccessible) AccessibilityActions() []a11y.Action { return nil }
+func (va *viewAccessible) AccessibilityRole() a11y.Role        { return a11y.RoleImage }
+func (va *viewAccessible) AccessibilityLabel() string          { return "GPU View" }
+func (va *viewAccessible) AccessibilityHint() string           { return "" }
+func (va *viewAccessible) AccessibilityValue() string          { return "" }
+func (va *viewAccessible) AccessibilityState() a11y.State      { return a11y.State{} }
+func (va *viewAccessible) AccessibilityActions() []a11y.Action { return nil }

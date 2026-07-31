@@ -325,7 +325,7 @@ Works on all backends: Vulkan, DX12, Metal, GLES, Software, Browser (WASM).
 | [`examples/gallery`](examples/gallery) | Widget gallery: all 26 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
 | [`examples/ide`](examples/ide) | GoLand-inspired IDE layout: DevTools theme, toolbar, tree, tabs, terminal, SVG icons |
 | [`examples/filedrop`](examples/filedrop) | OS file drag-and-drop: drop files from file manager, reactive path display |
-| [`examples/viewport3d`](examples/viewport3d) | GPU viewport widget: offscreen texture compositing (Flutter Texture pattern) |
+| [`examples/gpuview`](examples/gpuview) | GPU view widget: offscreen texture compositing (Flutter Texture pattern) |
 | [`examples/modular-compositor`](examples/modular-compositor) | Multi-module offscreen rendering: clock + notification compositor ([#75](https://github.com/gogpu/ui/issues/75)) |
 
 Run any example:

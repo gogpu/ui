@@ -81,6 +81,9 @@ func (m *mockPlatformProvider) FontScale() float32 { return m.fontScale }
 func (m *mockPlatformProvider) SubpixelLayout() gpucontext.SubpixelLayout {
 	return gpucontext.SubpixelNone
 }
+func (m *mockPlatformProvider) FontSmoothing() gpucontext.FontSmoothing {
+	return gpucontext.FontSmoothingGrayscale
+}
 
 // mockEventSource implements gpucontext.EventSource and gpucontext.PointerEventSource for testing.
 type mockEventSource struct {

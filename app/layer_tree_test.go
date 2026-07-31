@@ -2,8 +2,10 @@ package app
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/gogpu/gg/scene"
+	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/compositor"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -844,6 +846,298 @@ func TestUpdateLayerTree_MultipleFramesStable(t *testing.T) {
 		if len(pics) != 2 {
 			t.Fatalf("frame %d: expected 2 PictureLayers, got %d", i+1, len(pics))
 		}
+	}
+}
+
+// --- ExternalTextureLayer Tests (GPUView / #197) ---
+
+// testViewport simulates a GPUView widget: RepaintBoundary that implements
+// externalTextureWidget (Texture() + ViewportSize()). Used to verify that
+// BuildLayerTree/UpdateLayerTree appends ExternalTextureLayer for such widgets.
+type testViewport struct {
+	widget.WidgetBase
+	texture   gpucontext.TextureView
+	vpWidth   int
+	vpHeight  int
+	drawCount int
+}
+
+func (w *testViewport) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+	return c.Constrain(geometry.Sz(float32(w.vpWidth), float32(w.vpHeight)))
+}
+func (w *testViewport) Draw(_ widget.Context, canvas widget.Canvas) {
+	w.drawCount++
+	if canvas != nil {
+		canvas.DrawRect(w.Bounds(), widget.RGBA8(0, 128, 255, 255))
+	}
+}
+func (w *testViewport) Event(_ widget.Context, _ event.Event) bool { return false }
+func (w *testViewport) Children() []widget.Widget                  { return nil }
+func (w *testViewport) Texture() gpucontext.TextureView            { return w.texture }
+func (w *testViewport) ViewportSize() (int, int)                   { return w.vpWidth, w.vpHeight }
+
+// newTestViewport creates a testViewport with a valid fake texture.
+func newTestViewport(x, y float32, width, height int) *testViewport {
+	var dummy int
+	tv := gpucontext.NewTextureView(unsafe.Pointer(&dummy))
+	vp := &testViewport{
+		texture:  tv,
+		vpWidth:  width,
+		vpHeight: height,
+	}
+	vp.SetVisible(true)
+	vp.SetRepaintBoundary(true)
+	vp.SetBounds(geometry.NewRect(x, y, x+float32(width), y+float32(height)))
+	vp.SetScreenOrigin(geometry.Pt(x, y))
+	return vp
+}
+
+// collectExternalTextureLayers walks a Layer Tree and collects all ExternalTextureLayers.
+func collectExternalTextureLayers(layer compositor.Layer, out *[]*compositor.ExternalTextureLayer) {
+	if layer == nil {
+		return
+	}
+	if ext, ok := layer.(*compositor.ExternalTextureLayer); ok {
+		*out = append(*out, ext)
+		return
+	}
+	if cl, ok := layer.(compositor.ContainerLayer); ok {
+		for _, child := range cl.Children() {
+			collectExternalTextureLayers(child, out)
+		}
+	}
+}
+
+// TestBuildLayerTree_CreatesExternalTextureLayer verifies that BuildLayerTree
+// creates an ExternalTextureLayer for a widget implementing externalTextureWidget
+// (GPUView pattern). The ExternalTextureLayer is a sibling of the PictureLayer
+// inside the same OffsetLayer.
+func TestBuildLayerTree_CreatesExternalTextureLayer(t *testing.T) {
+	root := &testContainer{}
+	root.SetVisible(true)
+	root.SetRepaintBoundary(true)
+	root.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	root.SetScreenOrigin(geometry.Pt(0, 0))
+
+	vp := newTestViewport(100, 200, 320, 240)
+	vp.SetParent(root)
+	root.kids = []widget.Widget{vp}
+
+	tree := BuildLayerTree(root)
+
+	var extLayers []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree, &extLayers)
+
+	if len(extLayers) != 1 {
+		t.Fatalf("expected 1 ExternalTextureLayer, got %d", len(extLayers))
+	}
+
+	ext := extLayers[0]
+	if ext.Width() != 320 || ext.Height() != 240 {
+		t.Errorf("ExternalTextureLayer size = %dx%d, want 320x240", ext.Width(), ext.Height())
+	}
+	if ext.X() != 100 || ext.Y() != 200 {
+		t.Errorf("ExternalTextureLayer position = (%.0f, %.0f), want (100, 200)", ext.X(), ext.Y())
+	}
+	if ext.Texture().IsNil() {
+		t.Error("ExternalTextureLayer texture should not be nil")
+	}
+}
+
+// TestBuildLayerTree_NoExternalTextureForRegularWidget verifies that regular
+// boundary widgets (non-GPUView) do NOT get an ExternalTextureLayer.
+func TestBuildLayerTree_NoExternalTextureForRegularWidget(t *testing.T) {
+	root := &testContainer{}
+	root.SetVisible(true)
+	root.SetRepaintBoundary(true)
+	root.SetBounds(geometry.NewRect(0, 0, 800, 600))
+
+	child := &testLeaf{}
+	child.SetVisible(true)
+	child.SetRepaintBoundary(true)
+	child.SetBounds(geometry.NewRect(0, 0, 48, 48))
+	child.SetScreenOrigin(geometry.Pt(10, 10))
+	child.SetParent(root)
+	root.kids = []widget.Widget{child}
+
+	tree := BuildLayerTree(root)
+
+	var extLayers []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree, &extLayers)
+
+	if len(extLayers) != 0 {
+		t.Errorf("expected 0 ExternalTextureLayers for regular widget, got %d", len(extLayers))
+	}
+}
+
+// TestBuildLayerTree_NilTextureSkipsExternalLayer verifies that a viewport
+// widget with a nil texture does NOT produce an ExternalTextureLayer.
+func TestBuildLayerTree_NilTextureSkipsExternalLayer(t *testing.T) {
+	root := &testContainer{}
+	root.SetVisible(true)
+	root.SetRepaintBoundary(true)
+	root.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	root.SetScreenOrigin(geometry.Pt(0, 0))
+
+	vp := &testViewport{
+		texture:  gpucontext.TextureView{}, // nil/zero texture
+		vpWidth:  320,
+		vpHeight: 240,
+	}
+	vp.SetVisible(true)
+	vp.SetRepaintBoundary(true)
+	vp.SetBounds(geometry.NewRect(0, 0, 320, 240))
+	vp.SetScreenOrigin(geometry.Pt(0, 0))
+	vp.SetParent(root)
+	root.kids = []widget.Widget{vp}
+
+	tree := BuildLayerTree(root)
+
+	var extLayers []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree, &extLayers)
+
+	if len(extLayers) != 0 {
+		t.Errorf("expected 0 ExternalTextureLayers for nil texture, got %d", len(extLayers))
+	}
+}
+
+// TestBuildLayerTree_ExternalTextureCoexistsWithPictureLayer verifies that
+// the ExternalTextureLayer is appended alongside (not instead of) the PictureLayer.
+// Both must exist in the same OffsetLayer: PictureLayer for scene recording
+// compatibility, ExternalTextureLayer for actual texture blit.
+func TestBuildLayerTree_ExternalTextureCoexistsWithPictureLayer(t *testing.T) {
+	root := &testContainer{}
+	root.SetVisible(true)
+	root.SetRepaintBoundary(true)
+	root.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	root.SetScreenOrigin(geometry.Pt(0, 0))
+
+	vp := newTestViewport(50, 50, 200, 150)
+	vp.SetParent(root)
+	root.kids = []widget.Widget{vp}
+
+	tree := BuildLayerTree(root)
+
+	var pics []*compositor.PictureLayerImpl
+	collectPictureLayersFromTree(tree, &pics)
+
+	var exts []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree, &exts)
+
+	// Root PictureLayer + viewport PictureLayer = 2 PictureLayers.
+	if len(pics) != 2 {
+		t.Errorf("expected 2 PictureLayers (root + viewport), got %d", len(pics))
+	}
+
+	// Viewport also has ExternalTextureLayer.
+	if len(exts) != 1 {
+		t.Errorf("expected 1 ExternalTextureLayer, got %d", len(exts))
+	}
+}
+
+// TestUpdateLayerTree_CreatesExternalTextureLayer verifies that UpdateLayerTree
+// (persistent tree path) also creates ExternalTextureLayer for viewport widgets.
+func TestUpdateLayerTree_CreatesExternalTextureLayer(t *testing.T) {
+	root := &testContainer{}
+	root.SetVisible(true)
+	root.SetRepaintBoundary(true)
+	root.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	root.SetScreenOrigin(geometry.Pt(0, 0))
+
+	vp := newTestViewport(100, 200, 320, 240)
+	vp.SetParent(root)
+	root.kids = []widget.Widget{vp}
+
+	// First frame: build from scratch.
+	tree := UpdateLayerTree(root, nil)
+
+	var extLayers []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree, &extLayers)
+	if len(extLayers) != 1 {
+		t.Fatalf("frame 1: expected 1 ExternalTextureLayer, got %d", len(extLayers))
+	}
+
+	// Second frame: update with existing tree (reuse path).
+	tree2 := UpdateLayerTree(root, tree)
+
+	var extLayers2 []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree2, &extLayers2)
+	if len(extLayers2) != 1 {
+		t.Fatalf("frame 2: expected 1 ExternalTextureLayer, got %d", len(extLayers2))
+	}
+
+	// Verify position is correct on reuse.
+	ext := extLayers2[0]
+	if ext.X() != 100 || ext.Y() != 200 {
+		t.Errorf("reused ExternalTextureLayer position = (%.0f, %.0f), want (100, 200)", ext.X(), ext.Y())
+	}
+}
+
+// TestUpdateLayerTree_ExternalTextureUpdatedOnMove verifies that when a
+// viewport widget moves, the ExternalTextureLayer position updates.
+func TestUpdateLayerTree_ExternalTextureUpdatedOnMove(t *testing.T) {
+	root := &testContainer{}
+	root.SetVisible(true)
+	root.SetRepaintBoundary(true)
+	root.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	root.SetScreenOrigin(geometry.Pt(0, 0))
+
+	vp := newTestViewport(100, 200, 320, 240)
+	vp.SetParent(root)
+	root.kids = []widget.Widget{vp}
+
+	tree := UpdateLayerTree(root, nil)
+
+	// Move viewport.
+	vp.SetBounds(geometry.NewRect(300, 400, 620, 640))
+	vp.SetScreenOrigin(geometry.Pt(300, 400))
+
+	tree2 := UpdateLayerTree(root, tree)
+
+	var extLayers []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree2, &extLayers)
+	if len(extLayers) != 1 {
+		t.Fatalf("expected 1 ExternalTextureLayer after move, got %d", len(extLayers))
+	}
+
+	ext := extLayers[0]
+	if ext.X() != 300 || ext.Y() != 400 {
+		t.Errorf("ExternalTextureLayer position after move = (%.0f, %.0f), want (300, 400)",
+			ext.X(), ext.Y())
+	}
+}
+
+// TestBuildLayerTree_MultipleViewports verifies that multiple viewport
+// widgets each get their own ExternalTextureLayer.
+func TestBuildLayerTree_MultipleViewports(t *testing.T) {
+	root := &testContainer{}
+	root.SetVisible(true)
+	root.SetRepaintBoundary(true)
+	root.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	root.SetScreenOrigin(geometry.Pt(0, 0))
+
+	vp1 := newTestViewport(0, 0, 320, 240)
+	vp1.SetParent(root)
+	vp2 := newTestViewport(400, 0, 320, 240)
+	vp2.SetParent(root)
+	root.kids = []widget.Widget{vp1, vp2}
+
+	tree := BuildLayerTree(root)
+
+	var extLayers []*compositor.ExternalTextureLayer
+	collectExternalTextureLayers(tree, &extLayers)
+
+	if len(extLayers) != 2 {
+		t.Fatalf("expected 2 ExternalTextureLayers, got %d", len(extLayers))
+	}
+
+	// Verify distinct positions.
+	positions := map[float64]bool{}
+	for _, ext := range extLayers {
+		positions[ext.X()] = true
+	}
+	if !positions[0] || !positions[400] {
+		t.Errorf("expected positions at X=0 and X=400, got %v", positions)
 	}
 }
 
