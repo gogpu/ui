@@ -108,7 +108,7 @@
 |---------|---------|-----------|
 | `cdk/` | Headless behaviors, polymorphic content | `Content[C]`, `StringContent`, `FuncContent[C]`, `WidgetContent` |
 
-### Layer 3a: Generic Widgets (26 interactive widgets in core/)
+### Layer 3a: Generic Widgets (27 interactive widgets in core/)
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|

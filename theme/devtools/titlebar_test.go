@@ -65,8 +65,8 @@ func TestTitleBarPainter_PaintControlButton_Minimize(t *testing.T) {
 
 	p.PaintControlButton(canvas, bounds, titlebar.ControlMinimize, titlebar.ControlState{})
 
-	if len(canvas.drawLines) == 0 {
-		t.Error("minimize should draw a line")
+	if canvas.svgRenders == 0 {
+		t.Error("minimize should render SVG icon")
 	}
 }
 
@@ -77,8 +77,8 @@ func TestTitleBarPainter_PaintControlButton_Maximize(t *testing.T) {
 
 	p.PaintControlButton(canvas, bounds, titlebar.ControlMaximize, titlebar.ControlState{})
 
-	if len(canvas.strokeRects) == 0 {
-		t.Error("maximize should draw a stroked rect")
+	if canvas.svgRenders == 0 {
+		t.Error("maximize should render SVG icon")
 	}
 }
 
@@ -89,8 +89,8 @@ func TestTitleBarPainter_PaintControlButton_Restore(t *testing.T) {
 
 	p.PaintControlButton(canvas, bounds, titlebar.ControlRestore, titlebar.ControlState{})
 
-	if len(canvas.strokeRects) < 2 {
-		t.Errorf("restore should draw 2 stroked rects, got %d", len(canvas.strokeRects))
+	if canvas.svgRenders == 0 {
+		t.Error("restore should render SVG icon")
 	}
 }
 
@@ -101,8 +101,8 @@ func TestTitleBarPainter_PaintControlButton_Close(t *testing.T) {
 
 	p.PaintControlButton(canvas, bounds, titlebar.ControlClose, titlebar.ControlState{})
 
-	if len(canvas.drawLines) != 2 {
-		t.Errorf("close should draw 2 lines (X), got %d", len(canvas.drawLines))
+	if canvas.svgRenders == 0 {
+		t.Error("close should render SVG icon")
 	}
 }
 
@@ -206,6 +206,11 @@ type tbMockCanvas struct {
 	drawRects   []tbDrawRectCall
 	strokeRects []tbStrokeRectCall
 	drawLines   []tbDrawLineCall
+	svgRenders  int
+}
+
+func (c *tbMockCanvas) RenderSVG(_ []byte, _ geometry.Rect, _ widget.Color) {
+	c.svgRenders++
 }
 
 type tbDrawRectCall struct {
