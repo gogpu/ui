@@ -297,6 +297,22 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	win.CollectDirtyRegions()
 	prePaintDirtyRegions := win.DirtyRegions()
 
+	// Clear the flat dirty set BEFORE painting, not after.
+	//
+	// The set is only the O(1) frame-skip gate (needsAnyWork above); painting
+	// walks the tree on each boundary's own sceneDirty and never reads it. But
+	// painting WRITES to it: a boundary re-dirtied while it was being recorded
+	// re-registers itself for the next frame (layer_tree.go, "if boundary
+	// re-dirtied, register it for next frame"). Clearing afterwards threw that
+	// registration away, and since the widget's sceneDirty stayed true, its
+	// InvalidateScene hit the already-dirty O(1) guard forever after and never
+	// notified the window again — the boundary went permanently unpainted.
+	//
+	// Any widget written from another goroutine hits this on the first frame
+	// that overlaps a write: a terminal under continuous output froze on screen
+	// within one frame and stayed frozen after the output stopped.
+	win.ClearDirtyBoundaries()
+
 	// Paint main tree boundaries.
 	app.PaintBoundaryLayersWithContext(root, nil, winCtx)
 
@@ -399,7 +415,6 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 		cc.TrackDamageRect(image.Rect(0, 0, cw, ch))
 	}
 	win.ClearAfterPaint()
-	win.ClearDirtyBoundaries()
 
 	// Debug overlay: cyan flash-and-fade on dirty widget regions (ADR-023).
 	// Suppress damage tracking — overlay is visualization, not content.
