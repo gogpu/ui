@@ -85,10 +85,13 @@ func (p StripePainter) PaintButton(canvas widget.Canvas, state stripe.ButtonPain
 	iconBounds := dtStripeIconBounds(state.Bounds, state.ShowLabel)
 	icon.Draw(canvas, state.Icon, iconBounds, fg)
 
-	// Draw label below icon if enabled.
+	// Draw label below icon if enabled. Clip to button bounds to prevent
+	// long labels from overflowing into adjacent panels.
 	if state.ShowLabel && state.Label != "" {
+		canvas.PushClip(state.Bounds)
 		textBounds := dtStripeTextBounds(state.Bounds, iconBounds)
 		canvas.DrawText(state.Label, textBounds, dtStripeLabelFontSize, fg, false, widget.TextAlignCenter)
+		canvas.PopClip()
 	}
 }
 

@@ -2,6 +2,7 @@ package titlebar
 
 import (
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -96,46 +97,30 @@ func (p DefaultPainter) PaintControlButton(canvas widget.Canvas, bounds geometry
 		fg = widget.ColorWhite
 	}
 
-	// Draw icon glyph.
-	cx := bounds.Min.X + bounds.Width()/2
-	cy := bounds.Min.Y + bounds.Height()/2
+	// Draw icon glyph via SVG icons (pixel-perfect at all DPI).
+	iconBounds := controlIconBounds(bounds, defaultControlIconSize)
+	var iconData icon.IconData
 
 	switch control {
 	case ControlMinimize:
-		// Horizontal line.
-		canvas.DrawLine(
-			geometry.Pt(cx-defaultIconHalf, cy),
-			geometry.Pt(cx+defaultIconHalf, cy),
-			fg, defaultIconStroke,
-		)
+		iconData = icon.WindowMinimize
 	case ControlMaximize:
-		// Square outline.
-		r := geometry.NewRect(cx-defaultIconHalf, cy-defaultIconHalf, defaultIconSize, defaultIconSize)
-		canvas.StrokeRect(r, fg, defaultIconStroke)
+		iconData = icon.WindowMaximize
 	case ControlRestore:
-		// Two overlapping squares (smaller).
-		offset := float32(2)
-		half := defaultIconHalf - 1
-		// Back square (offset up-right).
-		back := geometry.NewRect(cx-half+offset, cy-half-offset, half*2, half*2)
-		canvas.StrokeRect(back, fg, defaultIconStroke)
-		// Front square.
-		front := geometry.NewRect(cx-half, cy-half, half*2, half*2)
-		canvas.DrawRect(front, defaultBarBg) // Fill to cover back square overlap.
-		canvas.StrokeRect(front, fg, defaultIconStroke)
+		iconData = icon.WindowRestore
 	case ControlClose:
-		// X shape via two lines.
-		canvas.DrawLine(
-			geometry.Pt(cx-defaultIconHalf, cy-defaultIconHalf),
-			geometry.Pt(cx+defaultIconHalf, cy+defaultIconHalf),
-			fg, defaultCloseStroke,
-		)
-		canvas.DrawLine(
-			geometry.Pt(cx+defaultIconHalf, cy-defaultIconHalf),
-			geometry.Pt(cx-defaultIconHalf, cy+defaultIconHalf),
-			fg, defaultCloseStroke,
-		)
+		iconData = icon.WindowClose
 	}
+
+	icon.Draw(canvas, iconData, iconBounds, fg)
+}
+
+// controlIconBounds centers a square icon region within the control button bounds.
+func controlIconBounds(bounds geometry.Rect, iconSize float32) geometry.Rect {
+	cx := bounds.Min.X + bounds.Width()/2
+	cy := bounds.Min.Y + bounds.Height()/2
+	half := iconSize / 2
+	return geometry.NewRect(cx-half, cy-half, iconSize, iconSize)
 }
 
 // Default colors for DefaultPainter.
@@ -148,13 +133,9 @@ var (
 	defaultClosePressBg   = widget.Hex(0xB22A1A)
 )
 
-// Default icon drawing constants.
-const (
-	defaultIconSize    float32 = 10
-	defaultIconHalf    float32 = 5
-	defaultIconStroke  float32 = 1
-	defaultCloseStroke float32 = 1.5
-)
+// defaultControlIconSize is the side length of the square icon region
+// centered within each control button. Matches the 16x16 SVG viewBox.
+const defaultControlIconSize float32 = 16
 
 // controlBackground returns the background color for a control button based on
 // its type and interaction state.

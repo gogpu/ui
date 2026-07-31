@@ -141,3 +141,29 @@ func TestButtonTextBounds_BelowIcon(t *testing.T) {
 		t.Errorf("text Width = %v, want %v", r.Width(), expectedWidth)
 	}
 }
+
+func TestButtonTextBounds_ContainedWithinButton(t *testing.T) {
+	// Text bounds must never extend outside button bounds.
+	// Labels like "Structure" at 11px could overflow a narrow stripe.
+	// The painter uses PushClip(state.Bounds) to prevent visual overflow,
+	// but text bounds themselves should also stay within button.
+	sizes := []float32{40, 48, 56, 64, 80}
+	for _, w := range sizes {
+		btn := geometry.NewRect(0, 0, w, 56)
+		iconRect := buttonIconBounds(btn, true)
+		r := buttonTextBounds(btn, iconRect)
+
+		if r.Min.X < btn.Min.X {
+			t.Errorf("width=%.0f: text Min.X=%v < button Min.X=%v", w, r.Min.X, btn.Min.X)
+		}
+		if r.Max.X > btn.Max.X {
+			t.Errorf("width=%.0f: text Max.X=%v > button Max.X=%v", w, r.Max.X, btn.Max.X)
+		}
+		if r.Min.Y < btn.Min.Y {
+			t.Errorf("width=%.0f: text Min.Y=%v < button Min.Y=%v", w, r.Min.Y, btn.Min.Y)
+		}
+		if r.Max.Y > btn.Max.Y {
+			t.Errorf("width=%.0f: text Max.Y=%v > button Max.Y=%v", w, r.Max.Y, btn.Max.Y)
+		}
+	}
+}
