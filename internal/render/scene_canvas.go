@@ -761,6 +761,11 @@ func (c *SceneCanvas) RenderSVG(svgXML []byte, bounds geometry.Rect, color widge
 	}
 	bounds = c.applyTransform(bounds)
 
+	// Skip zero-size or negative-size bounds — nothing to render.
+	if bounds.Width() <= 0 || bounds.Height() <= 0 {
+		return
+	}
+
 	// Parse SVG (Level 1 document cache).
 	doc := globalIconCache.getDoc(svgXML)
 	if doc == nil {
