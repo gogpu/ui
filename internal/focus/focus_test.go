@@ -127,3 +127,34 @@ func TestDrawFocusRing_Constants(t *testing.T) {
 		t.Errorf("DefaultFocusRingStrokeWidth = %v, want 2.0", DefaultFocusRingStrokeWidth)
 	}
 }
+
+// grabberWidget claims Tab the way a terminal does.
+type grabberWidget struct {
+	mockWidget
+	grab bool
+}
+
+func (g *grabberWidget) GrabsKey(k event.Key) bool { return g.grab && k == event.KeyTab }
+
+// A focused widget that claims Tab must receive it. The manager consumes Tab
+// for traversal before the widget tree is reached, so without this escape
+// hatch a terminal can never see shell completion.
+func TestTabReachesAKeyGrabber(t *testing.T) {
+	g := &grabberWidget{grab: true}
+	g.focusable = true
+	g.SetVisible(true)
+	g.SetEnabled(true)
+	m := New(g)
+	m.Focus(g)
+
+	tab := &event.KeyEvent{Key: event.KeyTab, KeyType: event.KeyPress}
+	if m.HandleKeyEvent(tab) {
+		t.Error("manager consumed Tab even though the focused widget claimed it")
+	}
+
+	// Not claiming it leaves traversal exactly as it was.
+	g.grab = false
+	if !m.HandleKeyEvent(tab) {
+		t.Error("manager stopped handling Tab for traversal")
+	}
+}
