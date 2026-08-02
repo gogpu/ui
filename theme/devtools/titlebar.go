@@ -101,7 +101,6 @@ func (p TitleBarPainter) PaintControlButton(canvas widget.Canvas, bounds geometr
 	icon.Draw(canvas, iconData, iconBounds, fg)
 }
 
-
 // dtControlBackground returns the background color for a control button based on
 // whether it is the close button and its interaction state.
 func dtControlBackground(isClose bool, state titlebar.ControlState, colors dtTitleBarColors) widget.Color {
