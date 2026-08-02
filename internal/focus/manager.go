@@ -160,8 +160,14 @@ func (m *Manager) HandleKeyEvent(e *event.KeyEvent) bool {
 		return true
 	}
 
-	// Tab navigation on press and repeat.
+	// Tab navigation on press and repeat — unless the focused widget claims
+	// the key. A terminal needs raw Tab for shell completion; without this
+	// escape hatch the manager consumes every Tab before the widget tree is
+	// reached, whether or not there is anywhere to traverse to.
 	if e.Key == event.KeyTab {
+		if g, ok := m.focused.(widget.KeyGrabber); ok && g.GrabsKey(e.Key) {
+			return false
+		}
 		return m.handleTab(e)
 	}
 
