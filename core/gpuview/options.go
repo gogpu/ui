@@ -1,11 +1,11 @@
-package viewport3d
+package gpuview
 
 import "github.com/gogpu/gpucontext"
 
-// Option configures a Viewport3D widget during construction.
+// Option configures a GPUView widget during construction.
 type Option func(*config)
 
-// config holds the resolved configuration for a Viewport3D widget.
+// config holds the resolved configuration for a GPUView widget.
 type config struct {
 	width      int
 	height     int
@@ -34,7 +34,7 @@ func Size(w, h int) Option {
 	}
 }
 
-// OnRender sets the callback invoked each time the viewport needs to
+// OnRender sets the callback invoked each time the view needs to
 // render a new frame. The callback receives the offscreen texture view
 // that the producer should render into.
 //
@@ -47,7 +47,7 @@ func OnRender(fn func(view gpucontext.TextureView)) Option {
 	}
 }
 
-// Continuous sets whether the viewport re-renders every frame (true) or
+// Continuous sets whether the view re-renders every frame (true) or
 // only on-demand when explicitly invalidated (false, default).
 //
 // Use Continuous(true) for real-time 3D scenes, video playback, or any

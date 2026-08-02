@@ -798,7 +798,7 @@ func (rl *renderLoop) compositeFromTreeRecursive(layer compositor.Layer, cc *gg.
 		return
 	}
 
-	// ExternalTextureLayer: blit external GPU texture (Viewport3D, video).
+	// ExternalTextureLayer: blit external GPU texture (GPUView, video).
 	if ext, ok := layer.(*compositor.ExternalTextureLayer); ok {
 		if !ext.Texture().IsNil() && ext.Width() > 0 && ext.Height() > 0 {
 			cc.DrawGPUTexture(ext.Texture(), ext.X(), ext.Y(), ext.Width(), ext.Height())
@@ -963,5 +963,15 @@ func (rl *renderLoop) initCanvas(w, h int) bool {
 	// LCD subpixel layout is auto-detected by ggcanvas.New() via
 	// PlatformProvider.SubpixelLayout() (ADR-024). The gpuContextAdapter
 	// delegates PlatformProvider to App since gogpu BUG-ADAPTER-001 fix.
+
+	// Wire GPU texture creation for GPUView widgets (#193).
+	// Delegates to gg.Context.CreateOffscreenTexture which allocates
+	// offscreen GPU textures usable as render targets.
+	cc := rl.canvas.Context()
+	rl.uiApp.Window().Context().SetOnCreateGPUTexture(func(width, height int) (any, func()) {
+		tex, release := cc.CreateOffscreenTexture(width, height)
+		return tex, release
+	})
+
 	return true
 }

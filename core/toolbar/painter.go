@@ -161,7 +161,7 @@ func textBoundsForItem(itemBounds geometry.Rect, iconRect geometry.Rect) geometr
 const (
 	defaultItemRadius    float32 = 6
 	iconPadding          float32 = 6
-	maxIconSize          float32 = 20
+	maxIconSize          float32 = 16 // match 16x16 viewBox for 1:1 crisp rendering
 	textIconGap          float32 = 4
 	defaultFontSize      float32 = 12
 	separatorInset       float32 = 6

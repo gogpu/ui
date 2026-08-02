@@ -40,7 +40,7 @@ Go has waited 17 years for a professional graphics ecosystem. We're building it:
 | Test Functions | ~7,500+ |
 | Test Coverage | 97%+ |
 | Linter Issues | 0 |
-| Interactive Widgets | 26 |
+| Interactive Widgets | 27 |
 | Design Systems | 4 (M3, DevTools, Fluent, Cupertino) |
 | Painters | 70 (24 + 24 + 11 + 11) |
 | Layout Cache | Per-widget (ADR-032), O(affected subtree) |

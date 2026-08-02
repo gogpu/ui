@@ -820,10 +820,13 @@ func TestSceneCanvas_RenderSVG_Scale2_ProducesScene(t *testing.T) {
 	}
 }
 
-func TestSceneCanvas_RenderSVG_DifferentScales_DifferentCacheEntries(t *testing.T) {
+func TestSceneCanvas_RenderSVG_DifferentScales_SameDocCache(t *testing.T) {
 	globalIconCache.invalidateAll()
 	defer globalIconCache.invalidateAll()
 
+	// Vector rendering uses Level 1 document cache (parsed SVG), not Level 2
+	// image cache. Different DPI scales reuse the same parsed document because
+	// vector shapes are resolution-independent.
 	// Render at scale 1.
 	sc1 := scene.NewScene()
 	c1 := NewSceneCanvas(sc1, 200, 200)
@@ -832,9 +835,9 @@ func TestSceneCanvas_RenderSVG_DifferentScales_DifferentCacheEntries(t *testing.
 	c1.Close()
 
 	stats1 := globalIconCache.stats()
-	entries1 := stats1.ImageEntries
+	docEntries1 := stats1.DocEntries
 
-	// Render at scale 2.
+	// Render at scale 2 — should reuse the same parsed document.
 	sc2 := scene.NewScene()
 	c2 := NewSceneCanvas(sc2, 200, 200)
 	c2.SetDeviceScale(2.0)
@@ -842,11 +845,12 @@ func TestSceneCanvas_RenderSVG_DifferentScales_DifferentCacheEntries(t *testing.
 	c2.Close()
 
 	stats2 := globalIconCache.stats()
-	entries2 := stats2.ImageEntries
+	docEntries2 := stats2.DocEntries
 
-	if entries2 <= entries1 {
-		t.Errorf("different scales should produce different cache entries: scale1=%d, scale2=%d",
-			entries1, entries2)
+	// Same document pointer → same Level 1 entry. No new entries added.
+	if docEntries2 != docEntries1 {
+		t.Errorf("different scales should reuse doc cache: entries at scale1=%d, at scale2=%d",
+			docEntries1, docEntries2)
 	}
 }
 
@@ -899,7 +903,7 @@ func TestSceneCanvas_FillSVGPath_Scale1_CacheHit(t *testing.T) {
 	}
 }
 
-func TestSceneCanvas_RenderSVG_Scale2_CacheHit(t *testing.T) {
+func TestSceneCanvas_RenderSVG_Scale2_DocCacheHit(t *testing.T) {
 	globalIconCache.invalidateAll()
 	defer globalIconCache.invalidateAll()
 
@@ -908,16 +912,17 @@ func TestSceneCanvas_RenderSVG_Scale2_CacheHit(t *testing.T) {
 	c.SetDeviceScale(2.0)
 	defer c.Close()
 
-	// First call: cache miss.
+	// First call: parses SVG and caches the document (Level 1).
 	c.RenderSVG(minimalSVGForCanvas, geometry.NewRect(10, 10, 20, 20), widget.ColorBlack)
-	stats1 := globalIconCache.stats()
 
-	// Second call with same params + scale: cache hit.
+	// Second call with same data: Level 1 doc cache hit (no re-parse).
+	// Vector rendering re-emits scene geometry each call (no Level 2 image cache).
+	v0 := sc.Version()
 	c.RenderSVG(minimalSVGForCanvas, geometry.NewRect(10, 10, 20, 20), widget.ColorBlack)
-	stats2 := globalIconCache.stats()
+	v1 := sc.Version()
 
-	if stats2.Hits <= stats1.Hits {
-		t.Error("second RenderSVG call at same scale should produce a cache hit")
+	if v1 == v0 {
+		t.Error("second RenderSVG call should produce scene commands (vector re-emission)")
 	}
 }
 

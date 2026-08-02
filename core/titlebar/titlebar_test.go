@@ -774,7 +774,7 @@ func TestDefaultPainter_PaintControlButton_EmptyBounds(t *testing.T) {
 	canvas := &mockCanvas{}
 	p.PaintControlButton(canvas, geometry.Rect{}, ControlClose, ControlState{})
 
-	if len(canvas.drawRects) > 0 || len(canvas.drawLines) > 0 {
+	if len(canvas.drawRects) > 0 || len(canvas.svgRenders) > 0 {
 		t.Error("should not paint with empty bounds")
 	}
 }
@@ -785,8 +785,8 @@ func TestDefaultPainter_PaintControlButton_Minimize(t *testing.T) {
 	bounds := geometry.NewRect(0, 0, 46, 40)
 	p.PaintControlButton(canvas, bounds, ControlMinimize, ControlState{})
 
-	if len(canvas.drawLines) == 0 {
-		t.Error("minimize should draw a line")
+	if len(canvas.svgRenders) == 0 {
+		t.Error("minimize should render SVG icon")
 	}
 }
 
@@ -796,8 +796,8 @@ func TestDefaultPainter_PaintControlButton_Maximize(t *testing.T) {
 	bounds := geometry.NewRect(0, 0, 46, 40)
 	p.PaintControlButton(canvas, bounds, ControlMaximize, ControlState{})
 
-	if len(canvas.strokeRects) == 0 {
-		t.Error("maximize should draw a stroked rect")
+	if len(canvas.svgRenders) == 0 {
+		t.Error("maximize should render SVG icon")
 	}
 }
 
@@ -807,9 +807,8 @@ func TestDefaultPainter_PaintControlButton_Restore(t *testing.T) {
 	bounds := geometry.NewRect(0, 0, 46, 40)
 	p.PaintControlButton(canvas, bounds, ControlRestore, ControlState{})
 
-	// Restore draws two rects.
-	if len(canvas.strokeRects) < 2 {
-		t.Errorf("restore should draw 2 stroked rects, got %d", len(canvas.strokeRects))
+	if len(canvas.svgRenders) == 0 {
+		t.Error("restore should render SVG icon")
 	}
 }
 
@@ -819,9 +818,8 @@ func TestDefaultPainter_PaintControlButton_Close(t *testing.T) {
 	bounds := geometry.NewRect(0, 0, 46, 40)
 	p.PaintControlButton(canvas, bounds, ControlClose, ControlState{})
 
-	// Close draws 2 lines (X shape).
-	if len(canvas.drawLines) != 2 {
-		t.Errorf("close should draw 2 lines, got %d", len(canvas.drawLines))
+	if len(canvas.svgRenders) == 0 {
+		t.Error("close should render SVG icon")
 	}
 }
 
@@ -1291,6 +1289,13 @@ type mockCanvas struct {
 	drawRoundRects []drawRoundRectCall
 	drawTexts      []drawTextCall
 	drawLines      []drawLineCall
+	svgRenders     []svgRenderCall
+}
+
+type svgRenderCall struct {
+	svgXML []byte
+	bounds geometry.Rect
+	color  widget.Color
 }
 
 type drawRectCall struct {
@@ -1370,3 +1375,8 @@ func (c *mockCanvas) TransformOffset() geometry.Point              { return geom
 func (c *mockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *mockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
 func (c *mockCanvas) ReplayScene(_ *scene.Scene)                   {}
+
+// RenderSVG implements widget.SVGRenderer for SVG icon testing.
+func (c *mockCanvas) RenderSVG(svgXML []byte, bounds geometry.Rect, color widget.Color) {
+	c.svgRenders = append(c.svgRenders, svgRenderCall{svgXML: svgXML, bounds: bounds, color: color})
+}

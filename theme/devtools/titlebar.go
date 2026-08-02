@@ -1,8 +1,11 @@
 package devtools
 
 import (
+	"math"
+
 	"github.com/gogpu/ui/core/titlebar"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -75,64 +78,27 @@ func (p TitleBarPainter) PaintControlButton(canvas widget.Canvas, bounds geometr
 		fg = colors.CloseHoverIconFg
 	}
 
-	// Draw icon glyph centered.
-	cx := bounds.Min.X + bounds.Width()/2
-	cy := bounds.Min.Y + bounds.Height()/2
-
+	// Draw SVG icon centered within control button bounds.
+	var iconData icon.IconData
 	switch control {
 	case titlebar.ControlMinimize:
-		drawMinimizeIcon(canvas, cx, cy, fg)
+		iconData = icon.WindowMinimize
 	case titlebar.ControlMaximize:
-		drawMaximizeIcon(canvas, cx, cy, fg)
+		iconData = icon.WindowMaximize
 	case titlebar.ControlRestore:
-		drawRestoreIcon(canvas, cx, cy, fg, colors.Background)
+		iconData = icon.WindowRestore
 	case titlebar.ControlClose:
-		drawCloseIcon(canvas, cx, cy, fg)
+		iconData = icon.WindowClose
 	}
-}
-
-// drawMinimizeIcon draws a horizontal line (centered, 10px wide).
-func drawMinimizeIcon(canvas widget.Canvas, cx, cy float32, fg widget.Color) {
-	canvas.DrawLine(
-		geometry.Pt(cx-dtCtrlIconHalf, cy),
-		geometry.Pt(cx+dtCtrlIconHalf, cy),
-		fg, dtCtrlIconStroke,
+	const controlIconSize float32 = 16
+	cx := bounds.Min.X + bounds.Width()/2
+	cy := bounds.Min.Y + bounds.Height()/2
+	iconBounds := geometry.NewRect(
+		float32(math.Round(float64(cx-controlIconSize/2))),
+		float32(math.Round(float64(cy-controlIconSize/2))),
+		controlIconSize, controlIconSize,
 	)
-}
-
-// drawMaximizeIcon draws a square outline (10x10px).
-func drawMaximizeIcon(canvas widget.Canvas, cx, cy float32, fg widget.Color) {
-	r := geometry.NewRect(cx-dtCtrlIconHalf, cy-dtCtrlIconHalf, dtCtrlIconSize, dtCtrlIconSize)
-	canvas.StrokeRect(r, fg, dtCtrlIconStroke)
-}
-
-// drawRestoreIcon draws two overlapping squares (8x8px).
-func drawRestoreIcon(canvas widget.Canvas, cx, cy float32, fg, bg widget.Color) {
-	offset := float32(2)
-	half := dtCtrlRestoreHalf
-
-	// Back square (offset up-right).
-	back := geometry.NewRect(cx-half+offset, cy-half-offset, half*2, half*2)
-	canvas.StrokeRect(back, fg, dtCtrlIconStroke)
-
-	// Front square (fill to cover overlap, then stroke).
-	front := geometry.NewRect(cx-half, cy-half, half*2, half*2)
-	canvas.DrawRect(front, bg)
-	canvas.StrokeRect(front, fg, dtCtrlIconStroke)
-}
-
-// drawCloseIcon draws an X shape (10x10px, 1.5px stroke).
-func drawCloseIcon(canvas widget.Canvas, cx, cy float32, fg widget.Color) {
-	canvas.DrawLine(
-		geometry.Pt(cx-dtCtrlIconHalf, cy-dtCtrlIconHalf),
-		geometry.Pt(cx+dtCtrlIconHalf, cy+dtCtrlIconHalf),
-		fg, dtCtrlCloseStroke,
-	)
-	canvas.DrawLine(
-		geometry.Pt(cx+dtCtrlIconHalf, cy-dtCtrlIconHalf),
-		geometry.Pt(cx-dtCtrlIconHalf, cy+dtCtrlIconHalf),
-		fg, dtCtrlCloseStroke,
-	)
+	icon.Draw(canvas, iconData, iconBounds, fg)
 }
 
 // dtControlBackground returns the background color for a control button based on

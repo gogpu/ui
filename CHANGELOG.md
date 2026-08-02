@@ -5,13 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **GPUView widget** ([#150](https://github.com/gogpu/ui/issues/150)) — renamed from Viewport3D based on enterprise naming research (38 frameworks analyzed). GPU-rendered view for 3D, video, compute, custom shaders. ExternalTextureLayer wired into Layer Tree build/update (#197). SetOnCreateGPUTexture wired in desktop.initCanvas (#193).
+- **Vector icon rendering** — SVG icons rendered as scene geometry via `RenderToSceneWithColor` instead of bitmap pre-rasterization. Resolution-independent, no Level 2 bitmap cache needed. Matches Skia/Jewel architecture (gg#464).
+- **JetBrains @20x20 SVG icons** — native 20×20 viewBox tool window icons from IntelliJ reference (project, commit, structure, services, problems, vcs). 1:1 scale rendering with stroke hinting.
+- **SVG window controls** — minimize, maximize, restore, close replaced from procedural DrawLine/StrokeRect to JetBrains SVG icons (filled rects, pixel-perfect). Both default and DevTools painters.
+- **Examples:** `examples/gpuview` (GPU viewport demo), `examples/filedrop` (file drop demo).
+
+### Fixed
+
+- **Stripe label overflow** — `PushClip`/`PopClip` around label `DrawText` prevents long labels from overflowing into adjacent panels.
+- **Icon pixel-snap** — `math.Round` on icon center positions eliminates subpixel blur from odd button widths (BUG-ICON-002).
+- **Icon foreground color** — DevTools stripe inactive color #9DA0A8 → #CED0D6 matching JetBrains dark variant for proper contrast on dark backgrounds.
+- **Toolbar icon size** — `maxIconSize` 20→16 for 1:1 viewBox rendering (both default and DevTools painters).
+- **Boundary freeze during re-dirty** ([#198](https://github.com/gogpu/ui/pull/198), @samyfodil) — `ClearDirtyBoundaries` moved before painting to preserve re-registrations made during recording. Matches Flutter `_nodesNeedingPaint` pattern.
+
+### Changed
+
+- **deps:** gg v0.50.8 → v0.50.11, gogpu v0.45.1 → v0.48.4, gpucontext v0.21.1 → v0.24.0, wgpu v0.30.23 → v0.30.34, naga v0.17.16 → v0.18.0
+  - **gg v0.50.11:** Vector icon rendering (RenderToSceneWithColor), stroke hinting, SDF hairline calibration, text grayscale default, bind group lifecycle fix, @besmpl CFF1/scene/glyph contributions.
+  - **gogpu v0.48.4:** PollInputEvent, FontSmoothing, OS DnD, CommandEncoder, X11 HiDPI, Wayland fixes.
+  - **wgpu v0.30.34:** ADR-056 unified resource lifecycle, @samyfodil queue pin fix, Metal MSAA, software backend fixes.
+  - **naga v0.18.0:** Shader compiler improvements.
+- **FontSmoothing mock** — gpucontext v0.23.0 PlatformProvider compliance.
+- **TDD approach** documented in CLAUDE.md as standard practice.
+
 ## [0.1.48] — 2026-07-27
 
 ### Added
 
-- **Viewport3D widget** ([#150](https://github.com/gogpu/ui/issues/150)) — GPU viewport for 3D content, video, or custom shader output. Flutter Texture widget pattern: widget owns offscreen GPU texture, external renderer draws into it via `OnRender` callback, Layer Tree compositor blits to surface. Functional options: `Size`, `OnRender`, `Continuous`. RepaintBoundary by default.
+- **GPUView widget** ([#150](https://github.com/gogpu/ui/issues/150)) — GPU-rendered view for external content: 3D scenes, video, compute visualization, or custom shader output. Flutter Texture widget pattern: widget owns offscreen GPU texture, external renderer draws into it via `OnRender` callback, Layer Tree compositor blits to surface. Functional options: `Size`, `OnRender`, `Continuous`. RepaintBoundary by default. (Renamed from Viewport3D in v0.1.49.)
 - **ExternalTextureLayer** — new Layer Tree node for pre-rendered GPU textures. Unlike PictureLayer (scene replay), ExternalTextureLayer composites external textures directly.
-- **GPUTextureProvider** — optional `widget.Context` interface for widgets needing offscreen GPU textures (viewport3d, video player, custom shaders).
+- **GPUTextureProvider** — optional `widget.Context` interface for widgets needing offscreen GPU textures (gpuview, video player, custom shaders).
 - **OS file drag-and-drop bridge** ([#189](https://github.com/gogpu/ui/issues/189)) — bridges gogpu `OnDragDrop` into ui's `dnd` package. `KindFile` constant, `FilePayload` type, `Manager.DropExternal` for atomic external drops with hit-testing. Works on Windows, macOS, Linux (X11 + Wayland).
 
 ### Fixed
@@ -22,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- 26 new tests: DnD (7), ExternalTextureLayer (5), Viewport3D (14)
+- 26 new tests: DnD (7), ExternalTextureLayer (5), GPUView (14)
 - 4 rendering regression tests: damage ring (3), selection lifecycle (1)
 
 ### Changed

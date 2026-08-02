@@ -1,4 +1,4 @@
-package viewport3d
+package gpuview
 
 import (
 	"testing"
@@ -27,7 +27,7 @@ func TestNew_Defaults(t *testing.T) {
 		t.Error("widget should be enabled by default")
 	}
 	if !w.IsRepaintBoundary() {
-		t.Error("viewport should be a repaint boundary")
+		t.Error("gpuview should be a repaint boundary")
 	}
 	// Before first Draw, texture is not initialized — this is expected.
 	// Verified: w.Texture().IsNil() == true.
@@ -194,14 +194,14 @@ func TestEvent_DoesNotConsume(t *testing.T) {
 	)
 
 	if w.Event(ctx, me) {
-		t.Error("viewport should not consume events")
+		t.Error("gpuview should not consume events")
 	}
 }
 
 func TestChildren_ReturnsNil(t *testing.T) {
 	w := New()
 	if w.Children() != nil {
-		t.Error("viewport should have no children")
+		t.Error("gpuview should have no children")
 	}
 }
 
@@ -269,8 +269,8 @@ func TestAccessible(t *testing.T) {
 		// Just verify it returns a role without importing a11y in test assertion.
 		_ = acc.AccessibilityRole()
 	}
-	if acc.AccessibilityLabel() != "3D Viewport" {
-		t.Errorf("label = %q, want %q", acc.AccessibilityLabel(), "3D Viewport")
+	if acc.AccessibilityLabel() != "GPU View" {
+		t.Errorf("label = %q, want %q", acc.AccessibilityLabel(), "GPU View")
 	}
 }
 

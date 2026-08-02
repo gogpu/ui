@@ -47,7 +47,7 @@
 | **Layout engine** | Flexbox + Grid + per-widget cache | Custom | Flex |
 | **Accessibility** | Day 1 (35+ ARIA roles) | Limited | Limited |
 | **Design systems** | 4 (M3, DevTools, Fluent, Cupertino) | 1 | 1 |
-| **Widgets** | 26 interactive + primitives | ~20 | ~15 |
+| **Widgets** | 27 interactive + primitives | ~20 | ~15 |
 | **Plugin system** | Yes (deps, assets, fonts) | No | No |
 | **Android** | In review ([wgpu#268](https://github.com/gogpu/wgpu/pull/268)) | Yes | Yes |
 
@@ -246,12 +246,12 @@ The **software backend** runs on any machine without GPU drivers. It uses the sa
 │  theme/cupertino/  │                  │                     │
 │  11 Painters       │  70 painters total across 4 systems   │
 ├─────────────────────────────────────────────────────────────┤
-│  26 Interactive Widgets (core/)                             │
+│  27 Interactive Widgets (core/)                             │
 │  button, checkbox, radio, textfield, dropdown, slider,      │
 │  dialog, scrollview, tabview, listview, gridview, linechart,│
 │  progressbar, progress, collapsible, popover, splitview,    │
 │  treeview, datatable, toolbar, menu, docking, badge, chip,  │
-│  stripe, titlebar                                           │
+│  stripe, titlebar, gpuview                                  │
 ├──────────────┬──────────────────────────────────────────────┤
 │  cdk/        │  Content[C] polymorphic pattern              │
 ├──────────────┴──────────────────────────────────────────────┤
@@ -325,7 +325,7 @@ Works on all backends: Vulkan, DX12, Metal, GLES, Software, Browser (WASM).
 | [`examples/gallery`](examples/gallery) | Widget gallery: all 26 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
 | [`examples/ide`](examples/ide) | GoLand-inspired IDE layout: DevTools theme, toolbar, tree, tabs, terminal, SVG icons |
 | [`examples/filedrop`](examples/filedrop) | OS file drag-and-drop: drop files from file manager, reactive path display |
-| [`examples/viewport3d`](examples/viewport3d) | GPU viewport widget: offscreen texture compositing (Flutter Texture pattern) |
+| [`examples/gpuview`](examples/gpuview) | GPU view widget: offscreen texture compositing (Flutter Texture pattern) |
 | [`examples/modular-compositor`](examples/modular-compositor) | Multi-module offscreen rendering: clock + notification compositor ([#75](https://github.com/gogpu/ui/issues/75)) |
 
 Run any example:
@@ -704,6 +704,10 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Layout cache per-widget (ADR-032, LayoutChild, O(subtree))
 - [x] Animation before layout (GAP-3, Flutter BeginFrame pattern)
 - [x] Unified draw queue (ADR-051/052, backend-agnostic pipeline)
+- [x] GPUView widget (Flutter Texture pattern, ExternalTextureLayer)
+- [x] OS file drag-and-drop bridge (KindFile, DropExternal)
+- [x] Vector icon rendering (SVG → scene geometry, no bitmap)
+- [x] JetBrains SVG window controls (pixel-perfect filled rects)
 - [ ] Platform accessibility adapters (UIA, AT-SPI2, NSAccessibility)
 - [ ] Software backend performance optimization (naga Go+SIMD, SPIR-V SIMD)
 - [ ] Android support (wgpu#268, Vulkan arm64)

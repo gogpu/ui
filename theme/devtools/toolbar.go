@@ -172,7 +172,7 @@ func dtToolbarTextBounds(itemBounds, iconRect geometry.Rect) geometry.Rect {
 const (
 	dtToolbarItemRadius     float32 = 4
 	dtToolbarIconPadding    float32 = 5
-	dtToolbarMaxIconSize    float32 = 20 // JB: experimentalToolbarButtonIconSize = 20
+	dtToolbarMaxIconSize    float32 = 16 // match 16x16 viewBox for 1:1 crisp rendering
 	dtToolbarTextIconGap    float32 = 4
 	dtToolbarFontSize       float32 = 12
 	dtToolbarSepInset       float32 = 4

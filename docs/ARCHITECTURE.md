@@ -108,7 +108,7 @@
 |---------|---------|-----------|
 | `cdk/` | Headless behaviors, polymorphic content | `Content[C]`, `StringContent`, `FuncContent[C]`, `WidgetContent` |
 
-### Layer 3a: Generic Widgets (26 interactive widgets in core/)
+### Layer 3a: Generic Widgets (27 interactive widgets in core/)
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
@@ -1463,13 +1463,13 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + unified draw queue (ADR-051/052) | v0.50.6 |
-| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.21.1 |
-| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.44.8 |
+| `github.com/gogpu/gg` | 2D graphics + vector icons + unified draw queue | v0.50.11 |
+| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.24.0 |
+| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.48.4 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.1 |
 | `golang.org/x/image` | Font rendering infrastructure | v0.44.0 |
 
-**Indirect:** gogpu/wgpu v0.30.21, gogpu/naga v0.17.15, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
+**Indirect:** gogpu/wgpu v0.30.34, gogpu/naga v0.18.0, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
 
 Go version: **1.25.0**
 

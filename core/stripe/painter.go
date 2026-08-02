@@ -1,6 +1,8 @@
 package stripe
 
 import (
+	"math"
+
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/widget"
@@ -85,37 +87,40 @@ func (p DefaultPainter) PaintButton(canvas widget.Canvas, state ButtonPaintState
 	iconBounds := buttonIconBounds(state.Bounds, state.ShowLabel)
 	icon.Draw(canvas, state.Icon, iconBounds, fg)
 
-	// Draw label below icon if enabled.
+	// Draw label below icon if enabled. Clip to button bounds to prevent
+	// long labels from overflowing into adjacent panels.
 	if state.ShowLabel && state.Label != "" {
+		canvas.PushClip(state.Bounds)
 		textBounds := buttonTextBounds(state.Bounds, iconBounds)
 		canvas.DrawText(state.Label, textBounds, defaultLabelFontSize, fg, false, widget.TextAlignCenter)
+		canvas.PopClip()
 	}
 }
 
 // buttonIconBounds calculates the icon bounds within a button.
 // With labels: icon is at the top, centered horizontally.
 // Without labels: icon is centered both horizontally and vertically.
+//
+// All positions are pixel-snapped (rounded to integer coordinates) to prevent
+// subpixel rendering which causes blurry icon edges. This is critical when
+// button widths are odd numbers, producing fractional center positions.
 func buttonIconBounds(btnBounds geometry.Rect, showLabel bool) geometry.Rect {
 	if showLabel {
 		// Icon centered horizontally, near top of button.
 		centerX := btnBounds.Min.X + btnBounds.Width()/2
 		y := btnBounds.Min.Y + defaultIconPaddingLabel
-		return geometry.NewRect(
-			centerX-defaultIconSize/2,
-			y,
-			defaultIconSize,
-			defaultIconSize,
-		)
+		// Pixel-snap: round to integer positions for crisp icon edges.
+		x := float32(math.Round(float64(centerX - defaultIconSize/2)))
+		y = float32(math.Round(float64(y)))
+		return geometry.NewRect(x, y, defaultIconSize, defaultIconSize)
 	}
 	// Icon centered both ways.
 	centerX := btnBounds.Min.X + btnBounds.Width()/2
 	centerY := btnBounds.Min.Y + btnBounds.Height()/2
-	return geometry.NewRect(
-		centerX-defaultIconSize/2,
-		centerY-defaultIconSize/2,
-		defaultIconSize,
-		defaultIconSize,
-	)
+	// Pixel-snap: round to integer positions for crisp icon edges.
+	x := float32(math.Round(float64(centerX - defaultIconSize/2)))
+	y := float32(math.Round(float64(centerY - defaultIconSize/2)))
+	return geometry.NewRect(x, y, defaultIconSize, defaultIconSize)
 }
 
 // buttonTextBounds calculates text bounds below the icon.

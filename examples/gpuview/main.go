@@ -1,20 +1,21 @@
-// Example: gogpu/ui — Viewport3D Demo
+// Example: gogpu/ui — GPUView Demo
 //
-// Demonstrates the Viewport3D widget which provides a GPU-rendered viewport
-// for 3D content, video, or custom shader output. The widget follows the
-// Flutter Texture pattern: it owns an offscreen GPU texture that an external
-// renderer draws into, and the Layer Tree compositor blits it to the surface.
+// Demonstrates the GPUView widget which provides a GPU-rendered view
+// for external content: 3D scenes, video, compute visualization, or custom
+// shader output. The widget follows the Flutter Texture pattern: it owns an
+// offscreen GPU texture that an external renderer draws into, and the Layer
+// Tree compositor blits it to the surface.
 //
-// This example shows Viewport3D integration into a standard widget layout.
+// This example shows GPUView integration into a standard widget layout.
 // The OnRender callback receives a gpucontext.TextureView for GPU rendering.
 // In production, a 3D engine (e.g., gogpu/g3d) would render into this texture.
 //
 // Architecture:
 //
-//	Viewport3D widget → offscreen GPU texture → Layer Tree → surface blit
+//	GPUView widget → offscreen GPU texture → Layer Tree → surface blit
 //
 // Rendering: event-driven (default since gogpu v0.43.0).
-// 0% CPU when idle. The viewport re-renders only when explicitly invalidated
+// 0% CPU when idle. The view re-renders only when explicitly invalidated
 // or when Continuous(true) is set for real-time content.
 package main
 
@@ -28,7 +29,7 @@ import (
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/app"
 	"github.com/gogpu/ui/core/button"
-	"github.com/gogpu/ui/core/viewport3d"
+	"github.com/gogpu/ui/core/gpuview"
 	"github.com/gogpu/ui/desktop"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/theme/material3"
@@ -39,7 +40,7 @@ func main() {
 	m3 := material3.New(widget.Hex(0x2196F3))
 
 	gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
-		WithTitle("gogpu/ui — Viewport3D Demo").
+		WithTitle("gogpu/ui — GPUView Demo").
 		WithSize(700, 550))
 
 	uiApp := app.New(
@@ -49,7 +50,7 @@ func main() {
 		app.WithTheme(m3.AsTheme()),
 	)
 
-	vp := buildViewport()
+	vp := buildView()
 	uiApp.SetRoot(buildUI(vp))
 
 	if err := desktop.Run(gogpuApp, uiApp); err != nil {
@@ -57,10 +58,10 @@ func main() {
 	}
 }
 
-func buildViewport() *viewport3d.Widget {
-	return viewport3d.New(
-		viewport3d.Size(400, 300),
-		viewport3d.OnRender(func(view gpucontext.TextureView) {
+func buildView() *gpuview.Widget {
+	return gpuview.New(
+		gpuview.Size(400, 300),
+		gpuview.OnRender(func(view gpucontext.TextureView) {
 			// In production, a 3D renderer (gogpu/g3d) would issue GPU commands
 			// to render a scene into this texture view. For this demo, the
 			// texture is allocated but no custom rendering is performed —
@@ -70,27 +71,27 @@ func buildViewport() *viewport3d.Widget {
 	)
 }
 
-func buildUI(vp *viewport3d.Widget) *primitives.BoxWidget {
+func buildUI(vp *gpuview.Widget) *primitives.BoxWidget {
 	card := primitives.Box(
-		primitives.Text("Viewport3D Demo").
+		primitives.Text("GPUView Demo").
 			FontSize(24).
 			Bold().
 			Color(widget.RGBA8(33, 33, 33, 255)),
 
-		primitives.Text("GPU viewport for 3D content, video, or custom shaders").
+		primitives.Text("GPU view for 3D content, video, compute visualization, or custom shaders").
 			FontSize(14).
 			Color(widget.RGBA8(100, 100, 100, 255)),
 
-		// The Viewport3D widget — a 400x300 offscreen GPU texture.
+		// The GPUView widget — a 400x300 offscreen GPU texture.
 		vp,
 
-		// Controls below the viewport.
+		// Controls below the view.
 		primitives.Box(
 			button.New(
 				button.TextOpt("Invalidate"),
 				button.OnClick(func() {
 					vp.Invalidate()
-					fmt.Println("Viewport invalidated — re-render triggered")
+					fmt.Println("GPUView invalidated — re-render triggered")
 				}),
 			),
 			button.New(

@@ -1,6 +1,8 @@
 package devtools
 
 import (
+	"math"
+
 	"github.com/gogpu/ui/core/stripe"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/icon"
@@ -83,10 +85,13 @@ func (p StripePainter) PaintButton(canvas widget.Canvas, state stripe.ButtonPain
 	iconBounds := dtStripeIconBounds(state.Bounds, state.ShowLabel)
 	icon.Draw(canvas, state.Icon, iconBounds, fg)
 
-	// Draw label below icon if enabled.
+	// Draw label below icon if enabled. Clip to button bounds to prevent
+	// long labels from overflowing into adjacent panels.
 	if state.ShowLabel && state.Label != "" {
+		canvas.PushClip(state.Bounds)
 		textBounds := dtStripeTextBounds(state.Bounds, iconBounds)
 		canvas.DrawText(state.Label, textBounds, dtStripeLabelFontSize, fg, false, widget.TextAlignCenter)
+		canvas.PopClip()
 	}
 }
 
@@ -106,7 +111,7 @@ type dtStripeColors struct {
 var dtDefaultStripeColors = dtStripeColors{
 	Background: widget.Hex(0x2B2D30), // Surface
 	Border:     widget.Hex(0x393B40), // Gray3
-	Foreground: widget.Hex(0x9DA0A8), // Gray9 (OnSurfaceSecondary)
+	Foreground: widget.Hex(0xCED0D6), // JetBrains expui dark icon color
 	HoverBg:    widget.Hex(0x43454A), // Gray4 (ControlHover)
 	PressedBg:  widget.Hex(0x393B40), // Gray3 (ControlFill)
 	ActiveBg:   widget.Hex(0x35373B), // Selection
@@ -114,21 +119,22 @@ var dtDefaultStripeColors = dtStripeColors{
 }
 
 // dtStripeIconBounds calculates icon bounds within a stripe button.
+// Positions are pixel-snapped to integer coordinates for crisp icon rendering.
 func dtStripeIconBounds(btnBounds geometry.Rect, showLabel bool) geometry.Rect {
 	if showLabel {
 		centerX := btnBounds.Min.X + btnBounds.Width()/2
 		y := btnBounds.Min.Y + dtStripeIconPaddingLabel
-		return geometry.NewRect(
-			centerX-dtStripeIconSize/2, y,
-			dtStripeIconSize, dtStripeIconSize,
-		)
+		// Pixel-snap to integer positions for crisp icon edges.
+		x := float32(math.Round(float64(centerX - dtStripeIconSize/2)))
+		y = float32(math.Round(float64(y)))
+		return geometry.NewRect(x, y, dtStripeIconSize, dtStripeIconSize)
 	}
 	centerX := btnBounds.Min.X + btnBounds.Width()/2
 	centerY := btnBounds.Min.Y + btnBounds.Height()/2
-	return geometry.NewRect(
-		centerX-dtStripeIconSize/2, centerY-dtStripeIconSize/2,
-		dtStripeIconSize, dtStripeIconSize,
-	)
+	// Pixel-snap to integer positions for crisp icon edges.
+	x := float32(math.Round(float64(centerX - dtStripeIconSize/2)))
+	y := float32(math.Round(float64(centerY - dtStripeIconSize/2)))
+	return geometry.NewRect(x, y, dtStripeIconSize, dtStripeIconSize)
 }
 
 // dtStripeTextBounds calculates text bounds below the icon.
