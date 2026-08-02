@@ -25,7 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **deps:** gg v0.50.8+, gogpu v0.45.1 → v0.47.0, gpucontext v0.21.1 → v0.23.0, wgpu v0.30.23+
+- **deps:** gg v0.50.8 → v0.50.11, gogpu v0.45.1 → v0.48.4, gpucontext v0.21.1 → v0.24.0, wgpu v0.30.23 → v0.30.34, naga v0.17.16 → v0.18.0
+  - **gg v0.50.11:** Vector icon rendering (RenderToSceneWithColor), stroke hinting, SDF hairline calibration, text grayscale default, bind group lifecycle fix, @besmpl CFF1/scene/glyph contributions.
+  - **gogpu v0.48.4:** PollInputEvent, FontSmoothing, OS DnD, CommandEncoder, X11 HiDPI, Wayland fixes.
+  - **wgpu v0.30.34:** ADR-056 unified resource lifecycle, @samyfodil queue pin fix, Metal MSAA, software backend fixes.
+  - **naga v0.18.0:** Shader compiler improvements.
 - **FontSmoothing mock** — gpucontext v0.23.0 PlatformProvider compliance.
 - **TDD approach** documented in CLAUDE.md as standard practice.
 
