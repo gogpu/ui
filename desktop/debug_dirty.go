@@ -56,7 +56,23 @@ func (o *dirtyOverlay) update(regions []geometry.Rect) {
 	}
 }
 
-func (o *dirtyOverlay) draw(cc *gg.Context, scale float64) {
+// draw renders the cyan flash-and-fade overlay.
+//
+// f.rect is LOGICAL (user-space): it originates from Window.DirtyRegions ->
+// WidgetBase.ScreenBounds, i.e. layout coordinates. gg's Fill/Stroke apply the
+// device-scale matrix themselves (Context.deviceSpacePath), so the rect must NOT
+// be pre-multiplied by DeviceScale here -- doing so scales the overlay by
+// deviceScale twice (4x on a 2x display). Same units the sibling
+// SetPresentDamage call site uses.
+//
+// (Finding 3 in issue #195.)
+func (o *dirtyOverlay) draw(cc *gg.Context) {
+	// Overlay rects are screen-space: ignore any leftover user transform, and
+	// do not leak our color/line width into the caller's paint state.
+	cc.Push()
+	cc.Identity()
+	defer cc.Pop()
+
 	now := time.Now()
 	for _, f := range o.flashes {
 		age := now.Sub(f.time)
@@ -65,10 +81,10 @@ func (o *dirtyOverlay) draw(cc *gg.Context, scale float64) {
 		}
 		fade := 1.0 - float64(age)/float64(dirtyFlashDuration)
 
-		x := float64(f.rect.Min.X) * scale
-		y := float64(f.rect.Min.Y) * scale
-		w := float64(f.rect.Max.X-f.rect.Min.X) * scale
-		h := float64(f.rect.Max.Y-f.rect.Min.Y) * scale
+		x := float64(f.rect.Min.X)
+		y := float64(f.rect.Min.Y)
+		w := float64(f.rect.Max.X - f.rect.Min.X)
+		h := float64(f.rect.Max.Y - f.rect.Min.Y)
 		if w <= 0 || h <= 0 {
 			continue
 		}
@@ -77,10 +93,16 @@ func (o *dirtyOverlay) draw(cc *gg.Context, scale float64) {
 		cc.DrawRectangle(x, y, w, h)
 		_ = cc.Fill()
 
-		cc.SetRGBA(0, 0.7, 0.9, 0.7*fade)
-		cc.SetLineWidth(2)
-		cc.DrawRectangle(x+1, y+1, w-2, h-2)
-		_ = cc.Stroke()
+		// Border is inset 1px from the fill on each side. At logical scale a
+		// dirty region as small as 1-2px wide is ordinary (a caret, a thin
+		// divider) -- guard against the inset going negative, which would draw
+		// an inverted, offset border box.
+		if w > 2 && h > 2 {
+			cc.SetRGBA(0, 0.7, 0.9, 0.7*fade)
+			cc.SetLineWidth(2)
+			cc.DrawRectangle(x+1, y+1, w-2, h-2)
+			_ = cc.Stroke()
+		}
 	}
 }
 

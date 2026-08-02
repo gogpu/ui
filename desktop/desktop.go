@@ -421,7 +421,7 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	if isDebugDirtyEnabled() {
 		rl.debugOverlay.update(win.DirtyRegions())
 		cc.SetDamageTracking(false)
-		rl.debugOverlay.draw(cc, rl.canvas.DeviceScale())
+		rl.debugOverlay.draw(cc)
 		cc.SetDamageTracking(true)
 		if rl.debugOverlay.needsAnimationFrame() {
 			if isDebugDamageEnabled() {
@@ -684,6 +684,28 @@ func scaleToPhysical(w, h int, scale float64) (int, int) {
 	return int(float64(w)*scale + 0.5), int(float64(h)*scale + 0.5)
 }
 
+// physicalDamageRect converts a logical damage rect (origin rx,ry + size bw,bh)
+// to physical pixels for the GPU scissor, matching gg's own Context.trackDamage
+// rounding: Floor on the min corner, Ceil on the max corner, independently.
+//
+// This ensures the scissor rect fully covers the damaged region at any device
+// scale. The previous formula (truncate min + round-half-up size) can
+// under-cover by one physical pixel at fractional scales (1.25x, 1.5x, 1.75x).
+// Integer scales (1x, 2x, 3x) are unaffected -- both formulas agree.
+//
+// A scale <= 0 is treated as 1.0 (headless / non-HiDPI).
+func physicalDamageRect(rx, ry, bw, bh int, scale float64) image.Rectangle {
+	if scale <= 0 {
+		scale = 1.0
+	}
+	return image.Rect(
+		int(math.Floor(float64(rx)*scale)),
+		int(math.Floor(float64(ry)*scale)),
+		int(math.Ceil(float64(rx+bw)*scale)),
+		int(math.Ceil(float64(ry+bh)*scale)),
+	)
+}
+
 // ensureBoundaryTexture allocates or resizes the offscreen texture for a boundary.
 //
 // HiDPI: bw/bh are LOGICAL widget bounds, but an offscreen texture is a GPU
@@ -772,14 +794,19 @@ func (rl *renderLoop) trackBoundaryDamage(pic *compositor.PictureLayerImpl, bw, 
 	rl.boundaryDamageLogical = append(rl.boundaryDamageLogical, image.Rect(
 		rx, ry, rx+bw, ry+bh,
 	))
-	// Physical coords for GPU scissor.
+	// Physical coords for GPU scissor. Match gg's own trackDamage rounding
+	// (Floor on the min corner, Ceil on the max corner) exactly -- truncating
+	// the min corner while round-half-up-ing the SIZE is a different function,
+	// and at fractional device scales it can under-cover by one physical pixel.
+	// E.g. scale=1.5, rx=11, bw=20: Floor/Ceil gives [16,47) but
+	// truncate+rounded-size gives [16,46) -- the right edge lands one physical
+	// pixel short of gg's own damage rect, leaving a stale LoadOpLoad seam.
+	// Integer scales are unaffected -- both formulas agree when scale is whole.
+	// (Finding 2 in issue #195.)
 	scale := float64(rl.canvas.DeviceScale())
-	rl.frameDamageRects = append(rl.frameDamageRects, image.Rect(
-		int(float64(rx)*scale),
-		int(float64(ry)*scale),
-		int(float64(rx)*scale)+int(float64(bw)*scale+0.5),
-		int(float64(ry)*scale)+int(float64(bh)*scale+0.5),
-	))
+	rl.frameDamageRects = append(rl.frameDamageRects,
+		physicalDamageRect(rx, ry, bw, bh, scale),
+	)
 }
 
 // compositeTexturesFromTree walks the Layer Tree and blits all boundary textures
