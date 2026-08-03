@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/gogpu/gpucontext"
@@ -147,6 +148,17 @@ type Window struct {
 	// upward propagation (ADR-007, Task 1e). Populated by the
 	// onBoundaryDirty callback wired during mount. Used by future Phase 2
 	// PaintDirtyBoundaries to repaint only changed boundaries.
+	//
+	// dirtyMu guards the map. It is the one unguarded hop in a chain that is
+	// otherwise locked end to end: SetNeedsRedraw, InvalidateScene and
+	// RegisterDirtyBoundary each take their mutex, snapshot, and release it
+	// before calling out — the shape of code meant to be reached from another
+	// goroutine, which is how an app whose content arrives on its own
+	// goroutines (a terminal pane, a video surface, a download) marks dirty.
+	// With one such goroutine the race stayed invisible; with two, the runtime
+	// takes the process down with "concurrent map writes", which no recover
+	// can catch.
+	dirtyMu         sync.Mutex
 	dirtyBoundaries map[uint64]dirtyBoundaryEntry
 
 	// dndManager coordinates drag-and-drop operations for this window.
@@ -1410,6 +1422,8 @@ func widgetCursorToPlatform(c widget.CursorType) gpucontext.CursorShape {
 // This populates the flat dirty boundary set used by HasDirtyBoundaries
 // for O(1) frame skip decisions, replacing O(n) NeedsRedrawInTreeNonBoundary.
 func (w *Window) AddDirtyBoundary(key uint64) {
+	w.dirtyMu.Lock()
+	defer w.dirtyMu.Unlock()
 	if w.dirtyBoundaries == nil {
 		w.dirtyBoundaries = make(map[uint64]dirtyBoundaryEntry)
 	}
@@ -1419,11 +1433,15 @@ func (w *Window) AddDirtyBoundary(key uint64) {
 // HasDirtyBoundaries reports whether any RepaintBoundary has been marked
 // dirty since the last paint pass.
 func (w *Window) HasDirtyBoundaries() bool {
+	w.dirtyMu.Lock()
+	defer w.dirtyMu.Unlock()
 	return len(w.dirtyBoundaries) > 0
 }
 
 // DirtyBoundaryCount returns the number of dirty RepaintBoundary instances.
 func (w *Window) DirtyBoundaryCount() int {
+	w.dirtyMu.Lock()
+	defer w.dirtyMu.Unlock()
 	return len(w.dirtyBoundaries)
 }
 
@@ -1431,6 +1449,8 @@ func (w *Window) DirtyBoundaryCount() int {
 // Each boundary's ClearBoundaryDirty is NOT called here — that is the
 // responsibility of the PaintDirtyBoundaries method.
 func (w *Window) ClearDirtyBoundaries() {
+	w.dirtyMu.Lock()
+	defer w.dirtyMu.Unlock()
 	// Clear map efficiently: delete all entries but keep the allocated map.
 	for k := range w.dirtyBoundaries {
 		delete(w.dirtyBoundaries, k)
