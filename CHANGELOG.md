@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.50] — 2026-08-03
+
+### Fixed
+
+- **Concurrent dirty-boundary crash** ([#203](https://github.com/gogpu/ui/pull/203), @samyfodil) — `dirty-boundary` map guarded with `sync.Mutex` to prevent concurrent map read/write when `SetNeedsRedraw` races with `PaintBoundaryLayers`. Matches Flutter `_nodesNeedingPaint` concurrency pattern.
+- **SVG viewport clipping** ([#204](https://github.com/gogpu/ui/pull/204), @samyfodil) — `RenderSVG` now clips drawing to the icon bounds via `PushClip`/`PopClip`, preventing SVG content from overflowing its allocated rectangle (W3C `overflow:hidden` default).
+- **Keyboard modifiers on mouse/wheel events** ([#205](https://github.com/gogpu/ui/pull/205), @samyfodil) — `EventBridge` tracks modifier state from key events and stamps it onto subsequent mouse and wheel events. Enables Ctrl+Click, Shift+Scroll, and other modifier-dependent interactions. Matches winit/SDL3 Model B pattern.
+
+### Changed
+
+- **deps:** gogpu v0.48.4 → v0.48.5, wgpu v0.30.34 → v0.30.35
+  - **gogpu v0.48.5:** DX12 DirectComposition for per-pixel alpha.
+  - **wgpu v0.30.35:** DX12 DirectComposition path for per-pixel alpha.
+
 ## [0.1.49] — 2026-08-02
 
 ### Added
