@@ -24,6 +24,13 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 	// (the platform's OnScroll callback doesn't provide mouse coordinates).
 	var lastMousePos geometry.Point
 
+	// Track the keyboard modifiers so mouse and wheel events can carry them.
+	// The platform's mouse callbacks report only a button and a position, so
+	// without this every MouseEvent is built with ModNone and ⌥click, ⇧click,
+	// ⌃click and shift-extend-selection are simply not expressible — an app
+	// either does without them or reimplements this tracking itself.
+	var mods event.Modifiers
+
 	es.OnMouseMove(func(x, y float64) {
 		pos := geometry.Pt(float32(x), float32(y))
 		lastMousePos = pos
@@ -33,7 +40,7 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 			pressedButtons,
 			pos,
 			pos, // global position same as local for root dispatch
-			event.ModNone,
+			mods,
 		)
 		w.HandleEvent(e)
 	})
@@ -48,7 +55,7 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 			pressedButtons,
 			pos,
 			pos,
-			event.ModNone,
+			mods,
 		)
 		w.HandleEvent(e)
 	})
@@ -63,14 +70,19 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 			pressedButtons,
 			pos,
 			pos,
-			event.ModNone,
+			mods,
 		)
 		w.HandleEvent(e)
 	})
 
-	es.OnKeyPress(func(key gpucontext.Key, mods gpucontext.Modifiers) {
+	es.OnKeyPress(func(key gpucontext.Key, platMods gpucontext.Modifiers) {
 		uiKey := translateKey(key)
-		uiMods := translateModifiers(mods)
+		uiMods := translateModifiers(platMods)
+		// A key event reports the modifiers held BEFORE it, so pressing Shift
+		// alone reports no Shift. Fold the key itself in, or holding a modifier
+		// and clicking — with no other key in between, which is the whole
+		// gesture — would leave the state empty.
+		mods = uiMods | modifierForKey(uiKey)
 		// Rune=0: character input is delivered separately via OnTextInput.
 		// KeyPress only carries the key code for navigation (arrows, Tab,
 		// Backspace, etc.) and modifier detection (Ctrl+C, etc.).
@@ -83,9 +95,11 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		w.HandleEvent(e)
 	})
 
-	es.OnKeyRelease(func(key gpucontext.Key, mods gpucontext.Modifiers) {
+	es.OnKeyRelease(func(key gpucontext.Key, platMods gpucontext.Modifiers) {
 		uiKey := translateKey(key)
-		uiMods := translateModifiers(mods)
+		uiMods := translateModifiers(platMods)
+		// Releasing a modifier clears it: the reported state still contains it.
+		mods = uiMods &^ modifierForKey(uiKey)
 		e := event.NewKeyEvent(
 			event.KeyRelease,
 			uiKey,
@@ -113,7 +127,7 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 			delta,
 			lastMousePos,
 			lastMousePos,
-			event.ModNone,
+			mods,
 		)
 		w.HandleEvent(e)
 	})
@@ -123,6 +137,10 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 	})
 
 	es.OnFocus(func(focused bool) {
+		// A modifier believed to be held after the window lost focus would turn
+		// the next ordinary click into a modified one: the release happened
+		// somewhere else and this window never saw it.
+		mods = event.ModNone
 		w.HandleFocusChange(focused)
 	})
 
@@ -447,6 +465,22 @@ func translateKey(key gpucontext.Key) event.Key {
 }
 
 // translateModifiers converts gpucontext.Modifiers to event.Modifiers.
+// modifierForKey is the modifier bit a key sets while it is held, or ModNone
+// for anything that is not a modifier.
+func modifierForKey(k event.Key) event.Modifiers {
+	switch k {
+	case event.KeyLeftShift, event.KeyRightShift:
+		return event.ModShift
+	case event.KeyLeftCtrl, event.KeyRightCtrl:
+		return event.ModCtrl
+	case event.KeyLeftAlt, event.KeyRightAlt:
+		return event.ModAlt
+	case event.KeyLeftSuper, event.KeyRightSuper:
+		return event.ModSuper
+	}
+	return event.ModNone
+}
+
 func translateModifiers(mods gpucontext.Modifiers) event.Modifiers {
 	var result event.Modifiers
 	if mods.HasShift() {
