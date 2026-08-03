@@ -766,11 +766,28 @@ func (c *SceneCanvas) RenderSVG(svgXML []byte, bounds geometry.Rect, color widge
 		return
 	}
 
+	// Honor the clip, as every other draw method on this canvas does. Without
+	// it an icon with no pixels on screen still emits its whole document into
+	// the scene.
+	if !c.isVisible(bounds) {
+		return
+	}
+
 	// Parse SVG (Level 1 document cache).
 	doc := globalIconCache.getDoc(svgXML)
 	if doc == nil {
 		return
 	}
+
+	// Keep the document inside the box it was given. The emitted geometry is
+	// positioned by a transform built from those bounds but is not otherwise
+	// constrained by them, so a document whose contents reach past its own
+	// viewBox — or a stroke that widens past it — paints over whatever sits
+	// around the icon. Every other primitive here is bounded by construction;
+	// a whole SVG is not.
+	clip := scene.NewRectShape(bounds.Min.X, bounds.Min.Y, bounds.Width(), bounds.Height())
+	c.sc.PushClip(clip)
+	defer c.sc.PopClip()
 
 	// Vector path: emit SVG as scene geometry (paths + fills/strokes).
 	// Resolution-independent — rendered at actual display resolution by the
