@@ -160,9 +160,8 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	// Ensure cursor is visible within the content rect (adjusts scrollOffsetX).
 	w.ensureCursorVisible(tm, contentRect, displayText)
 
-	// Create a scrolled content rect for text/cursor/selection positioning.
-	// The scrolled rect shifts the text origin by scrollOffsetX while the
-	// clip rect (ContentRect) stays at the original position.
+	// TextRect: text rendering area shifted by scroll offset.
+	// ContentRect stays unshifted for clipping (PushClip).
 	scrolledRect := contentRect
 	scrolledRect.Min.X += w.scrollOffsetX
 	scrolledRect.Max.X += w.scrollOffsetX
@@ -173,18 +172,23 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	w.cachedDisplayText = displayText
 	w.cachedFontSize = fontSize
 
-	// Compute cursor rect (if applicable) using the scrolled content rect.
+	// Flutter/Qt pattern: compute cursor/selection in UNSHIFTED content rect
+	// (text-local coordinates), then apply scrollOffsetX uniformly.
+	// This ensures cursor and text share the same offset — they never drift apart.
 	showCursor := focused && !disabled && !hasSelection
 	var cursorRect geometry.Rect
 	if showCursor {
-		cursorRect = tm.CursorRect(scrolledRect, displayText, w.sel.cursor, cw)
+		cursorRect = tm.CursorRect(contentRect, displayText, w.sel.cursor, cw)
+		cursorRect.Min.X += w.scrollOffsetX
+		cursorRect.Max.X += w.scrollOffsetX
 	}
 
-	// Compute selection rect (if applicable) using the scrolled content rect.
 	showSelection := hasSelection
 	var selectionRect geometry.Rect
 	if showSelection {
-		selectionRect = tm.SelectionRect(scrolledRect, displayText, w.sel.anchor, w.sel.cursor)
+		selectionRect = tm.SelectionRect(contentRect, displayText, w.sel.anchor, w.sel.cursor)
+		selectionRect.Min.X += w.scrollOffsetX
+		selectionRect.Max.X += w.scrollOffsetX
 	}
 
 	w.painter.PaintTextField(canvas, &PaintState{

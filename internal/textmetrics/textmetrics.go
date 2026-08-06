@@ -39,9 +39,6 @@ func (m *Metrics) CursorX(contentRect geometry.Rect, displayText string, runePos
 	}
 	textBefore := string(runes[:runePos])
 	x := baseX + m.Canvas.MeasureText(textBefore, m.FontSize, false)
-	if x > contentRect.Max.X {
-		x = contentRect.Max.X
-	}
 	return x
 }
 
