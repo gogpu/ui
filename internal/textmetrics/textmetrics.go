@@ -11,6 +11,8 @@
 package textmetrics
 
 import (
+	"math"
+
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
@@ -23,16 +25,20 @@ type Metrics struct {
 
 // CursorX returns the X coordinate for a cursor at the given rune position
 // within the content rect. Uses MeasureText for accurate positioning.
+//
+// The base X is rounded to match DrawText's pixel-grid rounding (math.Round),
+// ensuring the cursor aligns with the rendered text origin.
 func (m *Metrics) CursorX(contentRect geometry.Rect, displayText string, runePos int) float32 {
+	baseX := float32(math.Round(float64(contentRect.Min.X)))
 	runes := []rune(displayText)
 	if runePos > len(runes) {
 		runePos = len(runes)
 	}
 	if runePos <= 0 {
-		return contentRect.Min.X
+		return baseX
 	}
 	textBefore := string(runes[:runePos])
-	x := contentRect.Min.X + m.Canvas.MeasureText(textBefore, m.FontSize, false)
+	x := baseX + m.Canvas.MeasureText(textBefore, m.FontSize, false)
 	if x > contentRect.Max.X {
 		x = contentRect.Max.X
 	}
@@ -41,8 +47,11 @@ func (m *Metrics) CursorX(contentRect geometry.Rect, displayText string, runePos
 
 // RuneIndexFromX converts an X coordinate to a rune index (for hit-testing).
 // Returns the rune position closest to the given X within the content rect.
+//
+// The base X is rounded to match DrawText's pixel-grid rounding.
 func (m *Metrics) RuneIndexFromX(contentRect geometry.Rect, displayText string, x float32) int {
-	localX := x - contentRect.Min.X
+	baseX := float32(math.Round(float64(contentRect.Min.X)))
+	localX := x - baseX
 	if localX <= 0 {
 		return 0
 	}
