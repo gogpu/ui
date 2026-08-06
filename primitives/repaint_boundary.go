@@ -18,7 +18,7 @@ import (
 var nextCacheKey atomic.Uint64
 
 // RepaintBoundary is a display widget that caches its child subtree as a
-// scene.Scene display list. When the child subtree is clean (no dirty
+// display list (SceneCache). When the child subtree is clean (no dirty
 // widgets), the cached display list is replayed into the parent canvas
 // instead of re-executing Draw on every descendant.
 //
@@ -52,10 +52,10 @@ type RepaintBoundary struct {
 	// into the Window's dirty boundary set. Assigned once at creation time.
 	cacheKey uint64
 
-	// cachedScene holds the recorded display list (scene.Scene) for the
-	// child subtree. On cache hit, this is replayed into the parent canvas
-	// via Canvas.ReplayScene — no child.Draw() re-execution needed.
-	cachedScene *scene.Scene
+	// cachedScene holds the recorded display list for the child subtree.
+	// On cache hit, this is replayed into the parent canvas via
+	// Canvas.ReplayScene — no child.Draw() re-execution needed.
+	cachedScene widget.SceneCache
 
 	// cacheVersion is a monotonic counter incremented each time the cache
 	// is refreshed. Used for observability and diagnostics.
@@ -120,7 +120,7 @@ func WithDebugLabel(label string) Option {
 }
 
 // NewRepaintBoundary creates a RepaintBoundary that caches the rendering
-// of the given child widget as a scene.Scene display list.
+// of the given child widget as a display list (SceneCache).
 //
 // If child is nil, the boundary renders nothing and reports zero size.
 //
@@ -248,8 +248,8 @@ func (rb *RepaintBoundary) ConsecutiveHits() int {
 // boundary. Used for diagnostics, benchmarks, and compositor decisions.
 func (rb *RepaintBoundary) RasterCacheStats() RasterCacheStats {
 	var tagCount int
-	if rb.cachedScene != nil {
-		tagCount = len(rb.cachedScene.Encoding().Tags())
+	if sc, ok := rb.cachedScene.(*scene.Scene); ok {
+		tagCount = len(sc.Encoding().Tags())
 	}
 
 	return RasterCacheStats{
@@ -284,10 +284,11 @@ func (rb *RepaintBoundary) evaluatePromotion(w, h int) {
 		return
 	}
 
-	if rb.cachedScene == nil {
+	sc, ok := rb.cachedScene.(*scene.Scene)
+	if !ok {
 		return
 	}
-	tagCount := len(rb.cachedScene.Encoding().Tags())
+	tagCount := len(sc.Encoding().Tags())
 	if tagCount < cfg.MinComplexity {
 		return
 	}
@@ -366,11 +367,11 @@ func (rb *RepaintBoundary) Layout(ctx widget.Context, constraints geometry.Const
 // Draw renders the child subtree, using the scene cache when possible.
 //
 // On cache hit (boundary not dirty, cached scene exists): replays the
-// cached scene.Scene into the canvas via Canvas.ReplayScene — no child
+// cached SceneCache into the canvas via Canvas.ReplayScene — no child
 // re-execution. This is O(commands) via Encoding.Append or GPU dispatch.
 //
 // On cache miss (boundary dirty or first draw): records child.Draw into
-// a new scene.Scene via SceneCanvas, then replays the result.
+// a new SceneCache via SceneCanvas, then replays the result.
 //
 // This is the ADR-007 retained-mode pattern: display list per boundary.
 func (rb *RepaintBoundary) Draw(ctx widget.Context, canvas widget.Canvas) {
@@ -425,7 +426,7 @@ func (rb *RepaintBoundary) Draw(ctx widget.Context, canvas widget.Canvas) {
 	}
 	rb.cachedScene.Reset()
 
-	recorder := internalRender.NewSceneCanvas(rb.cachedScene, w, h)
+	recorder := internalRender.NewSceneCanvas(rb.cachedScene.(*scene.Scene), w, h)
 	rb.child.Draw(ctx, recorder)
 	recorder.Close()
 

@@ -1,7 +1,6 @@
 package material3
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -182,4 +181,4 @@ func (c *scrollbarMockCanvas) PopTransform()                                {}
 func (c *scrollbarMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *scrollbarMockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *scrollbarMockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *scrollbarMockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *scrollbarMockCanvas) ReplayScene(_ widget.SceneCache)              {}

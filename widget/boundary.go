@@ -2,8 +2,6 @@ package widget
 
 import (
 	"sync/atomic"
-
-	"github.com/gogpu/gg/scene"
 )
 
 // nextBoundaryCacheKey is a monotonic counter for generating unique cache keys.
@@ -21,7 +19,7 @@ var nextBoundaryCacheKey atomic.Uint64
 
 // SetRepaintBoundary marks this widget as a repaint boundary.
 //
-// When enabled, the widget owns a scene.Scene display list that caches
+// When enabled, the widget owns a SceneCache display list that caches
 // its subtree rendering. Clean boundaries replay their cached scene
 // instead of re-executing Draw on every descendant.
 //
@@ -58,7 +56,7 @@ func (w *WidgetBase) SetRepaintBoundary(enabled bool) {
 
 // IsRepaintBoundary reports whether this widget is a repaint boundary.
 //
-// Repaint boundaries own a scene.Scene that caches their subtree rendering.
+// Repaint boundaries own a SceneCache that caches their subtree rendering.
 // The DrawTree function checks this property and replays the cached scene
 // when the boundary is clean, avoiding re-execution of the child Draw methods.
 func (w *WidgetBase) IsRepaintBoundary() bool {
@@ -129,7 +127,7 @@ func (w *WidgetBase) IsSceneDirty() bool {
 
 // CachedScene returns the boundary's cached scene, or nil if no cache exists.
 // This is used by DrawTree to replay the scene when the boundary is clean.
-func (w *WidgetBase) CachedScene() *scene.Scene {
+func (w *WidgetBase) CachedScene() SceneCache {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.cachedScene
@@ -137,7 +135,7 @@ func (w *WidgetBase) CachedScene() *scene.Scene {
 
 // SetCachedScene stores the recorded scene for this boundary.
 // Called by the render system after recording the subtree.
-func (w *WidgetBase) SetCachedScene(s *scene.Scene) {
+func (w *WidgetBase) SetCachedScene(s SceneCache) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.cachedScene = s

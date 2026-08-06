@@ -4,7 +4,6 @@ import (
 	"image"
 	"testing"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
@@ -42,7 +41,7 @@ func (c *mockCanvas) PopTransform()                                {}
 func (c *mockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *mockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *mockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *mockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *mockCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 func newMetrics() *Metrics {
 	return &Metrics{

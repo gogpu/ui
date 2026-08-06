@@ -43,8 +43,8 @@ func TestOverlayBoundary_SceneDirtyAfterHover(t *testing.T) {
 
 	// Record initial scene to clear dirty state.
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -94,8 +94,8 @@ func TestOverlayBoundary_RecordClearsButVersionIncrements(t *testing.T) {
 	menu.SetScreenOrigin(geometry.Pt(100, 200))
 
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -140,8 +140,8 @@ func TestOverlayBoundary_SyncPictureLayerDetectsVersionChange(t *testing.T) {
 	menu.SetScreenOrigin(geometry.Pt(100, 200))
 
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -201,8 +201,8 @@ func TestOverlayBoundary_SyncPictureLayerDetectsVersionChange(t *testing.T) {
 // should still trigger re-render.
 func TestOverlayBoundary_FullPipeline_HoverGeneratesDamage(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -339,8 +339,8 @@ func TestOverlayBoundary_FullPipeline_HoverGeneratesDamage(t *testing.T) {
 // version does not change, and the PictureLayer stays clean.
 func TestOverlayBoundary_CleanHover_NoRender(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -396,8 +396,8 @@ func TestOverlayBoundary_StandalonePropagation(t *testing.T) {
 	menu.SetScreenOrigin(geometry.Pt(100, 200))
 
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -434,8 +434,8 @@ func TestOverlayBoundary_OnBoundaryDirtyCallback(t *testing.T) {
 	menu.SetScreenOrigin(geometry.Pt(100, 200))
 
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)

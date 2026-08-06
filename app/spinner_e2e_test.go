@@ -37,8 +37,8 @@ func (w *boxContainer) Children() []widget.Widget                  { return w.ki
 // Verifies spinner is found by PaintBoundaryLayers AND visible in composed scene.
 func TestSpinnerE2E_VisibleInCompositor(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)

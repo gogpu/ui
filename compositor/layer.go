@@ -1,8 +1,8 @@
 package compositor
 
 import (
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/widget"
 )
 
 // Layer is a node in the compositor layer tree.
@@ -55,17 +55,17 @@ type ContainerLayer interface {
 	RemoveAll()
 }
 
-// PictureOwner is implemented by layers that own a scene.Scene (display list).
+// PictureOwner is implemented by layers that own a SceneCache (display list).
 //
 // Flutter equivalent: PictureLayer.picture.
 type PictureOwner interface {
-	// Picture returns the scene.Scene owned by this layer.
+	// Picture returns the SceneCache owned by this layer.
 	// Returns nil if the layer has not been recorded yet.
-	Picture() *scene.Scene
+	Picture() widget.SceneCache
 
 	// SetPicture stores a recorded scene. Called after recording a
 	// RepaintBoundary's subtree via SceneCanvas.
-	SetPicture(s *scene.Scene)
+	SetPicture(s widget.SceneCache)
 
 	// IsDirty reports whether the picture needs re-recording.
 	IsDirty() bool
@@ -155,7 +155,7 @@ func (l *OffsetLayerImpl) Append(child Layer) {
 	l.MarkNeedsCompositing()
 }
 
-// PictureLayerImpl owns a scene.Scene display list. Leaf node.
+// PictureLayerImpl owns a SceneCache display list. Leaf node.
 //
 // Flutter equivalent: PictureLayer. Contains the recorded draw
 // commands from a RepaintBoundary's subtree.
@@ -165,7 +165,7 @@ func (l *OffsetLayerImpl) Append(child Layer) {
 // BuildLayerTree populates them; compositeTexturesFromTree reads them.
 type PictureLayerImpl struct {
 	layerBase
-	picture          *scene.Scene
+	picture          widget.SceneCache
 	dirty            bool
 	boundaryCacheKey uint64         // Links to per-boundary texture cache (renderLoop.boundaryTextures).
 	isRoot           bool           // True for the root boundary (uses DrawGPUTextureBase).
@@ -183,11 +183,11 @@ func NewPictureLayer() *PictureLayerImpl {
 	return &PictureLayerImpl{dirty: true}
 }
 
-func (l *PictureLayerImpl) Picture() *scene.Scene     { return l.picture }
-func (l *PictureLayerImpl) SetPicture(s *scene.Scene) { l.picture = s; l.MarkNeedsCompositing() }
-func (l *PictureLayerImpl) IsDirty() bool             { return l.dirty }
-func (l *PictureLayerImpl) MarkDirty()                { l.dirty = true; l.MarkNeedsCompositing() }
-func (l *PictureLayerImpl) ClearDirty()               { l.dirty = false }
+func (l *PictureLayerImpl) Picture() widget.SceneCache     { return l.picture }
+func (l *PictureLayerImpl) SetPicture(s widget.SceneCache) { l.picture = s; l.MarkNeedsCompositing() }
+func (l *PictureLayerImpl) IsDirty() bool                  { return l.dirty }
+func (l *PictureLayerImpl) MarkDirty()                     { l.dirty = true; l.MarkNeedsCompositing() }
+func (l *PictureLayerImpl) ClearDirty()                    { l.dirty = false }
 
 // BoundaryCacheKey returns the unique ID linking this layer to the
 // per-boundary GPU texture cache. Set by BuildLayerTree.

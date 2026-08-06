@@ -693,15 +693,19 @@ func (c *Canvas) FillSVGPath(svgData string, viewBox float32, bounds geometry.Re
 	c.dc.Pop()
 }
 
-// ReplayScene renders a previously recorded scene.Scene display list into
+// ReplayScene renders a previously recorded scene display list into
 // this canvas. The scene commands are decoded and routed through gg.Context's
 // GPU accelerator, which auto-selects GPU or CPU rendering per shape.
 //
 // This is the retained-mode replay path (ADR-007): RepaintBoundary caches
 // child drawing as a scene.Scene and replays it on cache hit instead of
 // re-executing child.Draw().
-func (c *Canvas) ReplayScene(s *scene.Scene) {
-	if s == nil || s.IsEmpty() {
+func (c *Canvas) ReplayScene(s widget.SceneCache) {
+	if s == nil {
+		return
+	}
+	sc, ok := s.(*scene.Scene)
+	if !ok || sc.IsEmpty() {
 		return
 	}
 	// Apply current canvas offset so the scene renders at the correct
@@ -721,7 +725,7 @@ func (c *Canvas) ReplayScene(s *scene.Scene) {
 	oy := float64(c.currentOffset.Y)
 	c.dc.Translate(ox, oy)
 	renderer := scene.NewGPUSceneRenderer(c.dc)
-	_ = renderer.RenderScene(s)
+	_ = renderer.RenderScene(sc)
 	c.dc.Pop()
 }
 

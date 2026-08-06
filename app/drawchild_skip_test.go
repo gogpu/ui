@@ -62,8 +62,8 @@ func (w *itemWidget) Children() []widget.Widget                  { return nil }
 func TestDrawChildSkip_ListViewItemBoundaries(t *testing.T) {
 	// Register SceneRecorder factory (required for boundary recording).
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -154,7 +154,7 @@ func TestDrawChildSkip_ListViewItemBoundaries(t *testing.T) {
 		t.Logf("item[%d]: bounds=%v (%.0fx%.0f)", i, bounds, bounds.Width(), bounds.Height())
 
 		// 5c: Item has cached scene (recorded by PaintBoundaryLayers recursion).
-		sc, ok := item.(interface{ CachedScene() *scene.Scene })
+		sc, ok := item.(interface{ CachedScene() widget.SceneCache })
 		if !ok {
 			t.Errorf("item[%d]: does not implement CachedScene()", i)
 			continue
@@ -187,8 +187,8 @@ func TestDrawChildSkip_ListViewItemBoundaries(t *testing.T) {
 // Items should NOT appear in the root's scene -- they have their own scenes.
 func TestDrawChildSkip_RootRecordingSkipsItems(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -239,7 +239,7 @@ func TestDrawChildSkip_RootRecordingSkipsItems(t *testing.T) {
 	// After PaintBoundaryLayers, item boundaries should also have scenes.
 	items := collectBoundaryDescendants(root)
 	for i, item := range items {
-		if sc, ok := item.(interface{ CachedScene() *scene.Scene }); ok {
+		if sc, ok := item.(interface{ CachedScene() widget.SceneCache }); ok {
 			cs := sc.CachedScene()
 			if cs == nil {
 				t.Errorf("item[%d]: CachedScene nil after PaintBoundaryLayers", i)
@@ -255,8 +255,8 @@ func TestDrawChildSkip_RootRecordingSkipsItems(t *testing.T) {
 // though they were created dynamically during VirtualContent.Draw().
 func TestDrawChildSkip_ItemsExistAfterRootRecording(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -324,8 +324,8 @@ func TestDrawChildSkip_ItemsExistAfterRootRecording(t *testing.T) {
 // both the Box background and the Text content.
 func TestDrawChildSkip_BoxTextItems_ProductionScenario(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -379,7 +379,7 @@ func TestDrawChildSkip_BoxTextItems_ProductionScenario(t *testing.T) {
 	}
 
 	for i, item := range items {
-		sc, ok := item.(interface{ CachedScene() *scene.Scene })
+		sc, ok := item.(interface{ CachedScene() widget.SceneCache })
 		if !ok {
 			t.Errorf("item[%d]: does not implement CachedScene()", i)
 			continue
@@ -505,7 +505,7 @@ func walkTreeDiag(t *testing.T, w widget.Widget, depth int) {
 	if sd, ok := w.(interface{ IsSceneDirty() bool }); ok {
 		sceneDirty = sd.IsSceneDirty()
 	}
-	if sc, ok := w.(interface{ CachedScene() *scene.Scene }); ok {
+	if sc, ok := w.(interface{ CachedScene() widget.SceneCache }); ok {
 		hasScene = sc.CachedScene() != nil
 	}
 

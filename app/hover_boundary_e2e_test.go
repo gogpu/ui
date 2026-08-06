@@ -23,8 +23,8 @@ import (
 func TestHoverE2E_ButtonInBoundary_DirtyPropagation(t *testing.T) {
 	// Register SceneRecorder factory for boundary recording.
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -124,8 +124,8 @@ func TestHoverE2E_ButtonInBoundary_DirtyPropagation(t *testing.T) {
 // multiple levels of nesting. Button inside Box inside Box inside root boundary.
 func TestHoverE2E_DeepNesting_PropagatesUpward(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)
@@ -205,8 +205,8 @@ func TestHoverE2E_DeepNesting_PropagatesUpward(t *testing.T) {
 // Window.HandleEvent → updateHover → hitTest → MouseEnter → dirty propagation.
 func TestHoverE2E_WindowHandleEvent_FullChain(t *testing.T) {
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	defer widget.RegisterSceneRecorder(prev)

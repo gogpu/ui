@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -49,7 +48,7 @@ func (c *recordingCanvas) PopTransform()                                {}
 func (c *recordingCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *recordingCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *recordingCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *recordingCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *recordingCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // drawTrackingWidget tracks whether Draw was called and has configurable bounds.
 type drawTrackingWidget struct {

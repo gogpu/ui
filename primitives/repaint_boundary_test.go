@@ -4,7 +4,6 @@ import (
 	"image"
 	"testing"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -44,7 +43,7 @@ var _ widget.Widget = (*drawCountingWidget)(nil)
 type imageRecordingCanvas struct {
 	mockCanvas
 	drawImageCalls   []drawImageCall
-	replaySceneCalls []*scene.Scene
+	replaySceneCalls []widget.SceneCache
 }
 
 type drawImageCall struct {
@@ -56,7 +55,7 @@ func (c *imageRecordingCanvas) DrawImage(img image.Image, at geometry.Point) {
 	c.drawImageCalls = append(c.drawImageCalls, drawImageCall{img: img, at: at})
 }
 
-func (c *imageRecordingCanvas) ReplayScene(s *scene.Scene) {
+func (c *imageRecordingCanvas) ReplayScene(s widget.SceneCache) {
 	c.replaySceneCalls = append(c.replaySceneCalls, s)
 }
 

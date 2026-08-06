@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/compositor"
 	"github.com/gogpu/ui/geometry"
@@ -31,8 +30,8 @@ type boundaryInfo interface {
 	widget.Widget
 	IsRepaintBoundary() bool
 	IsSceneDirty() bool
-	CachedScene() *scene.Scene
-	SetCachedScene(*scene.Scene)
+	CachedScene() widget.SceneCache
+	SetCachedScene(widget.SceneCache)
 	ClearSceneDirty()
 	SceneCacheSize() (int, int)
 	SetSceneCacheSize(int, int)
@@ -519,7 +518,7 @@ func recordBoundary(bi boundaryInfo, ctx widget.Context) {
 
 	cachedScene := bi.CachedScene()
 	if cachedScene == nil {
-		cachedScene = scene.NewScene()
+		cachedScene = widget.NewSceneCache()
 	}
 	cachedScene.Reset()
 

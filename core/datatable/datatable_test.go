@@ -2,7 +2,6 @@ package datatable
 
 import (
 	"fmt"
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -55,7 +54,7 @@ func (m *mockCanvas) PopTransform()                                { m.transform
 func (m *mockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (m *mockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (m *mockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (m *mockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (m *mockCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // testColumns returns a standard set of test columns.
 func testColumns() []Column {

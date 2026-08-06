@@ -53,8 +53,10 @@ func (c *Compositor) composeLayer(layer Layer, parentX, parentY float32) {
 	// PictureLayer: append its scene at accumulated offset.
 	if po, ok := layer.(PictureOwner); ok {
 		pic := po.Picture()
-		if pic != nil && !pic.IsEmpty() {
-			c.composed.AppendWithTranslation(pic, x, y)
+		if pic != nil {
+			if sc, ok2 := pic.(*scene.Scene); ok2 && !sc.IsEmpty() {
+				c.composed.AppendWithTranslation(sc, x, y)
+			}
 		}
 		layer.ClearNeedsCompositing()
 		return

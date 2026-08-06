@@ -65,7 +65,7 @@ func (c *trackingCanvas) PopTransform()                                {}
 func (c *trackingCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *trackingCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *trackingCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *trackingCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *trackingCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // Compile-time check.
 var _ widget.Canvas = (*trackingCanvas)(nil)

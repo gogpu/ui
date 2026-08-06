@@ -1,7 +1,6 @@
 package dialog
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -1000,7 +999,7 @@ func (c *internalRecordingCanvas) ScreenOriginBase() geometry.Point             
 func (c *internalRecordingCanvas) ClipBounds() geometry.Rect {
 	return geometry.NewRect(0, 0, 10000, 10000)
 }
-func (c *internalRecordingCanvas) ReplayScene(_ *scene.Scene) {}
+func (c *internalRecordingCanvas) ReplayScene(_ widget.SceneCache) {}
 
 // --- internalMockOverlayManager ---
 

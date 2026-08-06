@@ -1,7 +1,6 @@
 package slider
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"math"
 	"testing"
@@ -1872,7 +1871,7 @@ func (c *internalMockCanvas) PopTransform()                                {}
 func (c *internalMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *internalMockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *internalMockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *internalMockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *internalMockCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // --- Granular Invalidation Tests (TASK-UI-INVAL-001d) ---
 

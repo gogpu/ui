@@ -133,8 +133,8 @@ func TestIsBoundaryVisible_AboveClip_Invisible(t *testing.T) {
 func setupSceneRecorder(t *testing.T) func() {
 	t.Helper()
 	prev := widget.GetSceneRecorderFactory()
-	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-		rec := internalRender.NewSceneCanvas(s, w, h)
+	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+		rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 		return rec, rec.Close
 	})
 	return func() { widget.RegisterSceneRecorder(prev) }

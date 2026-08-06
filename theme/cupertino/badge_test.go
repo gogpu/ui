@@ -1,7 +1,6 @@
 package cupertino
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -227,4 +226,4 @@ func (c *cupBadgeMockCanvas) PopTransform()                                {}
 func (c *cupBadgeMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *cupBadgeMockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *cupBadgeMockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *cupBadgeMockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *cupBadgeMockCanvas) ReplayScene(_ widget.SceneCache)              {}

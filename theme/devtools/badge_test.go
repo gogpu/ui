@@ -1,7 +1,6 @@
 package devtools
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -225,4 +224,4 @@ func (c *bgMockCanvas) PopTransform()                                {}
 func (c *bgMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *bgMockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *bgMockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *bgMockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *bgMockCanvas) ReplayScene(_ widget.SceneCache)              {}
