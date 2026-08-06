@@ -1,7 +1,6 @@
 package fluent
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -225,4 +224,4 @@ func (c *flBadgeMockCanvas) PopTransform()                                {}
 func (c *flBadgeMockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *flBadgeMockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *flBadgeMockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *flBadgeMockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *flBadgeMockCanvas) ReplayScene(_ widget.SceneCache)              {}

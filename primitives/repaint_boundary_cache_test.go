@@ -3,7 +3,6 @@ package primitives_test
 import (
 	"testing"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
@@ -15,10 +14,10 @@ import (
 type replayRecordingCanvas struct {
 	mockCanvas
 	replayCount  int
-	replayScenes []*scene.Scene
+	replayScenes []widget.SceneCache
 }
 
-func (c *replayRecordingCanvas) ReplayScene(s *scene.Scene) {
+func (c *replayRecordingCanvas) ReplayScene(s widget.SceneCache) {
 	c.replayCount++
 	c.replayScenes = append(c.replayScenes, s)
 }

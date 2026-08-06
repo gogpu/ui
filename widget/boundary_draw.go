@@ -1,12 +1,11 @@
 package widget
 
 import (
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/geometry"
 )
 
 // SceneRecorder creates a recording Canvas that writes draw commands into a
-// scene.Scene. This is the dependency-injection point for ADR-024 Phase 2:
+// SceneCache. This is the dependency-injection point for ADR-024 Phase 2:
 // the widget package cannot import internal/render (circular dep), so the
 // app layer registers a factory function that creates SceneCanvas instances.
 //
@@ -14,12 +13,12 @@ import (
 // After recording, the scene can be replayed via Canvas.ReplayScene.
 //
 // Parameters:
-//   - s: the scene.Scene to record into (must not be nil)
+//   - s: the SceneCache to record into (must not be nil)
 //   - width, height: dimensions of the recording canvas
 //
 // Returns a Canvas that records into s, and a cleanup function that must
 // be called after recording is complete (e.g., SceneCanvas.Close).
-type SceneRecorder func(s *scene.Scene, width, height int) (Canvas, func())
+type SceneRecorder func(s SceneCache, width, height int) (Canvas, func())
 
 // sceneRecorderFactory holds the registered SceneRecorder factory.
 // Set by the app layer during initialization via RegisterSceneRecorder.
@@ -31,8 +30,8 @@ var sceneRecorderFactory SceneRecorder
 //
 // Example (from app package):
 //
-//	widget.RegisterSceneRecorder(func(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-//	    recorder := render.NewSceneCanvas(s, w, h)
+//	widget.RegisterSceneRecorder(func(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+//	    recorder := render.NewSceneCanvas(s.(*scene.Scene), w, h)
 //	    return recorder, recorder.Close
 //	})
 func RegisterSceneRecorder(factory SceneRecorder) {
@@ -51,8 +50,8 @@ type boundaryWidget interface {
 	Widget
 	IsRepaintBoundary() bool
 	IsSceneDirty() bool
-	CachedScene() *scene.Scene
-	SetCachedScene(*scene.Scene)
+	CachedScene() SceneCache
+	SetCachedScene(SceneCache)
 	ClearSceneDirty()
 	SceneCacheSize() (int, int)
 	SetSceneCacheSize(int, int)
@@ -138,7 +137,7 @@ func drawBoundaryWidget(w Widget, ctx Context, canvas Canvas, stats *DrawStats) 
 	// Cache miss: record child drawing into a scene.
 	cachedScene := bw.CachedScene()
 	if cachedScene == nil {
-		cachedScene = scene.NewScene()
+		cachedScene = NewSceneCache()
 	}
 	cachedScene.Reset()
 

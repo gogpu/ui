@@ -3,7 +3,6 @@ package widget
 import (
 	"image"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/geometry"
 )
 
@@ -190,7 +189,7 @@ type Canvas interface {
 	// preventing offscreen widgets from ticking animations.
 	ClipBounds() geometry.Rect
 
-	// ReplayScene renders a previously recorded scene.Scene display list
+	// ReplayScene renders a previously recorded SceneCache display list
 	// into this canvas. Used by RepaintBoundary to replay cached content
 	// without re-executing the child widget's Draw method.
 	//
@@ -200,7 +199,7 @@ type Canvas interface {
 	// Scene.Append (O(commands), zero re-encoding).
 	//
 	// If s is nil or empty, this is a no-op.
-	ReplayScene(s *scene.Scene)
+	ReplayScene(s SceneCache)
 }
 
 // DamageController can suppress damage tracking during rendering.
@@ -211,7 +210,7 @@ type DamageController interface {
 }
 
 // BoundaryRecorder is implemented by canvases that record into a boundary's
-// scene.Scene. When DrawChild encounters a child that IS a boundary, it skips
+// SceneCache. When DrawChild encounters a child that IS a boundary, it skips
 // drawing — the child boundary has its own PictureLayer in the compositor.
 //
 // Flutter equivalent: PaintingContext knows it's recording into a boundary's

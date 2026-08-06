@@ -1,7 +1,6 @@
 package button_test
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -603,7 +602,7 @@ func (c *recordingCanvas) PopTransform()                                {}
 func (c *recordingCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *recordingCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *recordingCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *recordingCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *recordingCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // --- mockCanvas for non-recording tests ---
 
@@ -637,7 +636,7 @@ func (c *mockCanvas) PopTransform()                                {}
 func (c *mockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *mockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *mockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *mockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *mockCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // --- Lifecycle Tests ---
 

@@ -1,7 +1,6 @@
 package fluent_test
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -97,7 +96,7 @@ func (c *recordCanvas) PopTransform()                                {}
 func (c *recordCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *recordCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *recordCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *recordCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *recordCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // Method name constants to satisfy goconst.
 const (

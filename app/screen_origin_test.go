@@ -141,7 +141,7 @@ func (w *screenOriginLeaf) Children() []widget.Widget                  { return 
 
 // testSceneRecorder is defined in compositor_test.go but redeclared here
 // for this test file. Uses the same pattern.
-func testSceneRecorderForOriginTests(s *scene.Scene, w, h int) (widget.Canvas, func()) { //nolint:unused // retained for future screen origin test variants
-	rec := internalRender.NewSceneCanvas(s, w, h)
+func testSceneRecorderForOriginTests(s widget.SceneCache, w, h int) (widget.Canvas, func()) { //nolint:unused // retained for future screen origin test variants
+	rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 	return rec, rec.Close
 }

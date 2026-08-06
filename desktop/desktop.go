@@ -636,7 +636,8 @@ func (rl *renderLoop) renderSingleBoundaryFromLayer(pic *compositor.PictureLayer
 	entry := rl.ensureBoundaryTexture(pic.BoundaryCacheKey(), bw, bh, cc)
 
 	// Detect fresh recordings via scene version. Skip re-rendering clean textures.
-	cachedScene := pic.Picture()
+	cachedSceneRaw := pic.Picture()
+	cachedScene, _ := cachedSceneRaw.(*scene.Scene)
 	if rl.isBoundaryClean(entry, pic, cachedScene) {
 		rl.updateClipRect(entry, pic)
 		return

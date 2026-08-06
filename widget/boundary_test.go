@@ -182,7 +182,9 @@ func TestPropagateDirtyUpward_LegacyBoundary(t *testing.T) {
 
 func TestDrawBoundaryWidget_FallbackOnZeroBounds(t *testing.T) {
 	// Widget with boundary enabled but zero bounds should fall back to normal draw.
-	RegisterSceneRecorder(func(s *scene.Scene, w, h int) (Canvas, func()) {
+	RegisterSceneFactory(func() SceneCache { return scene.NewScene() })
+	defer RegisterSceneFactory(nil)
+	RegisterSceneRecorder(func(s SceneCache, w, h int) (Canvas, func()) {
 		return &noopCanvas{}, func() {}
 	})
 	defer RegisterSceneRecorder(nil)
@@ -204,7 +206,9 @@ func TestDrawBoundaryWidget_FallbackOnZeroBounds(t *testing.T) {
 }
 
 func TestDrawBoundaryWidget_CacheHit(t *testing.T) {
-	RegisterSceneRecorder(func(s *scene.Scene, w, h int) (Canvas, func()) {
+	RegisterSceneFactory(func() SceneCache { return scene.NewScene() })
+	defer RegisterSceneFactory(nil)
+	RegisterSceneRecorder(func(s SceneCache, w, h int) (Canvas, func()) {
 		return &noopCanvas{}, func() {}
 	})
 	defer RegisterSceneRecorder(nil)
@@ -240,7 +244,9 @@ func TestDrawBoundaryWidget_CacheHit(t *testing.T) {
 }
 
 func TestDrawBoundaryWidget_CacheInvalidation(t *testing.T) {
-	RegisterSceneRecorder(func(s *scene.Scene, w, h int) (Canvas, func()) {
+	RegisterSceneFactory(func() SceneCache { return scene.NewScene() })
+	defer RegisterSceneFactory(nil)
+	RegisterSceneRecorder(func(s SceneCache, w, h int) (Canvas, func()) {
 		return &noopCanvas{}, func() {}
 	})
 	defer RegisterSceneRecorder(nil)

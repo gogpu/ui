@@ -4,7 +4,6 @@ import (
 	"image"
 	"testing"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
@@ -193,7 +192,7 @@ func (c *clipStampCanvas) PopTransform()                             {}
 func (c *clipStampCanvas) TransformOffset() geometry.Point           { return c.transformOffset }
 func (c *clipStampCanvas) ScreenOriginBase() geometry.Point          { return c.screenOriginBase }
 func (c *clipStampCanvas) ClipBounds() geometry.Rect                 { return c.clipBounds }
-func (c *clipStampCanvas) ReplayScene(*scene.Scene)                  {}
+func (c *clipStampCanvas) ReplayScene(_ widget.SceneCache)           {}
 
 // --- BoundaryRecorder interface ---
 func (c *clipStampCanvas) IsBoundaryRecording() bool { return c.isBoundary }

@@ -1,7 +1,6 @@
 package scrollview_test
 
 import (
-	"github.com/gogpu/gg/scene"
 	"image"
 	"testing"
 
@@ -83,7 +82,7 @@ func (c *stubCanvas) PopTransform() {
 func (c *stubCanvas) TransformOffset() geometry.Point  { return geometry.Point{} }
 func (c *stubCanvas) ScreenOriginBase() geometry.Point { return geometry.Point{} }
 func (c *stubCanvas) ClipBounds() geometry.Rect        { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *stubCanvas) ReplayScene(_ *scene.Scene)       {}
+func (c *stubCanvas) ReplayScene(_ widget.SceneCache)  {}
 
 // --- Construction Tests ---
 

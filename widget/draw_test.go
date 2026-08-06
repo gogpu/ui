@@ -376,7 +376,7 @@ func (c *noopCanvas) PopTransform()                                {}
 func (c *noopCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (c *noopCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (c *noopCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (c *noopCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (c *noopCanvas) ReplayScene(_ SceneCache)                     {}
 
 var _ Canvas = (*noopCanvas)(nil)
 
@@ -825,6 +825,8 @@ func (w *animatingWidget) Children() []Widget                  { return nil }
 // boundary widget (spinner) remains dirty after drawBoundaryWidget completes.
 // Without this, spinner freezes after first frame (cache hit forever).
 func TestAnimatingBoundary_ReDirtiesSelfDuringDraw(t *testing.T) {
+	RegisterSceneFactory(func() SceneCache { return scene.NewScene() })
+	defer RegisterSceneFactory(nil)
 	RegisterSceneRecorder(stubSceneRecorder)
 	defer RegisterSceneRecorder(nil)
 
@@ -876,6 +878,8 @@ func TestAnimatingBoundary_ReDirtiesSelfDuringDraw(t *testing.T) {
 // widget's SetNeedsRedraw during Draw does NOT propagate to parent boundary.
 // Parent boundary must stay clean — only the animated widget re-records.
 func TestAnimatingBoundary_DoesNotDirtyParent(t *testing.T) {
+	RegisterSceneFactory(func() SceneCache { return scene.NewScene() })
+	defer RegisterSceneFactory(nil)
 	RegisterSceneRecorder(stubSceneRecorder)
 	defer RegisterSceneRecorder(nil)
 
@@ -920,6 +924,8 @@ func TestAnimatingBoundary_DoesNotDirtyParent(t *testing.T) {
 // a boundary and a child IS also a boundary, DrawTree reaches the child.
 // This is the gallery scenario: root boundary + spinner boundary.
 func TestDrawTree_RootBoundary_ChildBoundaryReached(t *testing.T) {
+	RegisterSceneFactory(func() SceneCache { return scene.NewScene() })
+	defer RegisterSceneFactory(nil)
 	RegisterSceneRecorder(stubSceneRecorder)
 	defer RegisterSceneRecorder(nil)
 
@@ -975,7 +981,7 @@ func TestDrawTree_RootBoundary_ChildBoundaryReached(t *testing.T) {
 // --- Test helpers for boundary draw ---
 
 // stubSceneRecorder creates a minimal scene recording canvas for tests.
-func stubSceneRecorder(s *scene.Scene, _, _ int) (Canvas, func()) {
+func stubSceneRecorder(_ SceneCache, _, _ int) (Canvas, func()) {
 	return &stubReplayCanvas{}, func() {}
 }
 
@@ -1006,7 +1012,7 @@ func (c *stubReplayCanvas) PopTransform()                                   {}
 func (c *stubReplayCanvas) TransformOffset() geometry.Point                 { return geometry.Point{} }
 func (c *stubReplayCanvas) ScreenOriginBase() geometry.Point                { return geometry.Point{} }
 func (c *stubReplayCanvas) ClipBounds() geometry.Rect                       { return geometry.NewRect(0, 0, 9999, 9999) }
-func (c *stubReplayCanvas) ReplayScene(s *scene.Scene)                      { c.replayCount++ }
+func (c *stubReplayCanvas) ReplayScene(s SceneCache)                        { c.replayCount++ }
 
 var _ Canvas = (*stubReplayCanvas)(nil)
 

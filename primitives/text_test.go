@@ -5,7 +5,6 @@ import (
 	"image"
 	"testing"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -58,7 +57,7 @@ func (c *styledMockCanvas) ScreenOriginBase() geometry.Point             { retur
 func (c *styledMockCanvas) ClipBounds() geometry.Rect {
 	return geometry.NewRect(0, 0, 10000, 10000)
 }
-func (c *styledMockCanvas) ReplayScene(_ *scene.Scene) {}
+func (c *styledMockCanvas) ReplayScene(_ widget.SceneCache) {}
 
 // StyledTextDrawer implementation.
 func (c *styledMockCanvas) DrawStyledText(text string, _ geometry.Rect, style widget.TextStyle) {

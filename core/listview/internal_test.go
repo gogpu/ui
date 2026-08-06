@@ -4,7 +4,6 @@ import (
 	"image"
 	"testing"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/cdk"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -888,7 +887,7 @@ func (m *mockCanvas) PopTransform()                                {}
 func (m *mockCanvas) TransformOffset() geometry.Point              { return geometry.Point{} }
 func (m *mockCanvas) ScreenOriginBase() geometry.Point             { return geometry.Point{} }
 func (m *mockCanvas) ClipBounds() geometry.Rect                    { return geometry.NewRect(0, 0, 10000, 10000) }
-func (m *mockCanvas) ReplayScene(_ *scene.Scene)                   {}
+func (m *mockCanvas) ReplayScene(_ widget.SceneCache)              {}
 
 // --- Decorator + RepaintBoundary integration tests ---
 

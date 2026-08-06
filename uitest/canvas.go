@@ -3,7 +3,6 @@ package uitest
 import (
 	"image"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
@@ -328,7 +327,7 @@ func (c *MockCanvas) ClipBounds() geometry.Rect {
 }
 
 // ReplayScene is a no-op for the mock canvas.
-func (c *MockCanvas) ReplayScene(_ *scene.Scene) {}
+func (c *MockCanvas) ReplayScene(_ widget.SceneCache) {}
 
 // Reset clears all recorded calls, returning the canvas to its initial state.
 func (c *MockCanvas) Reset() {

@@ -3,7 +3,6 @@ package widget
 import (
 	"sync"
 
-	"github.com/gogpu/gg/scene"
 	"github.com/gogpu/ui/geometry"
 )
 
@@ -69,18 +68,18 @@ type WidgetBase struct {
 	mounted           bool           // Whether widget is currently mounted
 
 	// --- RepaintBoundary property (ADR-024) ---
-	// When isRepaintBoundary is true, this widget owns a scene.Scene that
+	// When isRepaintBoundary is true, this widget owns a SceneCache that
 	// caches its subtree rendering. Clean boundaries replay cached content
 	// instead of re-executing Draw on every descendant.
 	isRepaintBoundary     bool
-	boundaryCacheKey      uint64       // Unique ID for dirty-set deduplication
-	cachedScene           *scene.Scene // Recorded display list for the subtree
-	sceneDirty            bool         // Whether the cached scene needs re-recording
-	sceneCacheVersion     uint64       // Monotonic counter (increments on re-record)
-	sceneCacheWidth       int          // Cache dimensions for size-change detection
-	sceneCacheHeight      int          // Cache dimensions for size-change detection
-	onBoundaryDirty       func()       // Callback when boundary transitions to dirty
-	suppressDirtyCallback bool         // Suppressed during Draw recording (animation defers render)
+	boundaryCacheKey      uint64     // Unique ID for dirty-set deduplication
+	cachedScene           SceneCache // Recorded display list for the subtree
+	sceneDirty            bool       // Whether the cached scene needs re-recording
+	sceneCacheVersion     uint64     // Monotonic counter (increments on re-record)
+	sceneCacheWidth       int        // Cache dimensions for size-change detection
+	sceneCacheHeight      int        // Cache dimensions for size-change detection
+	onBoundaryDirty       func()     // Callback when boundary transitions to dirty
+	suppressDirtyCallback bool       // Suppressed during Draw recording (animation defers render)
 
 	// --- Compositor clip (for per-boundary GPU textures) ---
 	// When this boundary is skipped during parent BoundaryRecording (DrawChild),

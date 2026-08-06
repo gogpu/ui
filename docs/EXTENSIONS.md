@@ -597,12 +597,22 @@ import _ "github.com/yourname/ui-extension"
 
 | gogpu/ui | Extension API |
 |----------|---------------|
-| Phase 1.x | Stable (registry, theme, layout, plugin) |
-| Phase 2.x | Stable + interactive widgets (button, checkbox, radio, textfield, dropdown) + Painter pattern + overlay |
-| Phase 3.x | Stable + slider, dialog, scrollview, tabview, animation, RepaintBoundary, scene.Scene tile-parallel rendering |
-| Phase 4.x | Stable + 22 interactive widgets, 3 design systems (M3/Fluent/Cupertino), i18n, dnd, icon, uitest |
+| v0.1.x (current) | Stable: registry, theme, layout, plugin, 26 interactive widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), i18n, dnd, icon, uitest, LayoutMetrics (ADR-034), Painter pattern, overlay, RepaintBoundary, Layer Tree compositor |
 
-The extension API is stable and will remain compatible across future releases.
+**Implemented extension points:**
+- Widget Registry (`registry/`) — register/create widgets by name
+- ThemeExtension (`theme/extension.go`) — extend themes with custom properties
+- Public Layout API (`layout/`) — pluggable layout algorithms
+- Plugin System (`plugin/`) — bundle widgets, themes, layouts with dependency resolution
+- Content\[C\] CDK (`cdk/`) — polymorphic content rendering
+- Pluggable Painter (`core/*/painter.go`) — design-system-agnostic rendering
+- LayoutMetrics (`core/*/painter.go`) — painters control spatial metrics (7 widgets)
+
+**Planned (ADR-034 Phase 3 remaining):**
+- ThemeBundle (`theme/bundle.go`) — interface defined, no built-in implementations yet
+- `app.WithThemeBundle()` — one-call theme installation
+
+The extension API is stable within v0.x and will remain compatible across future releases.
 
 ---
 

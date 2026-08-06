@@ -189,8 +189,8 @@ func (w *containerTestWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 func (w *containerTestWidget) Event(_ widget.Context, _ event.Event) bool { return false }
 func (w *containerTestWidget) Children() []widget.Widget                  { return w.children }
 
-// testSceneRecorder creates a SceneCanvas for recording into scene.Scene.
-func testSceneRecorder(s *scene.Scene, w, h int) (widget.Canvas, func()) {
-	rec := internalRender.NewSceneCanvas(s, w, h)
+// testSceneRecorder creates a SceneCanvas for recording into SceneCache.
+func testSceneRecorder(s widget.SceneCache, w, h int) (widget.Canvas, func()) {
+	rec := internalRender.NewSceneCanvas(s.(*scene.Scene), w, h)
 	return rec, rec.Close
 }

@@ -1527,7 +1527,7 @@ This lets the same widget render as Material 3, Fluent, or Cupertino by swapping
 
 **LayoutMetrics (ADR-034):** Widgets define an optional `LayoutMetrics` interface that painters can implement to control spatial metrics (height, padding, font size, corner radius). Widgets query via type assertion with DefaultPainter fallback. This is the Qt `QStyle::pixelMetric` pattern — themes control dimensions without touching behavior.
 
-**ThemeBundle:** `theme.Bundle` interface packages all painters for complete theme installation. Community themes implement `Bundle` to provide a full design system via `app.WithThemeBundle()`.
+**ThemeBundle:** `theme.Bundle` interface (defined in `theme/bundle.go`) packages all painters for complete theme installation. Interface is defined but built-in implementations (M3, DevTools, Fluent, Cupertino) and `app.WithThemeBundle()` are not yet available (ADR-034 Phase 3 remaining work).
 
 ### 6. Opt-in Lifecycle for Signal Binding
 
