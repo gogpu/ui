@@ -1,8 +1,6 @@
 package textfield
 
 import (
-	"fmt"
-
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/internal/textmetrics"
@@ -253,9 +251,6 @@ func (w *Widget) ensureCursorVisible(tm *textmetrics.Metrics, contentRect geomet
 
 	// Apply current scroll offset to get the visual cursor position.
 	visualCursorX := cursorRelative + w.scrollOffsetX
-
-	fmt.Printf("[SCROLL] cursor=%d cursorRel=%.1f scrollX=%.1f visualX=%.1f contentW=%.1f textW=%.1f\n",
-		w.sel.cursor, cursorRelative, w.scrollOffsetX, visualCursorX, contentWidth, fullTextWidth)
 
 	// If cursor is past the right edge, scroll left to reveal it.
 	if visualCursorX > contentWidth-scrollMargin {
