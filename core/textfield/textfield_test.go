@@ -1161,6 +1161,312 @@ func TestPaintState_ColorScheme(t *testing.T) {
 	_ = ps
 }
 
+// --- Horizontal Scroll Tests (Issue #212) ---
+
+// narrowFieldWidth creates a narrow field width where text will overflow.
+// With default painter: contentPaddingH=12 on each side, so content area = 80-24 = 56px.
+// With MeasureText returning len(runes)*fontSize*0.5, at fontSize=14 each rune = 7px.
+// So 8 runes = 56px fills the content area, 9+ triggers scrolling.
+const narrowFieldWidth float32 = 80
+
+func newNarrowField(text string) (*textfield.Widget, widget.Context, *testPainter) {
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.InitialValue(text),
+		textfield.PainterOpt(p),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, narrowFieldWidth, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	return tf, ctx, p
+}
+
+func TestScroll_NoScrollWhenTextFits(t *testing.T) {
+	tf, ctx, p := newNarrowField("short")
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if tf.ScrollOffsetX() != 0 {
+		t.Errorf("scrollOffsetX = %v, want 0 (text fits)", tf.ScrollOffsetX())
+	}
+	// Cursor should be within content rect.
+	if p.state.ShowCursor && p.state.CursorRect.Min.X < p.state.ContentRect.Min.X {
+		t.Error("cursor should be within content rect when text fits")
+	}
+}
+
+func TestScroll_ScrollsWhenTextOverflows(t *testing.T) {
+	// "abcdefghijklmnop" = 16 runes * 7px = 112px, content area ~56px.
+	// Cursor starts at end (position 16). Text must scroll left.
+	tf, ctx, _ := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	if tf.ScrollOffsetX() >= 0 {
+		t.Errorf("scrollOffsetX = %v, want < 0 (text overflows, cursor at end)", tf.ScrollOffsetX())
+	}
+}
+
+func TestScroll_CursorVisibleAfterTyping(t *testing.T) {
+	tf, ctx, p := newNarrowField("")
+	canvas := &mockCanvas{}
+
+	// Type characters until text overflows the content area.
+	for _, r := range "abcdefghijklmnop" {
+		typeRune(tf, ctx, r)
+	}
+
+	tf.Draw(ctx, canvas)
+
+	// Cursor must be visible within content rect.
+	if p.state.ShowCursor {
+		cr := p.state.CursorRect
+		ct := p.state.ContentRect
+		if cr.Min.X < ct.Min.X || cr.Min.X > ct.Max.X {
+			t.Errorf("cursor at X=%v outside content rect [%v, %v]",
+				cr.Min.X, ct.Min.X, ct.Max.X)
+		}
+	}
+}
+
+func TestScroll_HomeResetsScroll(t *testing.T) {
+	tf, ctx, p := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	// Draw once to establish scroll state (cursor at end).
+	tf.Draw(ctx, canvas)
+	scrollBefore := tf.ScrollOffsetX()
+	if scrollBefore >= 0 {
+		t.Fatalf("precondition failed: scrollOffsetX = %v, want < 0", scrollBefore)
+	}
+
+	// Press Home to go to position 0.
+	pressKey(tf, ctx, event.KeyHome, event.ModNone)
+	tf.Draw(ctx, canvas)
+
+	// After Home, cursor is at position 0. Scroll should adjust toward 0
+	// (showing text from the beginning).
+	if tf.ScrollOffsetX() != 0 {
+		t.Errorf("scrollOffsetX = %v after Home, want 0", tf.ScrollOffsetX())
+	}
+
+	// Cursor should be near the left edge of content rect.
+	if p.state.ShowCursor {
+		cr := p.state.CursorRect
+		ct := p.state.ContentRect
+		// Cursor at Home should be at or very near the content rect left edge.
+		if cr.Min.X < ct.Min.X || cr.Min.X > ct.Min.X+10 {
+			t.Errorf("cursor at Home X=%v, expected near content left %v", cr.Min.X, ct.Min.X)
+		}
+	}
+}
+
+func TestScroll_EndScrollsToShowCursor(t *testing.T) {
+	tf, ctx, p := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	// Move to Home first.
+	pressKey(tf, ctx, event.KeyHome, event.ModNone)
+	tf.Draw(ctx, canvas)
+	if tf.ScrollOffsetX() != 0 {
+		t.Fatalf("precondition failed: scroll should be 0 after Home")
+	}
+
+	// Press End to go to end.
+	pressKey(tf, ctx, event.KeyEnd, event.ModNone)
+	tf.Draw(ctx, canvas)
+
+	if tf.ScrollOffsetX() >= 0 {
+		t.Errorf("scrollOffsetX = %v after End, want < 0", tf.ScrollOffsetX())
+	}
+
+	// Cursor at end should be visible within content rect.
+	if p.state.ShowCursor {
+		cr := p.state.CursorRect
+		ct := p.state.ContentRect
+		if cr.Min.X > ct.Max.X {
+			t.Errorf("cursor at End X=%v exceeds content right edge %v", cr.Min.X, ct.Max.X)
+		}
+	}
+}
+
+func TestScroll_ArrowLeftScrollsBack(t *testing.T) {
+	tf, ctx, _ := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	// Cursor starts at end, text is scrolled left.
+	tf.Draw(ctx, canvas)
+	scrollEnd := tf.ScrollOffsetX()
+
+	// Press left arrow multiple times to move cursor back.
+	for i := 0; i < 10; i++ {
+		pressKey(tf, ctx, event.KeyLeft, event.ModNone)
+	}
+	tf.Draw(ctx, canvas)
+
+	// Scroll should have changed (less negative or zero).
+	if tf.ScrollOffsetX() <= scrollEnd {
+		t.Errorf("scrollOffsetX = %v after leftward movement, expected > %v",
+			tf.ScrollOffsetX(), scrollEnd)
+	}
+}
+
+func TestScroll_BackspaceAdjustsScroll(t *testing.T) {
+	tf, ctx, _ := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	// Draw to establish initial scroll.
+	tf.Draw(ctx, canvas)
+
+	// Delete all characters via backspace.
+	for range 16 {
+		pressKey(tf, ctx, event.KeyBackspace, event.ModNone)
+	}
+	tf.Draw(ctx, canvas)
+
+	// After deleting all text, scroll should reset to 0.
+	if tf.ScrollOffsetX() != 0 {
+		t.Errorf("scrollOffsetX = %v after deleting all text, want 0", tf.ScrollOffsetX())
+	}
+}
+
+func TestScroll_OffsetNeverPositive(t *testing.T) {
+	tf, ctx, _ := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	// Home.
+	pressKey(tf, ctx, event.KeyHome, event.ModNone)
+	tf.Draw(ctx, canvas)
+
+	if tf.ScrollOffsetX() > 0 {
+		t.Errorf("scrollOffsetX = %v, must never be > 0", tf.ScrollOffsetX())
+	}
+
+	// Keep pressing left at position 0.
+	pressKey(tf, ctx, event.KeyLeft, event.ModNone)
+	tf.Draw(ctx, canvas)
+
+	if tf.ScrollOffsetX() > 0 {
+		t.Errorf("scrollOffsetX = %v after left at pos 0, must never be > 0", tf.ScrollOffsetX())
+	}
+}
+
+func TestScroll_ScrollOffsetXGetter(t *testing.T) {
+	tf := textfield.New()
+	if tf.ScrollOffsetX() != 0 {
+		t.Errorf("new widget scrollOffsetX = %v, want 0", tf.ScrollOffsetX())
+	}
+}
+
+func TestScroll_CursorRectWithinContentRect(t *testing.T) {
+	// Verify cursor rect stays within content rect bounds after scrolling.
+	tf, ctx, p := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	// Test at various cursor positions.
+	positions := []event.Key{event.KeyHome, event.KeyEnd}
+	for _, key := range positions {
+		pressKey(tf, ctx, key, event.ModNone)
+		tf.Draw(ctx, canvas)
+
+		if p.state.ShowCursor {
+			cr := p.state.CursorRect
+			ct := p.state.ContentRect
+			// CursorRect.Min.X should be within ContentRect horizontal bounds
+			// (with a small margin tolerance for scrollMargin).
+			if cr.Min.X < ct.Min.X-1 || cr.Min.X > ct.Max.X+1 {
+				t.Errorf("key=%v: cursor X=%v outside content rect [%v, %v]",
+					key, cr.Min.X, ct.Min.X, ct.Max.X)
+			}
+		}
+	}
+}
+
+func TestScroll_ContentRectUnchangedByScroll(t *testing.T) {
+	// Verify that ContentRect in PaintState is the original (unscrolled) rect,
+	// ensuring painters clip to the correct visible area.
+	tf, ctx, p := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	tf.Draw(ctx, canvas)
+
+	// ContentRect should match the bounds minus padding, NOT shifted by scroll.
+	bounds := tf.Bounds()
+	cr := p.state.ContentRect
+	if cr.Min.X <= bounds.Min.X {
+		t.Errorf("ContentRect.Min.X=%v should be > bounds.Min.X=%v (padding)", cr.Min.X, bounds.Min.X)
+	}
+	if cr.Max.X >= bounds.Max.X {
+		t.Errorf("ContentRect.Max.X=%v should be < bounds.Max.X=%v (padding)", cr.Max.X, bounds.Max.X)
+	}
+}
+
+func TestScroll_MouseClickWithScroll(t *testing.T) {
+	// When text is scrolled, a click at the left edge of the field
+	// should position the cursor at the first visible rune, not rune 0.
+	tf, ctx, _ := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+
+	// Draw to establish scroll state (cursor at end, text scrolled left).
+	tf.Draw(ctx, canvas)
+	if tf.ScrollOffsetX() >= 0 {
+		t.Fatalf("precondition: expected scroll < 0 for overflowing text")
+	}
+
+	// Click at the left edge of the content area (just inside padding).
+	// With scroll active, this should NOT place cursor at position 0.
+	leftEdge := geometry.Pt(13, 24) // Just past the 12px left padding.
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		leftEdge, leftEdge, event.ModNone)
+	tf.Event(ctx, press)
+
+	// The cursor should be at a position > 0 because text is scrolled.
+	if tf.CursorPosition() == 0 {
+		t.Error("click at left edge with scroll should not place cursor at position 0")
+	}
+}
+
+func TestScroll_DeleteReducesScroll(t *testing.T) {
+	// After deleting text that makes the remaining text fit, scroll should reset.
+	tf, ctx, _ := newNarrowField("abcdefghijklmnop")
+	canvas := &mockCanvas{}
+	tf.Draw(ctx, canvas)
+
+	// Select all and delete.
+	pressKey(tf, ctx, event.KeyA, event.ModCtrl)
+	pressKey(tf, ctx, event.KeyBackspace, event.ModNone)
+	tf.Draw(ctx, canvas)
+
+	if tf.ScrollOffsetX() != 0 {
+		t.Errorf("scrollOffsetX = %v after clearing all text, want 0", tf.ScrollOffsetX())
+	}
+}
+
+func TestScroll_PasteTriggersScroll(t *testing.T) {
+	tf, ctx, _ := newNarrowField("")
+	canvas := &mockCanvas{}
+
+	// Type "ab", select all, copy.
+	typeRune(tf, ctx, 'a')
+	typeRune(tf, ctx, 'b')
+	pressKey(tf, ctx, event.KeyA, event.ModCtrl)
+	pressKey(tf, ctx, event.KeyC, event.ModCtrl)
+	pressKey(tf, ctx, event.KeyEnd, event.ModNone)
+
+	// Paste many times to overflow.
+	for range 10 {
+		pressKey(tf, ctx, event.KeyV, event.ModCtrl)
+	}
+	tf.Draw(ctx, canvas)
+
+	// Text should now be "ab" * 10 + "ab" = 22 chars, definitely overflowing.
+	if tf.ScrollOffsetX() >= 0 {
+		t.Errorf("scrollOffsetX = %v after pasting overflow text, want < 0", tf.ScrollOffsetX())
+	}
+}
+
 // --- Helper functions ---
 
 func typeRune(tf *textfield.Widget, ctx widget.Context, r rune) bool {

@@ -1,6 +1,8 @@
 package textfield
 
 import (
+	"fmt"
+
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/internal/textmetrics"
@@ -38,6 +40,12 @@ type Widget struct {
 
 	// Styling overrides set via fluent methods.
 	padding float32
+
+	// Horizontal scroll offset (always <= 0). When text exceeds the visible
+	// content area, this shifts the text left so the cursor stays visible.
+	// Enterprise references: Flutter RenderEditable._showCaretOnScreen(),
+	// Qt QLineEdit d->hscroll, HTML input.scrollLeft.
+	scrollOffsetX float32
 
 	// Cached text metrics from last Draw call, used by event handlers
 	// (positionFromMouse) that don't have access to canvas.
@@ -149,24 +157,34 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	// Build text metrics for cursor/selection computation.
 	tm := &textmetrics.Metrics{Canvas: canvas, FontSize: fontSize}
 
+	// Ensure cursor is visible within the content rect (adjusts scrollOffsetX).
+	w.ensureCursorVisible(tm, contentRect, displayText)
+
+	// Create a scrolled content rect for text/cursor/selection positioning.
+	// The scrolled rect shifts the text origin by scrollOffsetX while the
+	// clip rect (ContentRect) stays at the original position.
+	scrolledRect := contentRect
+	scrolledRect.Min.X += w.scrollOffsetX
+	scrolledRect.Max.X += w.scrollOffsetX
+
 	// Cache for event handlers (positionFromMouse).
 	w.cachedMetrics = tm
 	w.cachedContentRect = contentRect
 	w.cachedDisplayText = displayText
 	w.cachedFontSize = fontSize
 
-	// Compute cursor rect (if applicable).
+	// Compute cursor rect (if applicable) using the scrolled content rect.
 	showCursor := focused && !disabled && !hasSelection
 	var cursorRect geometry.Rect
 	if showCursor {
-		cursorRect = tm.CursorRect(contentRect, displayText, w.sel.cursor, cw)
+		cursorRect = tm.CursorRect(scrolledRect, displayText, w.sel.cursor, cw)
 	}
 
-	// Compute selection rect (if applicable).
+	// Compute selection rect (if applicable) using the scrolled content rect.
 	showSelection := hasSelection
 	var selectionRect geometry.Rect
 	if showSelection {
-		selectionRect = tm.SelectionRect(contentRect, displayText, w.sel.anchor, w.sel.cursor)
+		selectionRect = tm.SelectionRect(scrolledRect, displayText, w.sel.anchor, w.sel.cursor)
 	}
 
 	w.painter.PaintTextField(canvas, &PaintState{
@@ -187,12 +205,80 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		// Pre-computed fields.
 		DisplayText:   displayText,
 		ContentRect:   contentRect,
+		TextRect:      scrolledRect,
 		CursorRect:    cursorRect,
 		SelectionRect: selectionRect,
 		ShowCursor:    showCursor,
 		ShowSelection: showSelection,
 		FontSize:      fontSize,
 	})
+}
+
+// scrollMargin is the horizontal margin in pixels to keep between the cursor
+// and the visible edge when scrolling. Prevents the cursor from sitting
+// exactly at the boundary, matching Flutter's _kCaretGap behavior.
+const scrollMargin float32 = 2
+
+// ensureCursorVisible adjusts scrollOffsetX so the cursor stays within the
+// visible content rect. Called during Draw() after layout metrics are resolved.
+//
+// scrollOffsetX is always <= 0 (text shifts left when overflowing right).
+// When text fits entirely within contentRect, scrollOffsetX is clamped to 0.
+func (w *Widget) ensureCursorVisible(tm *textmetrics.Metrics, contentRect geometry.Rect, displayText string) {
+	// Measure the full text width.
+	fullTextWidth := tm.Canvas.MeasureText(displayText, tm.FontSize, false)
+	contentWidth := contentRect.Width()
+
+	// If text fits, no scrolling needed.
+	if fullTextWidth <= contentWidth {
+		w.scrollOffsetX = 0
+		return
+	}
+
+	// Compute cursor X offset from content origin using MeasureText directly
+	// (NOT CursorX, which clamps to contentRect.Max.X and would hide overflow).
+	runes := []rune(displayText)
+	runePos := w.sel.cursor
+	if runePos > len(runes) {
+		runePos = len(runes)
+	}
+	var cursorRelative float32
+	if runePos > 0 {
+		cursorRelative = tm.Canvas.MeasureText(string(runes[:runePos]), tm.FontSize, false)
+	}
+
+	// Apply current scroll offset to get the visual cursor position.
+	visualCursorX := cursorRelative + w.scrollOffsetX
+
+	fmt.Printf("[SCROLL] cursor=%d cursorRel=%.1f scrollX=%.1f visualX=%.1f contentW=%.1f textW=%.1f\n",
+		w.sel.cursor, cursorRelative, w.scrollOffsetX, visualCursorX, contentWidth, fullTextWidth)
+
+	// If cursor is past the right edge, scroll left to reveal it.
+	if visualCursorX > contentWidth-scrollMargin {
+		w.scrollOffsetX = contentWidth - scrollMargin - cursorRelative
+	}
+
+	// If cursor is past the left edge, scroll right to reveal it.
+	if visualCursorX < scrollMargin {
+		w.scrollOffsetX = scrollMargin - cursorRelative
+	}
+
+	// Clamp: never scroll right of origin (would show empty space on left).
+	if w.scrollOffsetX > 0 {
+		w.scrollOffsetX = 0
+	}
+
+	// Clamp: never scroll so far left that right side shows empty space.
+	maxScroll := -(fullTextWidth - contentWidth)
+	if w.scrollOffsetX < maxScroll {
+		w.scrollOffsetX = maxScroll
+	}
+}
+
+// ScrollOffsetX returns the current horizontal scroll offset.
+// This value is always <= 0. A value of 0 means no scrolling.
+func (w *Widget) ScrollOffsetX() float32 {
+	return w.scrollOffsetX
 }
 
 // resolveLayoutMetrics returns the LayoutMetrics from the painter if it

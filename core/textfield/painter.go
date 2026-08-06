@@ -41,7 +41,13 @@ type PaintState struct {
 	DisplayText string
 
 	// ContentRect is the inner text area (bounds minus theme padding).
+	// Used for clipping (PushClip) — NOT shifted by scroll.
 	ContentRect geometry.Rect
+
+	// TextRect is the text drawing area, shifted by horizontal scroll offset.
+	// When text overflows, TextRect.Min.X < ContentRect.Min.X (text shifted left).
+	// Painters draw text into TextRect but clip to ContentRect.
+	TextRect geometry.Rect
 
 	// CursorRect is the cursor line rectangle (zero if no cursor).
 	CursorRect geometry.Rect
@@ -192,7 +198,7 @@ func paintContent(canvas widget.Canvas, st *PaintState, colors TextFieldColorSch
 		canvas.DrawRect(st.SelectionRect, colors.SelectionBg)
 	}
 
-	canvas.DrawText(st.DisplayText, st.ContentRect, fontSize, textColor, false, textAlignLeft)
+	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, textAlignLeft)
 }
 
 // paintCursorFromState draws the cursor using pre-computed CursorRect.
