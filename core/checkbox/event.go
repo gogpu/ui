@@ -104,8 +104,10 @@ func handleActivationKey(w *Widget, e *event.KeyEvent) bool {
 	}
 }
 
-// fireToggle toggles the checked state and calls the configured onToggle handler.
+// fireToggle plays the click sound, toggles the checked state, and calls the
+// configured onToggle handler.
 func fireToggle(w *Widget) {
+	widget.PlaySound(widget.SoundClick)
 	newChecked := !w.cfg.ResolvedChecked()
 	// TWO-WAY: if a CheckedSignal is bound, write back the new state.
 	if w.cfg.checkedSignal != nil {

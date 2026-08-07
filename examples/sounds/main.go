@@ -20,6 +20,9 @@ import (
 )
 
 func main() {
+	// Enable platform sounds globally. All interactive widgets (button,
+	// checkbox, radio, dropdown, collapsible, tabview, menu) now auto-play
+	// a click sound on activation — no manual sound.Play needed.
 	sound.SetEnabled(true)
 
 	m3 := material3.New(widget.Hex(0x1565C0))
@@ -30,14 +33,13 @@ func main() {
 
 	root := primitives.VBox(
 		primitives.Text("System Sounds Demo").FontSize(22).Bold(),
-		primitives.Text("Every interaction plays a platform system sound").
+		primitives.Text("Widgets auto-play sounds — no manual sound.Play needed").
 			FontSize(13).Color(widget.RGBA(0.5, 0.5, 0.5, 1)),
 
-		primitives.Text("Checkboxes").FontSize(16).Bold(),
+		primitives.Text("Checkboxes (auto click sound)").FontSize(16).Bold(),
 		checkbox.New(
 			checkbox.LabelOpt("Enable notifications"),
 			checkbox.OnToggle(func(checked bool) {
-				sound.Play(sound.Click)
 				fmt.Println("notifications:", checked)
 			}),
 			checkbox.PainterOpt(cp),
@@ -45,13 +47,12 @@ func main() {
 		checkbox.New(
 			checkbox.LabelOpt("Dark mode"),
 			checkbox.OnToggle(func(checked bool) {
-				sound.Play(sound.Click)
 				fmt.Println("dark mode:", checked)
 			}),
 			checkbox.PainterOpt(cp),
 		),
 
-		primitives.Text("Theme").FontSize(16).Bold(),
+		primitives.Text("Radio (auto click sound)").FontSize(16).Bold(),
 		radio.NewGroup(
 			radio.Items(
 				radio.ItemDef{Value: "light", Label: "Light"},
@@ -60,13 +61,12 @@ func main() {
 			),
 			radio.Selected("light"),
 			radio.OnChange(func(v string) {
-				sound.Play(sound.Click)
 				fmt.Println("theme:", v)
 			}),
 			radio.GroupPainter(rp),
 		),
 
-		primitives.Text("Volume").FontSize(16).Bold(),
+		primitives.Text("Slider (no sound — continuous drag)").FontSize(16).Bold(),
 		slider.New(
 			slider.Min(0),
 			slider.Max(100),
@@ -77,6 +77,29 @@ func main() {
 			slider.PainterOpt(sp),
 		),
 
+		primitives.Text("Buttons (auto click sound)").FontSize(16).Bold(),
+		primitives.HBox(
+			button.New(
+				button.Text("Action 1"),
+				button.OnClick(func() { fmt.Println("action 1") }),
+				button.PainterOpt(bp),
+				button.VariantOpt(button.Filled),
+			),
+			button.New(
+				button.Text("Action 2"),
+				button.OnClick(func() { fmt.Println("action 2") }),
+				button.PainterOpt(bp),
+				button.VariantOpt(button.Tonal),
+			),
+			button.New(
+				button.Text("Action 3"),
+				button.OnClick(func() { fmt.Println("action 3") }),
+				button.PainterOpt(bp),
+				button.VariantOpt(button.Outlined),
+			),
+		).Gap(8),
+
+		primitives.Text("Special sounds (manual)").FontSize(16).Bold(),
 		primitives.HBox(
 			button.New(
 				button.Text("Success"),
@@ -101,7 +124,7 @@ func main() {
 
 	gogpuApp := gogpu.NewApp(gogpu.DefaultConfig().
 		WithTitle("gogpu/ui — System Sounds").
-		WithSize(400, 520))
+		WithSize(400, 600))
 
 	uiApp := app.New(
 		app.WithWindowProvider(gogpuApp),
