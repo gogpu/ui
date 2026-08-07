@@ -232,6 +232,8 @@ func (w *Widget) selectItem(ctx widget.Context, index int) {
 		return
 	}
 
+	widget.PlaySound(widget.SoundClick)
+
 	w.selectedIndex = index
 
 	// Update signal if bound.

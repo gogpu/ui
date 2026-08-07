@@ -190,6 +190,7 @@ func (w *Widget) selectTab(idx int) {
 	if idx == w.cfg.ResolvedSelected() {
 		return
 	}
+	widget.PlaySound(widget.SoundClick)
 	w.cfg.setSelected(idx)
 	if w.cfg.onSelect != nil {
 		w.cfg.onSelect(idx)

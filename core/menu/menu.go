@@ -239,6 +239,7 @@ func (m *menuPanel) activateHighlighted(ctx widget.Context) bool {
 
 // selectItem fires the item's action and closes the entire menu tree.
 func (m *menuPanel) selectItem(item *MenuItem) {
+	widget.PlaySound(widget.SoundClick)
 	if m.onSelect != nil {
 		m.onSelect(item)
 	}

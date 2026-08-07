@@ -79,6 +79,8 @@ func (w *Widget) Show(ctx widget.Context) {
 		return
 	}
 
+	widget.PlaySound(widget.SoundAlert)
+
 	w.visible = true
 	w.SetVisible(true)
 

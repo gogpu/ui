@@ -105,8 +105,9 @@ func handleActivationKey(w *Widget, e *event.KeyEvent) bool {
 	}
 }
 
-// fireOnClick calls the configured onClick handler if present.
+// fireOnClick plays the click sound and calls the configured onClick handler.
 func fireOnClick(w *Widget) {
+	widget.PlaySound(widget.SoundClick)
 	if w.cfg.onClick != nil {
 		w.cfg.onClick()
 	}

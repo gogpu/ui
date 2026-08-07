@@ -133,6 +133,8 @@ func (g *Group) selectValue(value string) *Item {
 		return nil
 	}
 
+	widget.PlaySound(widget.SoundClick)
+
 	// TWO-WAY: if a SelectedSignal is bound, write back the new value.
 	if selectedSignal != nil {
 		selectedSignal.Set(value)

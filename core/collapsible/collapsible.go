@@ -315,6 +315,8 @@ func (w *Widget) Unmount() {
 
 // setExpandedState updates the expanded state and starts animation if needed.
 func (w *Widget) setExpandedState(expanded bool) {
+	widget.PlaySound(widget.SoundClick)
+
 	// Update state source.
 	if w.cfg.expandedSignal != nil {
 		w.cfg.expandedSignal.Set(expanded)
