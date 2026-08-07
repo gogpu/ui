@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.51] — 2026-08-07
 
 ### Added
 
-- **examples/sounds** — system sounds demo with checkbox, radio, slider, and button interactions using platform-native `gogpu/sound`. Demonstrates `sound.Play(sound.Click)` for UI feedback.
+- **Auto-play UI sound feedback** (ADR-037) — interactive widgets automatically play platform system sounds on user interaction when `sound.SetEnabled(true)`. DI pattern via `widget.RegisterSoundPlayer()` — widget code never imports `gogpu/sound`. Auto-play: button, checkbox, radio, dropdown, collapsible, tabview, dialog (Alert), menu. No sound on slider (continuous drag).
+- **examples/sounds** — system sounds demo showcasing auto-play with checkbox, radio, slider, and buttons. Includes manual `sound.Play(sound.Success/Warning/Error)` examples.
 
 ### Fixed
 
@@ -25,10 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changed: `WidgetBase.CachedScene()` / `SetCachedScene()` types → `SceneCache`
   - Changed: `SceneRecorder` function signature uses `SceneCache`
   - 92 files changed, rendering layer uses type assertions where concrete `*scene.Scene` needed
-- **deps:** gg v0.50.11 → v0.50.13, gogpu v0.48.5 → v0.50.0, wgpu v0.30.35 → v0.30.36
-  - **gg v0.50.13:** `Face.Advance()` returns hinted advances matching `drawGlyphs` — fixes cursor drift on wide Cyrillic glyphs (gg#479).
-  - **gogpu v0.50.0:** outgoing drag-and-drop, per-pixel-alpha transparency, window Show/Hide/SetPosition/SetSize API, macOS menu Role+Action fix.
-  - **wgpu v0.30.36:** Vulkan present semaphore fix.
+- **deps:** gg v0.50.11 → v0.50.14, gogpu v0.48.5 → v0.50.2, wgpu v0.30.35 → v0.30.37
+  - **gg v0.50.14:** hinted advances (gg#479), deps update, removed deprecated LoadFontFace.
+  - **gogpu v0.50.2:** 12 system sound types with correct platform mapping (gogpu#433), `WithSoundFeedback(true)`, outgoing DnD, per-pixel-alpha, window API.
+  - **wgpu v0.30.37:** fixes.
 
 ## [0.1.50] — 2026-08-03
 
