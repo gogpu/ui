@@ -112,15 +112,21 @@ func handleDoubleClick(w *Widget, ctx widget.Context, e *event.MouseEvent) bool 
 // Uses cached text metrics from the last Draw call for accurate hit-testing.
 // Falls back to proportional approximation when no cached metrics are available
 // (e.g., before the first draw).
+//
+// When horizontal scroll is active, the mouse X is adjusted by the inverse
+// of scrollOffsetX to map screen coordinates back to text coordinates.
 func positionFromMouse(w *Widget, e *event.MouseEvent) int {
 	runes := w.textRunes()
 
 	// Use cached metrics from last Draw if available.
 	if w.cachedMetrics != nil {
+		// Adjust mouse X by inverse of scroll offset: the text is shifted
+		// by scrollOffsetX, so the unscrolled X is (mouseX - scrollOffsetX).
+		adjustedX := e.Position.X - w.scrollOffsetX
 		return w.cachedMetrics.RuneIndexFromX(
 			w.cachedContentRect,
 			w.cachedDisplayText,
-			e.Position.X,
+			adjustedX,
 		)
 	}
 
@@ -128,7 +134,7 @@ func positionFromMouse(w *Widget, e *event.MouseEvent) int {
 	lm := resolveLayoutMetrics(w.painter)
 	hPad, _ := lm.ContentPadding()
 	bounds := w.Bounds()
-	localX := e.Position.X - bounds.Min.X - hPad
+	localX := e.Position.X - bounds.Min.X - hPad - w.scrollOffsetX
 
 	if localX <= 0 {
 		return 0
