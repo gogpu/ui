@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **examples/sounds** — system sounds demo with checkbox, radio, slider, and button interactions using platform-native `gogpu/sound`. Demonstrates `sound.Play(sound.Click)` for UI feedback.
+
+### Fixed
+
+- **fix(textfield): cursor rounding** ([#211](https://github.com/gogpu/ui/issues/211)) — `CursorX` base X now rounded with `math.Round` to match `DrawText`'s pixel-grid rounding. Eliminates constant cursor-to-text offset (up to 0.5px).
+- **fix(textfield): horizontal scroll** ([#212](https://github.com/gogpu/ui/issues/212)) — TextField scrolls text horizontally when content exceeds field width. `ensureCursorVisible()` keeps cursor within visible area (Flutter `_showCaretOnScreen` pattern). `TextRect` in PaintState separates text drawing origin from clip rect.
+- **fix(textfield): cursor-scroll sync** — cursor position computed in text-local coordinates, `scrollOffsetX` applied uniformly to cursor/selection/text. Matches Flutter `_paintOffset` and Qt `topLeft` patterns. Fixes cursor drifting leftward during scroll.
+
 ### Changed
 
 - **refactor(widget): decouple widget/ from gg/scene** (ADR-036 Phase 1) — replaced `*scene.Scene` with `SceneCache` interface in widget package. Third-party widget authors importing `widget/` + `geometry/` + `event/` now compile **71 packages instead of 124** (zero gg/wgpu/naga in the dependency chain). `SceneFactory` registration pattern follows existing `SceneRecorder` DI.
@@ -15,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changed: `WidgetBase.CachedScene()` / `SetCachedScene()` types → `SceneCache`
   - Changed: `SceneRecorder` function signature uses `SceneCache`
   - 92 files changed, rendering layer uses type assertions where concrete `*scene.Scene` needed
-- **deps:** gg v0.50.11 → v0.50.12, gogpu v0.48.5 → v0.50.0, wgpu v0.30.35 → v0.30.36
+- **deps:** gg v0.50.11 → v0.50.13, gogpu v0.48.5 → v0.50.0, wgpu v0.30.35 → v0.30.36
+  - **gg v0.50.13:** `Face.Advance()` returns hinted advances matching `drawGlyphs` — fixes cursor drift on wide Cyrillic glyphs (gg#479).
   - **gogpu v0.50.0:** outgoing drag-and-drop, per-pixel-alpha transparency, window Show/Hide/SetPosition/SetSize API, macOS menu Role+Action fix.
   - **wgpu v0.30.36:** Vulkan present semaphore fix.
 
