@@ -1,13 +1,18 @@
 package desktop
 
 import (
+	"log/slog"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/gogpu/gg"
+	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/geometry"
 )
+
+// Compile-time interface check: dirtyWidgetDebugOverlay must implement DebugOverlay.
+var _ gpucontext.DebugOverlay = (*dirtyWidgetDebugOverlay)(nil)
 
 var (
 	debugDirtyOnce    sync.Once
@@ -16,9 +21,65 @@ var (
 
 func isDebugDirtyEnabled() bool {
 	debugDirtyOnce.Do(func() {
-		debugDirtyEnabled = os.Getenv("GOGPU_DEBUG_DIRTY") == "1"
+		debugDirtyEnabled = os.Getenv("GOGPU_DEBUG_DIRTY") == "overlay"
 	})
 	return debugDirtyEnabled
+}
+
+// dirtyWidgetDebugOverlay wraps the existing dirtyOverlay to implement
+// gpucontext.DebugOverlay. Registered with gogpu's compositor, it draws
+// cyan flash-and-fade rectangles over dirty widget regions.
+//
+// The overlay draws via gg.Context (2D fill/stroke) and flushes to the
+// surface view using FlushGPUWithViewPreserveContent, creating a render
+// pass with LoadOp::Load that composites on top of existing content.
+// This matches the Chromium/GTK4 pattern where overlays draw at the
+// compositor level after all content renderers.
+type dirtyWidgetDebugOverlay struct {
+	overlay dirtyOverlay           // existing flash/fade state
+	ctx     *gg.Context            // for rendering (set on first draw)
+	regions func() []geometry.Rect // callback to get dirty regions from window
+}
+
+// Name returns the overlay identifier for registration and env var filtering.
+func (d *dirtyWidgetDebugOverlay) Name() string { return "dirty_widgets" }
+
+// Draw renders the dirty widget overlay for the current frame.
+//
+// Flow:
+//  1. Collect dirty regions from the ui window.
+//  2. Update flash state (prune expired, add new).
+//  3. Draw cyan flash-and-fade rectangles via gg.Context.
+//  4. Flush gg content to the surface view (LoadOp::Load).
+//  5. Return true if fade animation still in progress.
+func (d *dirtyWidgetDebugOverlay) Draw(ctx gpucontext.DebugOverlayContext) bool {
+	if d.ctx == nil {
+		return false
+	}
+
+	regions := d.regions()
+	d.overlay.update(regions)
+
+	if len(d.overlay.flashes) == 0 {
+		return false
+	}
+
+	// Draw overlay content via gg.Context. Damage tracking is suppressed
+	// because the overlay is visualization, not application content.
+	d.ctx.SetDamageTracking(false)
+	d.overlay.draw(d.ctx)
+	d.ctx.SetDamageTracking(true)
+
+	// Flush gg draw commands to the surface view. PreserveContent uses
+	// LoadOp::Load so existing surface content (content + damage overlay)
+	// is preserved beneath the dirty widget visualization.
+	if err := d.ctx.FlushGPUWithViewPreserveContent(
+		ctx.SurfaceView, ctx.SurfaceWidth, ctx.SurfaceHeight,
+	); err != nil {
+		slog.Warn("desktop: dirty widget overlay flush failed", "err", err)
+	}
+
+	return d.overlay.needsAnimationFrame()
 }
 
 const dirtyFlashDuration = 400 * time.Millisecond

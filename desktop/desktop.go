@@ -104,10 +104,10 @@ func Run(gogpuApp *gogpu.App, uiApp *app.App) error {
 // all textures via non-MSAA path instead of replaying all scenes through
 // MSAA SDF pipeline.
 type renderLoop struct {
-	gogpuApp     *gogpu.App
-	uiApp        *app.App
-	canvas       *ggcanvas.Canvas
-	debugOverlay dirtyOverlay
+	gogpuApp               *gogpu.App
+	uiApp                  *app.App
+	canvas                 *ggcanvas.Canvas
+	dirtyOverlayRegistered bool // true after dirtyWidgetDebugOverlay registered with gogpu
 
 	// Per-boundary GPU texture cache. Key = boundary cache key (uint64).
 	// Each boundary rendered into its own offscreen texture.
@@ -206,9 +206,8 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	// Before Phase C: NeedsRedrawInTreeNonBoundary O(n) walked entire tree.
 	// After Phase C: HasDirtyBoundaries O(1) checks map length.
 	needsAnyWork := rl.fullRedrawNeeded || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
-	if isDebugDirtyEnabled() && rl.debugOverlay.needsAnimationFrame() {
-		needsAnyWork = true
-	}
+	// Dirty widget overlay animation frames are handled by gogpu's
+	// drawDebugOverlays (self-sustaining render loop via RequestRedraw).
 	if isDebugDamageEnabled() && rl.canvas != nil && rl.canvas.NeedsAnimationFrame() {
 		needsAnyWork = true
 	}
@@ -416,19 +415,16 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	}
 	win.ClearAfterPaint()
 
-	// Debug overlay: cyan flash-and-fade on dirty widget regions (ADR-023).
-	// Suppress damage tracking — overlay is visualization, not content.
-	if isDebugDirtyEnabled() {
-		rl.debugOverlay.update(win.DirtyRegions())
-		cc.SetDamageTracking(false)
-		rl.debugOverlay.draw(cc)
-		cc.SetDamageTracking(true)
-		if rl.debugOverlay.needsAnimationFrame() {
-			if isDebugDamageEnabled() {
-				log.Printf("[REDRAW-SRC] ui-dirty-overlay-fade")
-			}
-			rl.gogpuApp.RequestRedraw()
-		}
+	// Debug overlay: dirty widget regions (ADR-023, ADR-066).
+	// Rendering moved to dirtyWidgetDebugOverlay registered with gogpu compositor.
+	// Registration is lazy (first draw) because dc (*gogpu.Context) is needed.
+	if isDebugDirtyEnabled() && !rl.dirtyOverlayRegistered {
+		rl.dirtyOverlayRegistered = true
+		dirtyRegionsFn := win.DirtyRegions
+		dc.RegisterDebugOverlay(&dirtyWidgetDebugOverlay{
+			ctx:     cc,
+			regions: dirtyRegionsFn,
+		})
 	}
 
 	// ADR-021 Phase 7: Pass damage rects to gg for partial present.
@@ -473,12 +469,12 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 			rl.frameCounter, damageBlitEnabled, skipRootBlit, hasOverlays,
 			len(rl.frameDamageRects), rl.rootTextureChanged, rl.renderCount, rl.blitCount)
 	}
-	// Disable damage-aware blit when debug damage overlay is active.
+	// Disable damage-aware blit when any debug overlay is active.
 	// RenderDirectWithDamage uses LoadOpLoad which preserves previous swapchain
 	// content — including debug overlay pixels. Without LoadOpClear, overlay
-	// rects from previous frames are never erased, causing permanent green.
+	// rects from previous frames are never erased, causing permanent artifacts.
 	// Full Render (LoadOpClear) ensures overlay is redrawn fresh each frame.
-	if isDebugDamageEnabled() {
+	if isDebugDamageEnabled() || isDebugDirtyEnabled() {
 		damageBlitEnabled = false
 	}
 	if damageBlitEnabled && skipRootBlit && !hasOverlays && len(rl.frameDamageRects) > 0 { //nolint:nestif // damage blit feature flag path selection

@@ -14,8 +14,8 @@ import (
 // Pre-multiplying scaled the overlay by deviceScale TWICE -- 4x on a 2x
 // display, 9x on 3x.
 //
-// The overlay is env-gated in production (GOGPU_DEBUG_DIRTY=1, sync.Once), so
-// this drives update/draw directly and bypasses the gate entirely.
+// The overlay is env-gated in production (GOGPU_DEBUG_DIRTY=overlay, sync.Once),
+// so this drives update/draw directly and bypasses the gate entirely.
 //
 // (Finding 3 in issue #195.)
 func TestDirtyOverlay_DrawsAtOneDeviceScale(t *testing.T) {
