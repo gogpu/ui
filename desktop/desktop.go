@@ -29,7 +29,8 @@ var (
 
 func isDebugDamageEnabled() bool {
 	debugDamageOnce.Do(func() {
-		debugDamageEnabled = os.Getenv("GOGPU_DEBUG_DAMAGE") == "overlay" || strings.Contains(os.Getenv("GOGPU_DEBUG_DAMAGE"), "overlay")
+		v := os.Getenv("GOGPU_DEBUG_DAMAGE")
+		debugDamageEnabled = v == "overlay" || v == "overlay,log" || v == "log,overlay"
 	})
 	return debugDamageEnabled
 }
