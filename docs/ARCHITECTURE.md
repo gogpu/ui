@@ -905,7 +905,7 @@ Key functions:
 - `HasDirtyBoundaries()` -- O(1) flat dirty set check for frame skip
 - `recordBoundary(w, ctx)` -- records scene with DrawChild skip for child boundaries
 - `widget.ClearRedrawInTree(w)` -- clears all flags recursively
-- `widget.MarkRedrawInTree(w)` -- marks all widgets dirty (used by resize, theme change)
+- `widget.MarkRedrawInTree(w)` -- marks all widgets dirty (used by root replacement or theme changes)
 - `widget.NeedsRedrawInTree(w)` -- checks if any descendant needs redraw
 
 ### Canvas Implementation

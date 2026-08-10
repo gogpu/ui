@@ -114,7 +114,7 @@ type renderLoop struct {
 	// Each boundary rendered into its own offscreen texture.
 	// Clean boundaries: texture reused. Dirty: re-rendered.
 	boundaryTextures map[uint64]*boundaryTexEntry
-	fullRedrawNeeded bool // First frame, resize, theme change
+	fullRedrawNeeded bool // First frame, before boundary textures exist
 
 	// Damage-aware blit (ADR-030): when only child boundaries changed
 	// (root clean), skip root DrawGPUTextureBase and use
@@ -135,7 +135,7 @@ type renderLoop struct {
 
 	// Persistent layer tree (D5). Survives across frames; UpdateLayerTree
 	// reuses PictureLayerImpl/OffsetLayerImpl objects for unchanged boundaries.
-	// Nil on first frame or after releaseBoundaryTextures (resize, close).
+	// Nil on first frame or after releaseBoundaryTextures (close).
 	layerTree *compositor.OffsetLayerImpl
 
 	// Diagnostic counters (reset each frame, logged with GOGPU_DEBUG_DAMAGE=1).
@@ -185,8 +185,9 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 			log.Printf("desktop: canvas.Resize: %v", err)
 		}
 		cw, ch = w, h
-		rl.releaseBoundaryTextures()
-		rl.fullRedrawNeeded = true
+		// Boundary texture lifetime follows each boundary's physical size,
+		// not the swapchain size. ensureBoundaryTexture below selectively
+		// replaces only entries whose dimensions changed.
 	}
 
 	// A display-scale change can leave the logical size unchanged, so it does
@@ -203,7 +204,7 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	// No O(n) tree walk needed — the flat dirty set is authoritative.
 	//
 	// Work sources (all O(1)):
-	//   - fullRedrawNeeded: resize, first frame, texture release
+	//   - fullRedrawNeeded: first frame, before boundary textures exist
 	//   - win.NeedsRedraw(): layout changed, ctx.Invalidate, signal dirty
 	//   - win.HasDirtyBoundaries(): upward propagation → RegisterDirtyBoundary
 	//   - win.NeedsAnimationFrame(): spinner ScheduleAnimationFrame
@@ -728,7 +729,6 @@ func (rl *renderLoop) ensureBoundaryTexture(key uint64, bw, bh int, cc *gg.Conte
 		tex, release := cc.CreateOffscreenTexture(pw, ph)
 		entry = &boundaryTexEntry{texture: tex, release: release, width: pw, height: ph}
 		rl.boundaryTextures[key] = entry
-		rl.fullRedrawNeeded = true
 	}
 	return entry
 }

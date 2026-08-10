@@ -225,7 +225,7 @@ func TestDamageBlitDecision_SpinnerOnly_DamageAware(t *testing.T) {
 }
 
 func TestDamageBlitDecision_FullRedrawNeeded_FullBlit(t *testing.T) {
-	// First frame or resize — always full blit.
+	// First frame or another explicit full redraw — always full blit.
 	rl := &renderLoop{fullRedrawNeeded: true, rootTextureChanged: false}
 	skipRootBlit := !rl.rootTextureChanged && !rl.fullRedrawNeeded
 

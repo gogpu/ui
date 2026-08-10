@@ -112,9 +112,9 @@ func ClearRedrawInTree(w Widget) {
 // MarkRedrawInTree sets the needsRedraw flag on all widgets in the
 // subtree rooted at w.
 //
-// This is used when a full redraw is required, such as after SetRoot,
-// theme changes, or window resize. It ensures the next draw pass will
-// render all widgets.
+// This is used when every widget's visual state may have changed, such as
+// after SetRoot or a theme change. It ensures the next draw pass will render
+// all widgets.
 func MarkRedrawInTree(w Widget) {
 	if w == nil {
 		return
