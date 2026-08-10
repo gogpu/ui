@@ -1,9 +1,12 @@
 package desktop
 
 import (
+	"reflect"
 	"testing"
+	"unsafe"
 
 	"github.com/gogpu/gg/integration/ggcanvas"
+	"github.com/gogpu/gogpu"
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/gputypes"
 	"github.com/gogpu/ui/app"
@@ -126,6 +129,49 @@ func TestSyncDeviceScaleNoOps(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDrawRunsScaleSyncBeforeIdleGate exercises the render-loop seam around
+// the scale synchronization call without requiring a live platform surface.
+// The synthetic context supplies only the dimensions queried before the idle
+// gate; equal scales keep the frame idle so no GPU commands are submitted.
+func TestDrawRunsScaleSyncBeforeIdleGate(t *testing.T) {
+	released := 0
+	rl, _ := newScaleSyncRenderLoop(t, 1, &released)
+	rl.uiApp.Window().SetRoot(nil)
+	rl.uiApp.Window().Frame()
+	rl.uiApp.Window().ClearAfterPaint()
+	rl.fullRedrawNeeded = false
+
+	rl.draw(syntheticContext(64, 64, 1))
+
+	if got := rl.canvas.DeviceScale(); got != 1 {
+		t.Errorf("canvas device scale = %v, want 1", got)
+	}
+	if released != 0 {
+		t.Errorf("idle draw released %d boundary textures, want 0", released)
+	}
+}
+
+// syntheticContext creates the minimal gogpu.Context needed to drive the
+// render-loop preflight. gogpu intentionally exposes Context only during a
+// live frame, so this test sets its private renderer dimensions explicitly and
+// never reaches GPU operations after the idle gate.
+func syntheticContext(width, height int, scale float64) *gogpu.Context {
+	target := &gogpu.RenderTarget{}
+	setPrivateField(target, "width", uint32(width))
+	setPrivateField(target, "height", uint32(height))
+	renderer := &gogpu.Renderer{}
+	setPrivateField(renderer, "primary", target)
+	ctx := &gogpu.Context{}
+	setPrivateField(ctx, "renderer", renderer)
+	setPrivateField(ctx, "scaleFactor", scale)
+	return ctx
+}
+
+func setPrivateField(target any, name string, value any) {
+	field := reflect.ValueOf(target).Elem().FieldByName(name)
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Set(reflect.ValueOf(value))
 }
 
 func testScaleName(scale float64) string {

@@ -87,3 +87,17 @@ func TestHandleScaleChangeWithoutWidgets(t *testing.T) {
 		t.Error("window should need redraw")
 	}
 }
+
+func TestHandleScaleChangeRejectsNonPositiveScale(t *testing.T) {
+	w := New().Window()
+	initialScale := w.Context().Scale()
+	for _, scale := range []float64{0, -1} {
+		w.HandleScaleChange(scale)
+		if got := w.Context().Scale(); got != initialScale {
+			t.Errorf("context scale after %v = %v, want %v", scale, got, initialScale)
+		}
+		if w.NeedsRedraw() {
+			t.Errorf("invalid scale %v should not request redraw", scale)
+		}
+	}
+}
