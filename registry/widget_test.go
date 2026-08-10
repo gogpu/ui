@@ -221,26 +221,53 @@ func TestRegisterDuplicate(t *testing.T) {
 	}
 }
 
-// TestRegisterInfoNameInheritance tests that info.Name inherits registration name.
-func TestRegisterInfoNameInheritance(t *testing.T) {
-	r := newTestRegistry()
-
-	// Register with empty Name in info
-	err := r.Register("my-widget", mockWidgetFactory, WidgetInfo{
-		Description: "Test widget",
-		Category:    CategoryInput,
-	})
-	if err != nil {
-		t.Fatalf("Register() error = %v", err)
+// TestRegisterInfoNameCanonicalization tests that metadata always uses the
+// registration name as its canonical identity.
+func TestRegisterInfoNameCanonicalization(t *testing.T) {
+	tests := []struct {
+		name string
+		info WidgetInfo
+	}{
+		{
+			name: "empty info name",
+			info: WidgetInfo{
+				Description: "Test widget",
+				Category:    CategoryInput,
+			},
+		},
+		{
+			name: "matching info name",
+			info: WidgetInfo{
+				Name:        "my-widget",
+				Description: "Test widget",
+				Category:    CategoryInput,
+			},
+		},
+		{
+			name: "mismatched info name",
+			info: WidgetInfo{
+				Name:        "other-widget",
+				Description: "Test widget",
+				Category:    CategoryInput,
+			},
+		},
 	}
 
-	// Verify info.Name is set to registration name
-	info, ok := r.Info("my-widget")
-	if !ok {
-		t.Fatal("Info() returned false")
-	}
-	if info.Name != "my-widget" {
-		t.Errorf("info.Name = %q, want %q", info.Name, "my-widget")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newTestRegistry()
+			if err := r.Register("my-widget", mockWidgetFactory, tt.info); err != nil {
+				t.Fatalf("Register() error = %v", err)
+			}
+
+			info, ok := r.Info("my-widget")
+			if !ok {
+				t.Fatal("Info() returned false")
+			}
+			if info.Name != "my-widget" {
+				t.Errorf("info.Name = %q, want %q", info.Name, "my-widget")
+			}
+		})
 	}
 }
 
@@ -560,8 +587,8 @@ func TestClear(t *testing.T) {
 func TestAllInfo(t *testing.T) {
 	r := newTestRegistry()
 
-	_ = r.Register("beta", mockWidgetFactory, WidgetInfo{Name: "beta", Description: "Beta widget"})
-	_ = r.Register("alpha", mockWidgetFactory, WidgetInfo{Name: "alpha", Description: "Alpha widget"})
+	_ = r.Register("beta", mockWidgetFactory, WidgetInfo{Name: "aardvark", Description: "Beta widget"})
+	_ = r.Register("alpha", mockWidgetFactory, WidgetInfo{Name: "zeta", Description: "Alpha widget"})
 
 	infos := r.AllInfo()
 	if len(infos) != 2 {

@@ -166,9 +166,7 @@ func (r *WidgetRegistry) Register(name string, factory WidgetFactory, info ...Wi
 	if len(info) > 0 {
 		widgetInfo := info[0]
 		// Ensure the name in info matches the registration name
-		if widgetInfo.Name == "" {
-			widgetInfo.Name = name
-		}
+		widgetInfo.Name = name
 		r.info[name] = widgetInfo
 	} else {
 		// Create minimal info
