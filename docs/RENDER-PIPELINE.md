@@ -127,7 +127,7 @@ Walks the Layer Tree again. Blits all boundary textures onto the surface via non
 
 ```
 DrawOverlayScrim()               // modal backdrop only (non-modal = no scrim)
-debugOverlay.draw()              // cyan flash on dirty widgets (GOGPU_DEBUG_DIRTY=1)
+debugOverlay.draw()              // cyan flash on dirty widgets (GOGPU_DEBUG_DIRTY=overlay)
 // Both overlays request frames for fade animation via RequestRedraw()
 ```
 
@@ -184,16 +184,16 @@ Widget state change
 
 ```bash
 # Cyan flash on dirty widget regions (ui level)
-GOGPU_DEBUG_DIRTY=1 go run ./examples/gallery/
+GOGPU_DEBUG_DIRTY=overlay go run ./examples/gallery/
 
 # Green flash on damage regions + diagnostic logging (GPU level)
-GOGPU_DEBUG_DAMAGE=1 go run ./examples/gallery/
+GOGPU_DEBUG_DAMAGE=overlay go run ./examples/gallery/
 
 # Disable damage-aware blit (force full render every frame)
 GOGPU_DAMAGE_BLIT=0 go run ./examples/gallery/
 ```
 
-`GOGPU_DEBUG_DAMAGE=1` prints per-frame diagnostic log:
+`GOGPU_DEBUG_DAMAGE=overlay` prints per-frame diagnostic log:
 ```
 [FRAME] #42 needsRedraw=false dirtyBoundaries=1 animFrame=true fullRedraw=false
 [RENDER-CHECK] frame=42 key=5 root=false size=48x48 dirty=true originValid=true
