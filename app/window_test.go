@@ -221,6 +221,17 @@ func TestWindow_HandleFocusChange_ZeroValue(t *testing.T) {
 	w.HandleFocusChange(true)
 }
 
+func TestWindow_FocusLossResetsPlatformCursorWithoutRoot(t *testing.T) {
+	pp := &mockPlatformProvider{lastCursor: gpucontext.CursorPointer}
+	w := New(WithPlatformProvider(pp)).Window()
+
+	w.HandleFocusChange(false)
+
+	if pp.lastCursor != gpucontext.CursorDefault {
+		t.Errorf("platform cursor = %v, want default after focus loss", pp.lastCursor)
+	}
+}
+
 func TestWindow_ScaleFromProvider(t *testing.T) {
 	wp := &mockWindowProvider{width: 800, height: 600, scale: 2.0}
 	a := New(WithWindowProvider(wp))

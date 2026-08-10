@@ -46,6 +46,14 @@ func TestEventBridge_MouseMove(t *testing.T) {
 	}
 }
 
+func TestPointInWindow_AllowsEventsBeforeSizeIsKnown(t *testing.T) {
+	var w Window
+
+	if !pointInWindow(&w, geometry.Pt(10_000, 10_000)) {
+		t.Fatal("pointInWindow rejected an event before the window size was known")
+	}
+}
+
 func TestEventBridge_MouseMoveOutsideWindow(t *testing.T) {
 	es := &mockEventSource{}
 	root := newBoundedEventBridgeRoot(es)
