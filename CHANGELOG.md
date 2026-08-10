@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.52] — 2026-08-10
+
+### Added
+
+- **Pluggable DebugOverlay system** (ADR-066) — dirty widget overlay migrated from hardcoded cyan rectangles to gogpu's pluggable `DebugOverlay` system (GTK4 Inspector pattern). Each debug overlay is a named source with per-source color. `GOGPU_DEBUG_DIRTY=overlay` activates dirty widget overlay. Future: FPS, layout bounds, a11y overlays via same system.
+
+### Changed
+
+- **env vars:** `GOGPU_DEBUG_DIRTY=1` → `GOGPU_DEBUG_DIRTY=overlay`, `GOGPU_DEBUG_DAMAGE=1` → `GOGPU_DEBUG_DAMAGE=overlay` (value `1` still works as fallback)
+- **deps:** gg v0.50.14 → v0.51.0, gogpu v0.50.2 → v0.51.0, gpucontext v0.24.0 → v0.26.0, wgpu v0.30.37 → v0.31.0
+  - **gg v0.51.0:** damage source registration (ADR-065), DamageOverlayRenderer interface, per-source damage colors
+  - **gogpu v0.51.0:** pluggable DebugOverlay system (ADR-066), built-in damage overlay renderer, demand-driven frame scheduling improvements
+  - **gpucontext v0.26.0:** DamageSource, RegisterDamageSource, ReportDamage, DamageOverlayRenderer interfaces
+  - **wgpu v0.31.0:** VkPresentRegionsKHR damage rects support, incremental present
+
 ## [0.1.51] — 2026-08-07
 
 ### Added
