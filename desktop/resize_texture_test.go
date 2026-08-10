@@ -4,8 +4,35 @@ import (
 	"testing"
 
 	"github.com/gogpu/gg"
+	"github.com/gogpu/ui/app"
 	"github.com/gogpu/ui/compositor"
 )
+
+func TestSurfaceResizePending_ForcesFullSurfaceFrameWithoutDirtyingBoundaries(t *testing.T) {
+	win := app.New().Window()
+	win.ClearAfterPaint()
+	win.ClearDirtyBoundaries()
+	win.ClearAnimationFrame()
+	if win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame() {
+		t.Fatal("test window is not clean")
+	}
+
+	rl := &renderLoop{surfaceResizePending: true}
+	if !rl.needsFrame(win) {
+		t.Error("a clean window skipped the frame required by a canvas resize")
+	}
+	if !rl.requiresFullSurfaceRender() {
+		t.Error("a canvas resize did not require full surface composition")
+	}
+
+	entry := &boundaryTexEntry{sceneVersion: 3}
+	pic := compositor.NewPictureLayer()
+	pic.SetSceneVersion(3)
+	pic.ClearDirty()
+	if !rl.isBoundaryClean(entry, pic, dummyScene()) {
+		t.Error("surface-only resize invalidated an unchanged boundary texture")
+	}
+}
 
 func TestEnsureBoundaryTexture_DoesNotDirtyCleanSibling(t *testing.T) {
 	ctx := gg.NewContext(800, 600)
