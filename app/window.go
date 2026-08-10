@@ -509,6 +509,46 @@ func (w *Window) HandleResize(width, height int) {
 	}
 }
 
+// HandleScaleChange applies a new display scale and invalidates retained
+// rendering created at the previous scale. Logical layout is unchanged, but
+// cached scenes may contain scale-specific raster content such as SVG paths.
+func (w *Window) HandleScaleChange(scale float64) {
+	if scale <= 0 {
+		return
+	}
+
+	w.ctx.SetScale(float32(scale))
+	invalidateScenesInTree(w.root)
+	for _, overlayContent := range w.OverlayContentWidgets() {
+		invalidateScenesInTree(overlayContent)
+	}
+	w.needsRedraw = true
+	w.needsFullRepaint = true
+}
+
+func invalidateScenesInTree(w widget.Widget) {
+	if w == nil {
+		return
+	}
+
+	type boundaryInvalidator interface {
+		IsRepaintBoundary() bool
+		InvalidateScene()
+	}
+	if boundary, ok := w.(boundaryInvalidator); ok && boundary.IsRepaintBoundary() {
+		boundary.InvalidateScene()
+	}
+	// Legacy RepaintBoundary widgets own a separate retained scene. A widget
+	// can implement both boundary mechanisms, so invalidate them independently.
+	if boundary, ok := w.(widget.RepaintBoundaryMarker); ok {
+		boundary.MarkBoundaryDirty()
+	}
+
+	for _, child := range w.Children() {
+		invalidateScenesInTree(child)
+	}
+}
+
 // HandleFocusChange processes a window focus change.
 func (w *Window) HandleFocusChange(focused bool) {
 	if w.root == nil {
