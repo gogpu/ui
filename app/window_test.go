@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/gogpu/gpucontext"
+	"github.com/gogpu/ui/core/button"
+	"github.com/gogpu/ui/core/slider"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/state"
@@ -206,6 +208,16 @@ func TestWindow_HandleFocusChange_NoRoot(t *testing.T) {
 	a := New()
 	w := a.Window()
 	// Should not panic.
+	w.HandleFocusChange(true)
+}
+
+func TestWindow_HandleFocusChange_ZeroValue(t *testing.T) {
+	var w Window
+
+	// Both paths are public no-ops until a root and context are installed.
+	// In particular, focus loss must not dereference the nil context while
+	// trying to clear pointer state.
+	w.HandleFocusChange(false)
 	w.HandleFocusChange(true)
 }
 
@@ -1917,6 +1929,111 @@ func TestWindow_PointerCapture_AutoRelease(t *testing.T) {
 		if ev.MouseType == event.MouseMove {
 			t.Error("move event should not be delivered to widget after capture release")
 		}
+	}
+}
+
+func TestWindow_PointerCapture_ReleasesOnFocusLoss(t *testing.T) {
+	a := New()
+	w := a.Window()
+
+	cw := newCaptureWidget(geometry.NewRect(10, 10, 110, 50))
+	root := newHoverContainer(cw)
+	w.SetRoot(root)
+	w.ctx.CapturePointer(cw)
+	w.mouseButtonsHeld = event.ButtonStateLeft
+
+	w.HandleFocusChange(false)
+
+	if w.capturedWidget != nil {
+		t.Error("capturedWidget should be nil after focus loss")
+	}
+	if w.mouseButtonsHeld != 0 {
+		t.Errorf("mouseButtonsHeld = %v after focus loss, want none", w.mouseButtonsHeld)
+	}
+	if len(cw.events) == 0 {
+		t.Fatal("captured widget did not receive a cancellation release")
+	}
+	release := cw.events[len(cw.events)-1]
+	if release.MouseType != event.MouseRelease || release.Buttons != 0 {
+		t.Errorf("cancellation event = %#v, want final MouseRelease", release)
+	}
+
+	// Direct delivery outside the widget must not survive the cancellation.
+	cw.events = nil
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove,
+		event.ButtonNone,
+		0,
+		geometry.Pt(300, 300),
+		geometry.Pt(300, 300),
+		event.ModNone,
+	))
+	if len(cw.events) != 0 {
+		t.Errorf("outside move reached formerly captured widget after focus loss: %d events", len(cw.events))
+	}
+}
+
+func TestWindow_FocusLossCancelsSliderDrag(t *testing.T) {
+	value := state.NewSignal[float32](50)
+	s := slider.New(
+		slider.Min(0),
+		slider.Max(100),
+		slider.ValueSignal(value),
+	)
+	s.SetBounds(geometry.NewRect(0, 0, 200, 30))
+
+	a := New()
+	w := a.Window()
+	w.SetRoot(s)
+	w.HandleEvent(event.NewMouseEvent(
+		event.MousePress,
+		event.ButtonLeft,
+		event.ButtonStateLeft,
+		geometry.Pt(100, 15),
+		geometry.Pt(100, 15),
+		event.ModNone,
+	))
+	if w.capturedWidget != s {
+		t.Fatal("precondition: slider should hold pointer capture")
+	}
+
+	w.HandleFocusChange(false)
+	valueAfterCancel := value.Get()
+	consumed := s.Event(w.ctx, event.NewMouseEvent(
+		event.MouseMove,
+		event.ButtonNone,
+		0,
+		geometry.Pt(180, 15),
+		geometry.Pt(180, 15),
+		event.ModNone,
+	))
+	if consumed {
+		t.Error("slider consumed buttonless move after focus-loss cancellation")
+	}
+	if value.Get() != valueAfterCancel {
+		t.Errorf("slider value changed after canceled drag: got %v, want %v", value.Get(), valueAfterCancel)
+	}
+}
+
+func TestWindow_FocusLossClearsPressedButtonWithoutClick(t *testing.T) {
+	clicked := false
+	btn := button.New(button.OnClick(func() { clicked = true }))
+	btn.SetBounds(geometry.NewRect(0, 0, 100, 40))
+
+	a := New()
+	w := a.Window()
+	w.SetRoot(btn)
+	pos := geometry.Pt(50, 20)
+	w.HandleEvent(event.NewMouseEvent(
+		event.MousePress, event.ButtonLeft, event.ButtonStateLeft, pos, pos, event.ModNone,
+	))
+
+	w.HandleFocusChange(false)
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseRelease, event.ButtonLeft, 0, pos, pos, event.ModNone,
+	))
+	if clicked {
+		t.Error("button clicked after its pressed gesture was canceled by focus loss")
 	}
 }
 

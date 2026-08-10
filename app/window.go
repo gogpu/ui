@@ -132,7 +132,7 @@ type Window struct {
 	// reset during drag operations (Frame.ResetCursor skipped while dragging).
 	mouseButtonsHeld event.ButtonState
 
-	// windowSize tracks the last known window size in physical pixels.
+	// windowSize tracks the last known window size in logical pixels.
 	windowSize geometry.Size
 
 	// frameCallback, if set, is called after each frame with statistics.
@@ -422,6 +422,19 @@ func (w *Window) HandleEvent(e event.Event) {
 	// Update context time for event processing.
 	w.ctx.SetNow(time.Now())
 
+	// Track button ownership before any dispatch path can return early (for
+	// example, when an overlay consumes a press and captures the pointer).
+	if me, ok := e.(*event.MouseEvent); ok {
+		previousButtons := w.mouseButtonsHeld
+		w.mouseButtonsHeld = me.Buttons
+		if me.MouseType == event.MousePress && previousButtons == 0 {
+			// A press can be the first positional event delivered after focus or
+			// window creation. Establish its target so cancellation can clear a
+			// pressed control even when no preceding MouseMove was observed.
+			w.updateHover(me.Position, me.Buttons, me.Modifiers())
+		}
+	}
+
 	// Overlays get priority.
 	if w.overlays.HandleEvent(w.ctx, e) {
 		return
@@ -450,8 +463,6 @@ func (w *Window) HandleEvent(e event.Event) {
 			if me.MouseType == event.MouseRelease && me.Buttons == 0 {
 				w.capturedWidget = nil
 			}
-			// Track mouse button state even during capture.
-			w.mouseButtonsHeld = me.Buttons
 			if consumed {
 				return
 			}
@@ -472,11 +483,6 @@ func (w *Window) HandleEvent(e event.Event) {
 			// The window-level leave event still propagates to the root below.
 			w.clearHover(me.Buttons, me.Modifiers())
 		}
-	}
-
-	// Track mouse button state for drag cursor protection.
-	if me, ok := e.(*event.MouseEvent); ok {
-		w.mouseButtonsHeld = me.Buttons
 	}
 
 	// Dispatch event to root widget.
@@ -551,6 +557,10 @@ func invalidateScenesInTree(w widget.Widget) {
 
 // HandleFocusChange processes a window focus change.
 func (w *Window) HandleFocusChange(focused bool) {
+	if !focused {
+		w.cancelPointerState()
+	}
+
 	if w.root == nil {
 		return
 	}
@@ -570,6 +580,66 @@ func (w *Window) HandleFocusChange(focused bool) {
 	w.needsRedraw = true
 	if w.wp != nil {
 		w.wp.RequestRedraw()
+	}
+}
+
+// cancelPointerState ends Window-owned capture and held-button tracking when a
+// matching release may never arrive, such as after focus loss or a platform
+// PointerCancel. Captured widgets receive releases at an outside-window point
+// first so they can clear internal drag state without activating a control.
+func (w *Window) cancelPointerState() {
+	// Window's zero value is valid for public no-op handlers such as
+	// HandleFocusChange. Pointer callbacks also share this cleanup path, so
+	// keep it safe before newWindow has installed a widget context.
+	if w.ctx == nil {
+		w.capturedWidget = nil
+		w.mouseButtonsHeld = 0
+		w.hoveredWidget = nil
+		return
+	}
+
+	if captured := w.capturedWidget; captured != nil && w.mouseButtonsHeld != 0 {
+		remaining := w.mouseButtonsHeld
+		outside := geometry.Pt(-1, -1)
+		if bounded, ok := captured.(interface{ Bounds() geometry.Rect }); ok {
+			bounds := bounded.Bounds()
+			outside = geometry.Pt(bounds.Min.X-1, bounds.Min.Y-1)
+		}
+		for _, heldButton := range [...]struct {
+			button event.Button
+			state  event.ButtonState
+		}{
+			{event.ButtonLeft, event.ButtonStateLeft},
+			{event.ButtonRight, event.ButtonStateRight},
+			{event.ButtonMiddle, event.ButtonStateMiddle},
+			{event.ButtonX1, event.ButtonStateX1},
+			{event.ButtonX2, event.ButtonStateX2},
+		} {
+			if !remaining.Has(heldButton.state) {
+				continue
+			}
+			remaining &^= heldButton.state
+			_ = captured.Event(w.ctx, event.NewMouseEvent(
+				event.MouseRelease,
+				heldButton.button,
+				remaining,
+				outside,
+				outside,
+				event.ModNone,
+			))
+		}
+	}
+
+	// A widget may explicitly release itself while handling the synthetic
+	// event. Clear any capture that remains afterward.
+	if captured := w.capturedWidget; captured != nil {
+		w.ctx.ReleasePointer(captured)
+	}
+	w.mouseButtonsHeld = 0
+	w.clearHover(0, event.ModNone)
+	w.ctx.ResetCursor()
+	if w.pp != nil {
+		w.syncCursor()
 	}
 }
 

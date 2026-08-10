@@ -139,6 +139,18 @@ func (m *mockEventSource) OnPointer(fn func(gpucontext.PointerEvent)) {
 	m.onPointer = fn
 }
 
+// mockScrollEventSource exercises the detailed, position-carrying scroll
+// path. Keep it separate from mockEventSource because the bridge registers
+// either OnScrollEvent or OnScroll, never both.
+type mockScrollEventSource struct {
+	mockEventSource
+	onScrollEvent func(gpucontext.ScrollEvent)
+}
+
+func (m *mockScrollEventSource) OnScrollEvent(fn func(gpucontext.ScrollEvent)) {
+	m.onScrollEvent = fn
+}
+
 // --- App tests ---
 
 func TestNewApp_Headless(t *testing.T) {
