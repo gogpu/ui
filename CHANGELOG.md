@@ -14,10 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **env vars:** `GOGPU_DEBUG_DIRTY=1` → `GOGPU_DEBUG_DIRTY=overlay`, `GOGPU_DEBUG_DAMAGE=1` → `GOGPU_DEBUG_DAMAGE=overlay` (value `1` still works as fallback)
-- **deps:** gg v0.50.14 → v0.51.0, gogpu v0.50.2 → v0.51.0, gpucontext v0.24.0 → v0.26.0, wgpu v0.30.37 → v0.31.0
-  - **gg v0.51.0:** damage source registration (ADR-065), DamageOverlayRenderer interface, per-source damage colors
-  - **gogpu v0.51.0:** pluggable DebugOverlay system (ADR-066), built-in damage overlay renderer, demand-driven frame scheduling improvements
-  - **gpucontext v0.26.0:** DamageSource, RegisterDamageSource, ReportDamage, DamageOverlayRenderer interfaces
+- **deps:** gg v0.50.14 → v0.52.0, gogpu v0.50.2 → v0.52.0, gpucontext v0.24.0 → v0.27.0, wgpu v0.30.37 → v0.31.0
+  - **gg v0.52.0:** compositor architecture migration (ADR-067), damage source registration (ADR-065), DamageOverlayRenderer interface
+  - **gogpu v0.52.0:** compositor-owned render target (ADR-067), pluggable DebugOverlay system (ADR-066), damage overlay renderer
+  - **gpucontext v0.27.0:** SurfaceCompositor interface, DamageSource, RegisterDamageSource, DamageOverlayRenderer
   - **wgpu v0.31.0:** VkPresentRegionsKHR damage rects support, incremental present
 
 ## [0.1.51] — 2026-08-07
