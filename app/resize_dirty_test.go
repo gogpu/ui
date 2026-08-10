@@ -118,3 +118,38 @@ func TestHandleResize_InvalidatesOnlyConstraintChangedBoundaries(t *testing.T) {
 		t.Error("root boundary remained clean after its window constraints changed")
 	}
 }
+
+type unsuppressedResizeRoot struct {
+	widget.WidgetBase
+	invalidations int
+}
+
+// Deliberately shadow WidgetBase's suppressor with a different signature to
+// model third-party repaint-boundary implementations that cannot suppress a
+// dirty callback during an in-progress draw.
+func (*unsuppressedResizeRoot) SetSuppressDirtyCallback(int) {}
+
+func (r *unsuppressedResizeRoot) InvalidateScene() {
+	r.invalidations++
+	r.WidgetBase.InvalidateScene()
+}
+
+func (*unsuppressedResizeRoot) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+	return c.Constrain(geometry.Sz(10, 10))
+}
+
+func (*unsuppressedResizeRoot) Draw(_ widget.Context, _ widget.Canvas) {}
+
+func (*unsuppressedResizeRoot) Event(_ widget.Context, _ event.Event) bool { return false }
+
+func TestInvalidateRootScene_WithoutDirtySuppressor(t *testing.T) {
+	root := &unsuppressedResizeRoot{}
+	root.SetRepaintBoundary(true)
+	w := &Window{root: root}
+
+	w.invalidateRootScene()
+
+	if root.invalidations != 1 {
+		t.Fatalf("root invalidations = %d, want 1", root.invalidations)
+	}
+}

@@ -159,6 +159,29 @@ type boundaryTexEntry struct {
 	hasClip      bool          // whether clipRect is set
 }
 
+type surfaceResizer interface {
+	Resize(width, height int) error
+}
+
+func (rl *renderLoop) resizeSurface(resizer surfaceResizer, width, height int) bool {
+	if err := resizer.Resize(width, height); err != nil {
+		log.Printf("desktop: canvas.Resize: %v", err)
+		return false
+	}
+	rl.surfaceResizePending = true
+	return true
+}
+
+func (rl *renderLoop) finishSurfaceRender(err error) {
+	if err != nil {
+		log.Printf("desktop: canvas.Render: %v", err)
+		return
+	}
+	// A successful full render has populated the resized surface. Keep the
+	// flag on errors so the next platform redraw retries the frame.
+	rl.surfaceResizePending = false
+}
+
 // needsFrame reports whether the retained compositor has any work to present.
 // Kept as a policy seam so surface-only work cannot accidentally become
 // boundary texture invalidation.
@@ -199,11 +222,8 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 
 	cw, ch := rl.canvas.Size()
 	if cw != w || ch != h {
-		if err := rl.canvas.Resize(w, h); err != nil {
-			log.Printf("desktop: canvas.Resize: %v", err)
-		} else {
+		if rl.resizeSurface(rl.canvas, w, h) {
 			cw, ch = w, h
-			rl.surfaceResizePending = true
 		}
 		// Boundary texture lifetime follows each boundary's physical size,
 		// not the swapchain size. ensureBoundaryTexture below selectively
@@ -521,13 +541,7 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 		}
 	} else {
 		// Full blit path: root changed, surface resized, overlays present, or first frame.
-		if err := rl.canvas.Render(dc.RenderTarget()); err != nil {
-			log.Printf("desktop: canvas.Render: %v", err)
-		} else {
-			// A successful full render has populated the resized surface. Keep
-			// the flag on errors so the next platform redraw retries the frame.
-			rl.surfaceResizePending = false
-		}
+		rl.finishSurfaceRender(rl.canvas.Render(dc.RenderTarget()))
 		// Fill ALL ring buffer slots with fullWindow so every swapchain
 		// buffer (up to 4 on Linux Wayland) knows the entire screen
 		// changed. Without this, buffer N-1 from a previous frame has
