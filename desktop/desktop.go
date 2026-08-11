@@ -189,6 +189,11 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 		rl.fullRedrawNeeded = true
 	}
 
+	// A display-scale change can leave the logical size unchanged, so it does
+	// not pass through the resize branch above. Synchronize from this frame's
+	// snapshot before the idle gate and before allocating boundary textures.
+	rl.syncDeviceScale(dc.ScaleFactor())
+
 	win := rl.uiApp.Window()
 
 	// ADR-028 Phase C: O(1) frame skip using flat dirty boundary list.
@@ -960,6 +965,20 @@ func collectLiveKeys(layer compositor.Layer, keys map[uint64]bool) {
 			collectLiveKeys(child, keys)
 		}
 	}
+}
+
+// syncDeviceScale resets every cache whose contents or allocation depends on
+// device pixels. It returns true when a new scale was applied.
+func (rl *renderLoop) syncDeviceScale(scale float64) bool {
+	if scale <= 0 || rl.canvas.DeviceScale() == scale {
+		return false
+	}
+
+	rl.canvas.SetDeviceScale(scale)
+	rl.releaseBoundaryTextures()
+	rl.uiApp.Window().HandleScaleChange(scale)
+	rl.fullRedrawNeeded = true
+	return true
 }
 
 // releaseBoundaryTextures frees all offscreen GPU textures.
