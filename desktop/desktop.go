@@ -528,7 +528,7 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	if isDebugDamageEnabled() || isDebugDirtyEnabled() {
 		damageBlitEnabled = false
 	}
-	if damageBlitEnabled && skipRootBlit && !hasOverlays && len(rl.frameDamageRects) > 0 { //nolint:nestif // damage blit feature flag path selection
+	if damageBlitEnabled && skipRootBlit && !hasOverlays && len(rl.frameDamageRects) > 0 {
 		// ADR-030: Multi-rect damage-aware path.
 		// Accumulate damage across N swapchain buffers (ring buffer).
 		// Pass individual rects for per-draw dynamic scissor — zero pixel waste

@@ -109,7 +109,6 @@ func TestRenderLoop_SurfaceResizeRetainsBoundaryTextures(t *testing.T) {
 	if len(rl.boundaryTextures) == 0 {
 		t.Fatal("full recomposition did not populate the retained boundary cache")
 	}
-
 }
 
 type failingSurfaceResizer struct{ err error }
