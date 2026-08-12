@@ -422,18 +422,7 @@ func (w *Window) HandleEvent(e event.Event) {
 	// Update context time for event processing.
 	w.ctx.SetNow(time.Now())
 
-	// Track button ownership before any dispatch path can return early (for
-	// example, when an overlay consumes a press and captures the pointer).
-	if me, ok := e.(*event.MouseEvent); ok {
-		previousButtons := w.mouseButtonsHeld
-		w.mouseButtonsHeld = me.Buttons
-		if me.MouseType == event.MousePress && previousButtons == 0 {
-			// A press can be the first positional event delivered after focus or
-			// window creation. Establish its target so cancellation can clear a
-			// pressed control even when no preceding MouseMove was observed.
-			w.updateHover(me.Position, me.Buttons, me.Modifiers())
-		}
-	}
+	w.trackMouseButtonOwnership(e)
 
 	// Overlays get priority.
 	if w.overlays.HandleEvent(w.ctx, e) {
@@ -499,6 +488,25 @@ func (w *Window) HandleEvent(e event.Event) {
 	// Tab navigation starts from the correct position.
 	if me, ok := e.(*event.MouseEvent); ok && me.MouseType == event.MousePress {
 		w.syncContextFocusToManager()
+	}
+}
+
+// trackMouseButtonOwnership records button state before any dispatch path can
+// return early, such as when an overlay consumes a press and captures the
+// pointer.
+func (w *Window) trackMouseButtonOwnership(e event.Event) {
+	me, ok := e.(*event.MouseEvent)
+	if !ok {
+		return
+	}
+
+	previousButtons := w.mouseButtonsHeld
+	w.mouseButtonsHeld = me.Buttons
+	if me.MouseType == event.MousePress && previousButtons == 0 {
+		// A press can be the first positional event delivered after focus or
+		// window creation. Establish its target so cancellation can clear a
+		// pressed control even when no preceding MouseMove was observed.
+		w.updateHover(me.Position, me.Buttons, me.Modifiers())
 	}
 }
 
