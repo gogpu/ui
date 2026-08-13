@@ -3,11 +3,13 @@ package textfield_test
 import (
 	"image"
 	"testing"
+	"time"
 
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -507,7 +509,14 @@ func TestSelection_BackspaceDeletesSelection(t *testing.T) {
 
 // --- Clipboard Tests ---
 
+type testClipboard struct{ text string }
+
+func (c *testClipboard) ClipboardRead() (string, error)   { return c.text, nil }
+func (c *testClipboard) ClipboardWrite(text string) error { c.text = text; return nil }
+
 func TestClipboard_CopyPaste(t *testing.T) {
+	widget.RegisterClipboardProvider(&testClipboard{})
+
 	tf := textfield.New(textfield.InitialValue("hello"))
 	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
 	tf.SetFocused(true)
@@ -528,6 +537,8 @@ func TestClipboard_CopyPaste(t *testing.T) {
 }
 
 func TestClipboard_Cut(t *testing.T) {
+	widget.RegisterClipboardProvider(&testClipboard{})
+
 	tf := textfield.New(textfield.InitialValue("hello"))
 	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
 	tf.SetFocused(true)
@@ -592,16 +603,131 @@ func TestMouse_DoubleClickSelectsWord(t *testing.T) {
 	tf := textfield.New(textfield.InitialValue("hello world"))
 	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
 	tf.SetFocused(true)
-	ctx := widget.NewContext()
 
-	// Double-click on the first character area.
-	dbl := event.NewMouseEvent(event.MouseDoubleClick, event.ButtonLeft, event.ButtonStateLeft,
-		geometry.Pt(12+2, 24), geometry.Pt(12+2, 24), event.ModNone)
-	tf.Event(ctx, dbl)
+	// Double-click is now handled by the TapAndDragRecognizer.
+	// Simulate two rapid taps at the same position through the gesture system.
+	recs := tf.GestureRecognizers()
+	if len(recs) == 0 {
+		t.Fatal("TextField should have a TapAndDragRecognizer")
+	}
+	arena := gesture.NewArena()
+	tapPos := geometry.Pt(12+2, 24)
+	ts := 100 * time.Millisecond
 
+	// First tap: down + up.
+	down1 := &gesture.PointerEvent{
+		Base:           event.NewBase(event.TypeMouse, event.ModNone),
+		EventType:      gesture.PointerDown,
+		PointerID:      1,
+		PointerType:    gesture.PointerTypeMouse,
+		Position:       tapPos,
+		GlobalPosition: tapPos,
+		Button:         event.ButtonLeft,
+		Buttons:        event.ButtonStateLeft,
+		Timestamp:      ts,
+	}
+	recs[0].AddPointer(down1, arena)
+	arena.Close(1)
+
+	up1 := &gesture.PointerEvent{
+		Base:           event.NewBase(event.TypeMouse, event.ModNone),
+		EventType:      gesture.PointerUp,
+		PointerID:      1,
+		PointerType:    gesture.PointerTypeMouse,
+		Position:       tapPos,
+		GlobalPosition: tapPos,
+		Timestamp:      ts + 50*time.Millisecond,
+	}
+	recs[0].HandleEvent(up1)
+	arena.Sweep(1)
+
+	// Second tap (within DoubleTapTimeout): down + up.
+	ts2 := ts + 100*time.Millisecond
+	down2 := &gesture.PointerEvent{
+		Base:           event.NewBase(event.TypeMouse, event.ModNone),
+		EventType:      gesture.PointerDown,
+		PointerID:      1,
+		PointerType:    gesture.PointerTypeMouse,
+		Position:       tapPos,
+		GlobalPosition: tapPos,
+		Button:         event.ButtonLeft,
+		Buttons:        event.ButtonStateLeft,
+		Timestamp:      ts2,
+	}
+	recs[0].AddPointer(down2, arena)
+	arena.Close(1)
+
+	// After the second tap-down with ConsecutiveTapCount=2, word selection
+	// should have been triggered by OnTapDown.
 	start, end := tf.Selection()
 	if start != 0 || end != 5 {
 		t.Errorf("selection = (%d, %d), want (0, 5) for word 'hello'", start, end)
+	}
+}
+
+func TestMouse_TripleClickSelectsAll(t *testing.T) {
+	tf := textfield.New(textfield.InitialValue("hello world"))
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+
+	recs := tf.GestureRecognizers()
+	if len(recs) == 0 {
+		t.Fatal("TextField should have a TapAndDragRecognizer")
+	}
+	arena := gesture.NewArena()
+	tapPos := geometry.Pt(14, 24)
+
+	// Three rapid taps at the same position.
+	ts := 100 * time.Millisecond
+	for i := 0; i < 3; i++ {
+		tapTS := ts + time.Duration(i)*100*time.Millisecond
+		down := &gesture.PointerEvent{
+			Base:           event.NewBase(event.TypeMouse, event.ModNone),
+			EventType:      gesture.PointerDown,
+			PointerID:      1,
+			PointerType:    gesture.PointerTypeMouse,
+			Position:       tapPos,
+			GlobalPosition: tapPos,
+			Button:         event.ButtonLeft,
+			Buttons:        event.ButtonStateLeft,
+			Timestamp:      tapTS,
+		}
+		recs[0].AddPointer(down, arena)
+		arena.Close(1)
+
+		up := &gesture.PointerEvent{
+			Base:           event.NewBase(event.TypeMouse, event.ModNone),
+			EventType:      gesture.PointerUp,
+			PointerID:      1,
+			PointerType:    gesture.PointerTypeMouse,
+			Position:       tapPos,
+			GlobalPosition: tapPos,
+			Timestamp:      tapTS + 30*time.Millisecond,
+		}
+		recs[0].HandleEvent(up)
+		arena.Sweep(1)
+	}
+
+	// Triple click selects all text.
+	start, end := tf.Selection()
+	runeCount := len([]rune("hello world"))
+	if start != 0 || end != runeCount {
+		t.Errorf("selection = (%d, %d), want (0, %d) for select-all", start, end, runeCount)
+	}
+}
+
+func TestTextField_GestureAwareInterface(t *testing.T) {
+	tf := textfield.New()
+
+	// Verify GestureAware interface is implemented.
+	ga, ok := interface{}(tf).(gesture.GestureAware)
+	if !ok {
+		t.Fatal("TextField should implement gesture.GestureAware")
+	}
+
+	recs := ga.GestureRecognizers()
+	if len(recs) != 1 {
+		t.Errorf("GestureRecognizers() returned %d, want 1", len(recs))
 	}
 }
 

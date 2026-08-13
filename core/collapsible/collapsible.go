@@ -6,6 +6,7 @@ import (
 	"github.com/gogpu/ui/animation"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -34,6 +35,9 @@ type Widget struct {
 	cfg     config
 	istate  interactionState
 	painter Painter
+
+	// Gesture recognizer for header click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
 
 	// Animation state.
 	progress float32 // 0.0 = collapsed, 1.0 = expanded
@@ -99,6 +103,38 @@ func New(opts ...Option) *Widget {
 			ps.SetParent(w)
 		}
 	}
+
+	// Create ClickRecognizer for header click handling (ADR-049).
+	// The callback checks if the click was within the header bounds.
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClickDown: func(details gesture.ClickDownDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			if !headerBounds(w).Contains(details.LocalPosition) {
+				return
+			}
+			w.istate = statePressed
+			w.SetNeedsRedraw(true)
+		},
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			if !headerBounds(w).Contains(details.LocalPosition) {
+				return
+			}
+			w.istate = stateNormal
+			w.SetNeedsRedraw(true)
+			w.Toggle()
+			w.MarkNeedsLayout()
+		},
+		OnClickCancel: func() {
+			w.istate = stateNormal
+			w.SetNeedsRedraw(true)
+		},
+	})
 
 	return w
 }
@@ -307,10 +343,22 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the widget is removed from the tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	if w.clickRec != nil {
+		w.clickRec.Dispose()
+	}
 	// Cancel any running animation.
 	if w.animCtrl != nil {
 		w.animCtrl.CancelAll()
 	}
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.clickRec}
 }
 
 // setExpandedState updates the expanded state and starts animation if needed.
@@ -405,7 +453,8 @@ func (a *progressAdapter) Set(v float32) {
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

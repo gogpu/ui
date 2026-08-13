@@ -1,6 +1,6 @@
 # gogpu/ui Roadmap
 
-> **Version:** 0.1.52
+> **Version:** 0.1.54
 > **Updated:** August 2026
 > **Go Version:** 1.25+
 
@@ -23,6 +23,7 @@ Go has waited 17 years for a professional graphics ecosystem. We're building it:
 - Pure Go by default (zero CGO), Rust backend optional via `-tags rust` (ADR-038 triple-backend)
 - WebGPU-first rendering via gogpu/wgpu (Vulkan/Metal/DX12/GLES/Software/Browser)
 - Signals-based reactive state (coregx/signals — hybrid push-pull, zero glitch)
+- Arena-based gesture recognition (Flutter GestureArena protocol, ADR-049)
 - Layer Tree compositor with damage-aware blit (Flutter/Chrome patterns)
 - Four design systems: Material 3, DevTools (JetBrains), Fluent, Cupertino
 - Polymorphic Content[C] pattern (CDK — inspired by taiga-family/polymorpheus)
@@ -35,14 +36,15 @@ Go has waited 17 years for a professional graphics ecosystem. We're building it:
 
 | Metric | Value |
 |--------|-------|
-| Packages | 56+ |
-| Total LOC (scc) | ~207,000+ |
-| Test Functions | ~7,500+ |
+| Packages | 70 |
+| Total LOC (scc) | ~220,000+ |
+| Test Functions | ~7,800+ |
 | Test Coverage | 97%+ |
 | Linter Issues | 0 |
 | Interactive Widgets | 27 |
 | Design Systems | 4 (M3, DevTools, Fluent, Cupertino) |
 | Painters | 70 (24 + 24 + 11 + 11) |
+| Gesture Recognition | Arena-based (ADR-049), 4 recognizers, Flutter pattern |
 | Layout Cache | Per-widget (ADR-032), O(affected subtree) |
 | Render Pipeline | Unified draw queue (ADR-051/052), backend-agnostic |
 
@@ -140,6 +142,10 @@ Slider, Dialog, Animation engine (Tween, Spring, M3 motion), ScrollView, TabView
 | Overlay boundary pipeline | Dropdown/dialog via Layer Tree |
 | Custom font pipeline | FontRegistry, StyledTextDrawer |
 | PointerCapturer | ADR-031, widget-level mouse capture |
+| Gesture recognition (ADR-049) | Arena-based disambiguation, 4 recognizers, Team groups, VelocityTracker |
+| Unified pointer pipeline | PointerEvent as single source of pointer input |
+| OS clipboard | ClipboardProvider DI, Win32/macOS/Linux |
+| TextField drag selection | Drag-to-select, double-click word, triple-click all |
 | 34 integration tests | Multi-frame lifecycle, visibility matrix |
 | Badge widget | Notification badge (dot/count), signal bindings |
 | Chip widget | Action/filter chip (M3 spec), toggleable, two-way signal |
@@ -215,7 +221,7 @@ Platform-specific features for native feel.
 | **Native file dialogs** | Open/Save/Folder via system dialogs | P1 |
 | **Clipboard rich content** | HTML/RTF clipboard support | P2 |
 | **IME support** | Input method for CJK languages | P2 |
-| **Touch/gesture input** | Pinch, swipe, long press | P2 |
+| **Touch/gesture input** | Pinch, swipe (gesture/ infrastructure in place — ADR-049) | P2 |
 
 ### Phase 9: API Freeze & Stabilization (v0.9.x — Q2-Q3 2027)
 
@@ -343,6 +349,7 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 | Layer Tree compositor | Flutter, Chrome, Qt6, Android | `compositor/` package |
 | Pluggable Painters | All design systems (Swing L&F, Qt styles) | Painter interfaces per widget |
 | Polymorphic Content[C] | taiga-family/polymorpheus | `cdk/` package |
+| Arena gesture disambiguation | Flutter GestureArena | `gesture/` package |
 | Signal-driven reactivity | Angular Signals, SolidJS, Preact | `state/` + coregx/signals |
 | Functional Options | Go community best practice | All widget constructors |
 | RepaintBoundary | Flutter RenderObject.isRepaintBoundary | `widget.WidgetBase` property |
@@ -363,13 +370,13 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| gogpu/gg | v0.50.6 | 2D rendering + unified draw queue (ADR-051/052) |
-| gogpu/gogpu | v0.44.8 | Windowing, input (examples) |
-| gogpu/gpucontext | v0.21.1 | Shared interfaces (opaque struct tokens) |
+| gogpu/gg | v0.52.2 | 2D rendering + unified draw queue (ADR-051/052) |
+| gogpu/gogpu | v0.52.1 | Windowing, input (examples) |
+| gogpu/gpucontext | v0.27.0 | Shared interfaces (opaque struct tokens) |
 | coregx/signals | v0.1.1 | Reactive state management |
 | golang.org/x/image | v0.44.0 | Inter font (standard) |
 
-**Indirect:** gogpu/wgpu v0.30.21, gogpu/naga v0.17.15, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4
+**Indirect:** gogpu/wgpu v0.31.2, gogpu/naga v0.18.0, gogpu/gputypes v0.5.2, go-text/typesetting v0.3.4
 
 ---
 
@@ -403,10 +410,7 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 | UI Repository | https://github.com/gogpu/ui |
 | Discussions | https://github.com/orgs/gogpu/discussions/18 |
 | awesome-go listing | https://github.com/avelino/awesome-go |
-| Kanban Tasks | `docs/dev/kanban/` |
-| Research | `docs/dev/research/` |
-| ADRs | `docs/dev/architecture/` |
 
 ---
 
-*This roadmap evolves with the project. Last updated: July 2026.*
+*This roadmap evolves with the project. Last updated: August 2026.*

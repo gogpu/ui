@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -196,6 +197,9 @@ type Widget struct {
 	cfg     config
 	painter Painter
 
+	// Gesture recognizer for divider drag (ADR-049).
+	dragRec *gesture.DragRecognizer
+
 	// Interaction state.
 	hovered        bool
 	dragging       bool
@@ -243,6 +247,24 @@ func New(opts ...Option) *Widget {
 			ps.SetParent(w)
 		}
 	}
+
+	// Create DragRecognizer for divider drag (ADR-049).
+	w.dragRec = gesture.NewDragRecognizer(gesture.DragConfig{
+		OnDragStart: func(_ gesture.DragStartDetails) {
+			w.dragging = true
+		},
+		OnDragUpdate: func(details gesture.DragUpdateDetails) {
+			w.updateRatioFromDrag(details.LocalPosition)
+		},
+		OnDragEnd: func(_ gesture.DragEndDetails) {
+			w.dragging = false
+			w.SetNeedsRedraw(true)
+		},
+		OnDragCancel: func() {
+			w.dragging = false
+			w.SetNeedsRedraw(true)
+		},
+	})
 
 	return w
 }
@@ -744,7 +766,19 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the split view is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	if w.dragRec != nil {
+		w.dragRec.Dispose()
+	}
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.dragRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.dragRec}
 }
 
 // Ratio returns the current split ratio.
@@ -800,6 +834,7 @@ func clampRatio(r float32) float32 {
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

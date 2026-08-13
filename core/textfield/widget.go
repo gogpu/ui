@@ -3,6 +3,7 @@ package textfield
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/internal/textmetrics"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
@@ -29,9 +30,14 @@ type Widget struct {
 	sel     selection
 	painter Painter
 
+	// Gesture recognizer for tap/drag/multi-click text selection.
+	// Handles single-click (cursor placement), double-click (word selection),
+	// triple-click (select all), and drag (selection extension).
+	// Replaces ad-hoc dragging field and MouseDrag/MouseDoubleClick handling.
+	tapDrag *gesture.TapAndDragRecognizer
+
 	// Interaction state.
-	hovered  bool
-	dragging bool
+	hovered bool
 
 	// Validation state.
 	errorMsg string
@@ -45,13 +51,14 @@ type Widget struct {
 	// Qt QLineEdit d->hscroll, HTML input.scrollLeft.
 	scrollOffsetX float32
 
-	// Cached text metrics from last Draw call, used by event handlers
-	// (positionFromMouse) that don't have access to canvas.
+	// Cached text metrics from last Draw call, used by gesture handlers
+	// (positionFromGlobal) that don't have access to canvas.
 	cachedMetrics *textmetrics.Metrics
 	// Cached layout values from last Draw call.
 	cachedContentRect geometry.Rect
 	cachedDisplayText string
 	cachedFontSize    float32
+	gestureHandledTap bool
 }
 
 // New creates a new text field Widget with the given options.
@@ -88,6 +95,15 @@ func New(opts ...Option) *Widget {
 	if len(w.cfg.validation) > 0 {
 		w.errorMsg = runValidation(w.cfg.validation, w.cfg.value)
 	}
+
+	// Create TapAndDragRecognizer for unified click/drag/multi-click handling.
+	// This replaces ad-hoc MousePress, MouseDrag, and MouseDoubleClick handlers
+	// with gesture system callbacks (ADR-049 Phase 3, #225).
+	w.tapDrag = gesture.NewTapAndDragRecognizer(gesture.TapAndDragConfig{
+		OnTapDown:    w.handleGestureTapDown,
+		OnDragStart:  w.handleGestureDragStart,
+		OnDragUpdate: w.handleGestureDragUpdate,
+	})
 
 	return w
 }
@@ -164,7 +180,7 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	scrolledRect.Min.X += w.scrollOffsetX
 	scrolledRect.Max.X += w.scrollOffsetX
 
-	// Cache for event handlers (positionFromMouse).
+	// Cache for gesture handlers (positionFromGlobal).
 	w.cachedMetrics = tm
 	w.cachedContentRect = contentRect
 	w.cachedDisplayText = displayText
@@ -433,12 +449,143 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the text field is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	// Dispose recognizer to release arena references.
+	if w.tapDrag != nil {
+		w.tapDrag.Dispose()
+	}
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.tapDrag == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.tapDrag}
+}
+
+// handleGestureTapDown is the OnTapDown callback for the TapAndDragRecognizer.
+// Handles cursor placement (single), word selection (double), and select-all (triple).
+func (w *Widget) handleGestureTapDown(details gesture.TapDragDownDetails) {
+	if details.Button != event.ButtonLeft {
+		return
+	}
+
+	// Request focus on any tap.
+	// The context is not available here directly, so we defer focus
+	// request to the Event handler (MousePress derived from PointerDown
+	// still calls RequestFocus). The cursor placement happens immediately.
+
+	runes := w.textRunes()
+	pos := positionFromGlobal(w, details.LocalPosition)
+
+	switch details.ConsecutiveTapCount {
+	case 1:
+		// Single click: place cursor, optionally extend selection with Shift.
+		if details.Modifiers.IsShift() {
+			w.sel.SetCursorKeepSelection(pos)
+		} else {
+			w.sel.SetCursor(pos)
+		}
+	case 2:
+		// Double click: select word at position.
+		start, end := wordBoundsAt(runes, pos)
+		w.sel.anchor = start
+		w.sel.cursor = end
+		w.gestureHandledTap = true
+	default:
+		// Triple click (or more): select all text.
+		w.sel.selectAll(len(runes))
+		w.gestureHandledTap = true
+	}
+
+	// ADR-028: visual only.
+	w.SetNeedsRedraw(true)
+}
+
+// handleGestureDragStart is the OnDragStart callback. Begins selection drag.
+func (w *Widget) handleGestureDragStart(_ gesture.TapDragStartDetails) {
+	// Drag started — selection extension will happen in handleGestureDragUpdate.
+	// No action needed on start; anchor was set in handleGestureTapDown.
+}
+
+// handleGestureDragUpdate is the OnDragUpdate callback. Extends selection
+// based on the consecutive tap count:
+//   - 1 = character-by-character selection
+//   - 2 = word-by-word selection
+//   - 3 = line-by-line (select-all for single-line TextField)
+func (w *Widget) handleGestureDragUpdate(details gesture.TapDragUpdateDetails) {
+	runes := w.textRunes()
+	pos := positionFromGlobal(w, details.LocalPosition)
+
+	switch details.ConsecutiveTapCount {
+	case 1:
+		// Character selection: extend cursor without moving anchor.
+		w.sel.SetCursorKeepSelection(pos)
+	case 2:
+		// Word-by-word selection: snap to word boundaries.
+		_, end := wordBoundsAt(runes, pos)
+		w.sel.SetCursorKeepSelection(end)
+	default:
+		// Line/all selection: snap to full text.
+		w.sel.selectAll(len(runes))
+	}
+
+	// ADR-028: visual only.
+	w.SetNeedsRedraw(true)
+}
+
+// positionFromLocal converts a draw-local position (the coordinate space used
+// by derived MouseEvents after Box dispatch translation) to a rune index.
+// This is the position relative to the widget's parent, matching the coordinate
+// space of Bounds() and cachedContentRect.
+func positionFromLocal(w *Widget, localPos geometry.Point) int {
+	runes := w.textRunes()
+
+	// Use cached metrics from last Draw if available.
+	if w.cachedMetrics != nil {
+		adjustedX := localPos.X - w.scrollOffsetX
+		return w.cachedMetrics.RuneIndexFromX(
+			w.cachedContentRect,
+			w.cachedDisplayText,
+			adjustedX,
+		)
+	}
+
+	// Fallback: approximate using layout metrics padding.
+	lm := resolveLayoutMetrics(w.painter)
+	hPad, _ := lm.ContentPadding()
+	bounds := w.Bounds()
+	localX := localPos.X - bounds.Min.X - hPad - w.scrollOffsetX
+
+	if localX <= 0 {
+		return 0
+	}
+
+	fontSize := lm.TextFieldFontSize()
+	charW := fontSize * 0.55
+	pos := int(localX / charW)
+	return clampPos(pos, len(runes))
+}
+
+// positionFromGlobal converts a window-coordinate (global) position to a rune
+// index. Used by gesture recognizer callbacks where positions are in window
+// coordinates (gesture.PointerEvent.GlobalPosition).
+//
+// Converts global to draw-local by subtracting the widget's ScreenOrigin
+// (accumulated parent transforms) and adding Bounds().Min (parent-local offset).
+// This produces the same coordinate space as derived MouseEvent positions.
+func positionFromGlobal(w *Widget, globalPos geometry.Point) int {
+	so := w.ScreenOrigin()
+	localPos := globalPos.Sub(so).Add(w.Bounds().Min)
+	return positionFromLocal(w, localPos)
 }
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

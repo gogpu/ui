@@ -4,6 +4,7 @@ import (
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -90,6 +91,9 @@ type Widget struct {
 	cfg     config
 	painter Painter
 
+	// Gesture recognizer for control button click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
+
 	// controlBounds holds the bounds for each control button (min, max, close).
 	controlBounds [controlCount]geometry.Rect
 
@@ -149,6 +153,17 @@ func New(opts ...Option) *Widget {
 			}
 		}
 	}
+
+	// Create ClickRecognizer for control button click handling (ADR-049).
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			// Control button click is handled by handlePress/handleRelease.
+		},
+	})
 
 	return w
 }
@@ -744,9 +759,19 @@ func setBounds(child widget.Widget, bounds geometry.Rect) {
 	}
 }
 
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.clickRec}
+}
+
 // Compile-time interface checks.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ a11y.Accessible  = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ a11y.Accessible      = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

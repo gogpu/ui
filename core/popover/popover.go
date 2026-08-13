@@ -3,6 +3,7 @@ package popover
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -18,6 +19,9 @@ type Popover struct {
 	cfg     config
 	painter Painter
 	visible bool
+
+	// Gesture recognizer for trigger click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
 
 	// overlayWidget is the content wrapper pushed to the overlay stack.
 	overlayWidget *overlayContent
@@ -56,6 +60,18 @@ func NewPopover(opts ...Option) *Popover {
 			ps.SetParent(p)
 		}
 	}
+
+	// Create ClickRecognizer for trigger click handling (ADR-049).
+	p.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			// Toggle is handled by Event() which has access to ctx.
+			// The recognizer just marks that a click occurred.
+		},
+	})
 
 	return p
 }
@@ -291,7 +307,19 @@ func (p *Popover) Mount(ctx widget.Context) {
 
 // Unmount is called when the popover is removed from the widget tree.
 func (p *Popover) Unmount() {
+	if p.clickRec != nil {
+		p.clickRec.Dispose()
+	}
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (p *Popover) GestureRecognizers() []gesture.Recognizer {
+	if p.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{p.clickRec}
 }
 
 // overlayContent wraps the popover content widget for the overlay stack.
@@ -402,8 +430,9 @@ func triggerScreenBoundsOf(w widget.Widget) geometry.Rect {
 
 // Compile-time interface checks.
 var (
-	_ widget.Widget    = (*Popover)(nil)
-	_ widget.Focusable = (*Popover)(nil)
-	_ widget.Lifecycle = (*Popover)(nil)
-	_ widget.Widget    = (*overlayContent)(nil)
+	_ widget.Widget        = (*Popover)(nil)
+	_ widget.Focusable     = (*Popover)(nil)
+	_ widget.Lifecycle     = (*Popover)(nil)
+	_ gesture.GestureAware = (*Popover)(nil)
+	_ widget.Widget        = (*overlayContent)(nil)
 )

@@ -4,6 +4,7 @@ import (
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -88,6 +89,9 @@ type Widget struct {
 	painter    Painter
 	itemStates []itemState
 	focusIndex int // index of the focused item (-1 = none)
+
+	// Gesture recognizer for toolbar item click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
 }
 
 // New creates a new toolbar Widget with the given options.
@@ -124,6 +128,17 @@ func New(opts ...Option) *Widget {
 			}
 		}
 	}
+
+	// Create ClickRecognizer for toolbar item click handling (ADR-049).
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			// Item click is handled by handlePress/handleRelease.
+		},
+	})
 
 	return w
 }
@@ -686,9 +701,19 @@ func (w *Widget) AccessibilityActions() []a11y.Action {
 // a11yLabel is the accessibility label for the toolbar.
 const a11yLabel = "Toolbar"
 
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.clickRec}
+}
+
 // Compile-time interface checks.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ a11y.Accessible  = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ a11y.Accessible      = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

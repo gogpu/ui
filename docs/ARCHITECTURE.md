@@ -49,27 +49,29 @@
 | Point, Size, Rect, Constraints, Insets                       |
 +==============================================================+
 |                    Infrastructure                            |
-| focus/           |  layout/          |  state/               |
-| Focus Manager    |  Flex, Stack, Grid|  Signals, Binding     |
-| (delegation)     |  (public API)     |  Scheduler, Lifecycle |
+| gesture/         |  focus/           |  state/               |
+| Arena, Click,    |  Focus Manager    |  Signals, Binding     |
+| Drag, LongPress, |  (delegation)     |  Scheduler, Lifecycle |
+| TapAndDrag, Team |                   |                       |
 +------------------+-------------------+-----------------------+
-| a11y/            |  registry/        |  plugin/              |
-| Accessible       |  Widget Registry  |  Plugin System        |
-| Node, Tree, Role |  Categories       |  Manager, Assets      |
+| layout/          |  a11y/            |  plugin/              |
+| Flex, Stack, Grid|  Accessible       |  Plugin System        |
+| (public API)     |  Node, Tree, Role |  Manager, Assets      |
 +------------------+-------------------+-----------------------+
-| animation/       |  transition/      |  icon/                |
-| Tween, Spring,   |  Fade, Slide,     |  Vector paths,        |
-| M3 Presets,      |  Scale, Show/Hide |  IconWidget,          |
-| Orchestration    |  Enter/Exit       |  10 built-in icons    |
+| registry/        |  animation/       |  transition/          |
+| Widget Registry  |  Tween, Spring,   |  Fade, Slide,         |
+| Categories       |  M3 Presets,      |  Scale, Show/Hide     |
+|                  |  Orchestration    |  Enter/Exit           |
 +------------------+-------------------+-----------------------+
-| dnd/             |  theme/font/      |  i18n/                |
-| DragSource,      |  Font Registry,   |  Locale, Bundle,      |
-| DropTarget,      |  CSS weight match |  Translator,          |
-| Manager          |  Family/Face      |  CLDR plural, RTL     |
+| icon/            |  dnd/             |  i18n/                |
+| Vector paths,    |  DragSource,      |  Locale, Bundle,      |
+| IconWidget,      |  DropTarget,      |  Translator,          |
+| 10 built-in      |  Manager          |  CLDR plural, RTL     |
 +------------------+-------------------+-----------------------+
-| uitest/          |                   |                       |
-| MockCanvas,      |  MockContext,     |  Event factories,     |
-| Widget helpers   |  Assertions       |  Reusable mocks       |
+| theme/font/      |  uitest/          |                       |
+| Font Registry,   |  MockCanvas,      |  Event factories,     |
+| CSS weight match |  MockContext,     |  Widget helpers       |
+| Family/Face      |  Assertions       |  Reusable mocks       |
 +------------------+-------------------+-----------------------+
 | overlay/         |  render/          |  app/                 |
 | Stack, Container |  Canvas factory   |  App, Window,         |
@@ -98,7 +100,7 @@
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `widget/` | Core widget abstractions | `Widget`, `WidgetBase`, `Context`, `Canvas`, `Focusable`, `PointerCapturer` (ADR-031), `Lifecycle`, `SchedulerRef`, `ThemeProvider`, `Color` |
+| `widget/` | Core widget abstractions | `Widget`, `WidgetBase`, `Context`, `Canvas`, `Focusable`, `PointerCapturer` (ADR-031), `Lifecycle`, `SchedulerRef`, `ThemeProvider`, `Color`, `ClipboardProvider` |
 | `event/` | Input event types | `MouseEvent`, `KeyEvent`, `FocusEvent`, `WheelEvent`, `Modifiers` |
 | `geometry/` | Geometric primitives | `Point`, `Size`, `Rect`, `Constraints`, `Insets` |
 
@@ -153,6 +155,7 @@
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
+| `gesture/` | Gesture recognition (arena-based, Flutter pattern) | `Arena`, `Recognizer`, `RecognizerBase`, `ClickRecognizer`, `DragRecognizer`, `LongPressRecognizer`, `TapAndDragRecognizer`, `VelocityTracker`, `Team`, `GestureAware`, `PointerEvent` |
 | `overlay/` | Overlay/popup infrastructure | `Stack`, `Container`, `Position` |
 | `focus/` | Focus management (public API) | `Manager`, `Shortcut`, `DrawFocusRing` |
 | `layout/` | Layout tree and algorithms | `NodeID`, `NodeLayout`, `Result`, `Algorithm` |
@@ -451,6 +454,70 @@ Methods: `Has`, `HasAny`, `IsShift`, `IsCtrl`, `IsAlt`, `IsSuper`, `With`, `With
 ### Event Propagation
 
 Events are dispatched from the root widget down through the tree. A widget's `Event` method returns `true` to consume the event and stop propagation. There is no explicit capture/bubble phase -- widgets check bounds and delegate to children as appropriate.
+
+### Gesture Recognition (ADR-049)
+
+The `gesture/` package provides arena-based gesture disambiguation, modeled after Flutter's `GestureArena` protocol. It sits at the infrastructure layer alongside `focus/`, `overlay/`, and `state/`.
+
+**Architecture:**
+
+```
+PointerDown event arrives
+  → hit-test: find widgets under pointer (deepest first)
+  → check each widget for GestureAware interface
+  → register each widget's recognizers in the Arena
+  → Arena closes (end of PointerDown dispatch)
+  → as PointerMove/PointerUp arrive, arena resolves winner
+  → winner fires gesture callbacks (OnClick, OnDragUpdate, etc.)
+  → losers reset their state
+```
+
+**Recognizers:**
+
+| Recognizer | Pattern | Use Case |
+|------------|---------|----------|
+| `ClickRecognizer` | Pointer down → up within slop distance | Buttons, checkboxes, list items |
+| `DragRecognizer` | Pointer down → move beyond slop threshold | Scrolling, slider thumb, splitview divider |
+| `LongPressRecognizer` | Pointer down → held for 500ms without movement | Context menus, drag initiation |
+| `TapAndDragRecognizer` | Tap (click) + immediate drag sequence | TextField text selection |
+
+**Arena protocol:**
+- When a `PointerDown` event occurs, all interested recognizers register.
+- As pointer events arrive, recognizers evaluate the gesture pattern.
+- A recognizer calls `Arena.Resolve(Accepted)` to claim victory or `Resolve(Rejected)` to withdraw.
+- If only one member remains when the arena closes, it wins automatically.
+- On `PointerUp`, the arena sweeps: first remaining member wins.
+- `Team` groups cooperating recognizers (e.g., Slider click + drag).
+
+**Per-device thresholds:**
+- Mouse: 1px slop distance (precise input)
+- Touch: 18px slop distance (finger imprecision)
+
+**GestureAware interface** (opt-in, same pattern as `Focusable`):
+
+```go
+type GestureAware interface {
+    GestureRecognizers() []Recognizer
+}
+```
+
+All 20+ interactive widgets implement `GestureAware`. Widgets that do not implement it continue to receive events through the existing `Event(ctx, event.Event)` path.
+
+**Signals integration:**
+Recognizers support opt-in reactive signals via functional options (e.g., `WithDraggingSignal` binds a `Signal[bool]` to drag state).
+
+### OS Clipboard
+
+The `widget.ClipboardProvider` interface enables clipboard access from widgets without direct platform imports:
+
+```go
+type ClipboardProvider interface {
+    ClipboardRead() (string, error)
+    ClipboardWrite(text string) error
+}
+```
+
+Registered by `desktop/` during initialization via `widget.RegisterClipboardProvider()`. Same DI pattern as `SoundPlayer`.
 
 ---
 
@@ -998,7 +1065,7 @@ Key components:
 - `DrawStatsProvider` — observability (CachedWidgets, DirtyWidgets)
 - `DirtyTrackerProvider` — O(regions) `Intersects()` fast path in RepaintBoundary
 
-See `docs/dev/architecture/ADR-004-INCREMENTAL-RENDERING.md` for full design.
+See ADR-004 for full design.
 
 ---
 
@@ -1351,11 +1418,13 @@ enabling Tab navigation and keyboard shortcut dispatch.
 
 `app.EventBridge` translates `gpucontext` events into `event.*` types and dispatches them to the Window.
 
-**Event pipeline:**
+**Event pipeline (ADR-049 unified pointer):**
 ```
 gpucontext (native OS events)
   -> EventBridge (OnPointer, OnTextInput, OnKeyboard)
     -> Window.HandleEvent()
+      -> PointerEvent conversion (unified pointer pipeline)
+      -> GestureArena (hit-test → register GestureAware recognizers)
       -> HoverTracker (hit-test ScreenBounds, synthesize Enter/Leave)
       -> FocusManager.HandleKeyEvent() (Tab/Shift+Tab, shortcuts)
       -> Root Widget tree (depth-first dispatch)
@@ -1463,13 +1532,13 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + vector icons + unified draw queue | v0.50.11 |
-| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.24.0 |
-| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.48.4 |
+| `github.com/gogpu/gg` | 2D graphics + vector icons + unified draw queue | v0.52.2 |
+| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.27.0 |
+| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.52.1 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.1 |
 | `golang.org/x/image` | Font rendering infrastructure | v0.44.0 |
 
-**Indirect:** gogpu/wgpu v0.30.34, gogpu/naga v0.18.0, gogpu/gputypes v0.5.1, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
+**Indirect:** gogpu/wgpu v0.31.2, gogpu/naga v0.18.0, gogpu/gputypes v0.5.2, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
 
 Go version: **1.25.0**
 
@@ -1553,4 +1622,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of July 16, 2026 (v0.1.45 — 26 interactive widgets, 4 design systems with 70 painters, per-widget layout caching ADR-032, Layer Tree compositor, damage-aware blit, unified draw queue ADR-051/052).*
+*This document reflects the actual codebase as of August 13, 2026 (v0.1.54 — 27 interactive widgets, 4 design systems with 70 painters, gesture recognition ADR-049, Layer Tree compositor, damage-aware blit, unified draw queue ADR-051/052, OS clipboard).*

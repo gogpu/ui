@@ -22,7 +22,11 @@ func handleEvent(w *Widget, ctx widget.Context, e event.Event) bool {
 	}
 }
 
-// handleMouseEvent processes mouse events for focus, cursor placement, and selection.
+// handleMouseEvent processes mouse events for focus and hover state.
+//
+// Cursor placement, selection, drag, and multi-click are handled by the
+// TapAndDragRecognizer via the gesture system (ADR-049 Phase 3, #225).
+// Only hover (Enter/Leave) and focus acquisition (Press) remain here.
 func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 	switch e.MouseType {
 	case event.MouseEnter:
@@ -42,22 +46,19 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 	case event.MousePress:
 		return handleMousePress(w, ctx, e)
 
-	case event.MouseRelease:
-		w.dragging = false
-		return true
-
-	case event.MouseDrag:
-		return handleMouseDrag(w, ctx, e)
-
-	case event.MouseDoubleClick:
-		return handleDoubleClick(w, ctx, e)
-
 	default:
 		return false
 	}
 }
 
-// handleMousePress handles a mouse press event to place the cursor.
+// handleMousePress handles focus acquisition and cursor placement via the
+// derived MouseEvent from HandlePointerEvent. The mouse position is in
+// draw-local coordinates (after Box dispatch translation).
+//
+// The gesture recognizer's OnTapDown also places the cursor (for double/triple
+// click handling), but this handler runs AFTER the gesture callback and uses
+// the correctly-translated position from the derived event, ensuring accurate
+// cursor placement on single clicks.
 func handleMousePress(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 	if e.Button != event.ButtonLeft {
 		return false
@@ -65,86 +66,27 @@ func handleMousePress(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 
 	ctx.RequestFocus(w)
 
-	// ADR-028: visual only — cursor placement and focus ring.
-	w.SetNeedsRedraw(true)
-	ctx.InvalidateRect(w.Bounds())
-
-	pos := positionFromMouse(w, e)
-	if e.Modifiers().IsShift() {
-		w.sel.SetCursorKeepSelection(pos)
+	// The gesture recognizer's OnTapDown fires BEFORE this derived
+	// MousePress handler (Part 1 vs Part 2 ordering in HandlePointerEvent).
+	// For multi-click (double/triple), OnTapDown sets gestureHandledTap=true
+	// and performs word/line selection. Skip cursor placement to preserve it.
+	if w.gestureHandledTap {
+		w.gestureHandledTap = false
 	} else {
-		w.sel.SetCursor(pos)
-	}
-	w.dragging = true
-	return true
-}
+		runes := w.textRunes()
+		pos := positionFromLocal(w, e.Position)
+		pos = clampPos(pos, len(runes))
 
-// handleMouseDrag handles mouse drag for text selection.
-func handleMouseDrag(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
-	if !w.dragging {
-		return false
+		if e.Modifiers()&event.ModShift != 0 {
+			w.sel.SetCursorKeepSelection(pos)
+		} else {
+			w.sel.SetCursor(pos)
+		}
 	}
-	pos := positionFromMouse(w, e)
-	w.sel.SetCursorKeepSelection(pos)
-	// ADR-028: visual only — selection highlight change.
+
 	w.SetNeedsRedraw(true)
 	ctx.InvalidateRect(w.Bounds())
 	return true
-}
-
-// handleDoubleClick selects the word at the click position.
-func handleDoubleClick(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
-	if e.Button != event.ButtonLeft {
-		return false
-	}
-	runes := w.textRunes()
-	pos := positionFromMouse(w, e)
-	start, end := wordBoundsAt(runes, pos)
-	w.sel.anchor = start
-	w.sel.cursor = end
-	// ADR-028: visual only — word selection highlight.
-	w.SetNeedsRedraw(true)
-	ctx.InvalidateRect(w.Bounds())
-	return true
-}
-
-// positionFromMouse converts a mouse position to a rune index in the text.
-// Uses cached text metrics from the last Draw call for accurate hit-testing.
-// Falls back to proportional approximation when no cached metrics are available
-// (e.g., before the first draw).
-//
-// When horizontal scroll is active, the mouse X is adjusted by the inverse
-// of scrollOffsetX to map screen coordinates back to text coordinates.
-func positionFromMouse(w *Widget, e *event.MouseEvent) int {
-	runes := w.textRunes()
-
-	// Use cached metrics from last Draw if available.
-	if w.cachedMetrics != nil {
-		// Adjust mouse X by inverse of scroll offset: the text is shifted
-		// by scrollOffsetX, so the unscrolled X is (mouseX - scrollOffsetX).
-		adjustedX := e.Position.X - w.scrollOffsetX
-		return w.cachedMetrics.RuneIndexFromX(
-			w.cachedContentRect,
-			w.cachedDisplayText,
-			adjustedX,
-		)
-	}
-
-	// Fallback: approximate using layout metrics padding.
-	lm := resolveLayoutMetrics(w.painter)
-	hPad, _ := lm.ContentPadding()
-	bounds := w.Bounds()
-	localX := e.Position.X - bounds.Min.X - hPad - w.scrollOffsetX
-
-	if localX <= 0 {
-		return 0
-	}
-
-	// Approximate proportional positioning.
-	fontSize := lm.TextFieldFontSize()
-	charW := fontSize * 0.55 // approximate average character width
-	pos := int(localX / charW)
-	return clampPos(pos, len(runes))
 }
 
 // handleKeyEvent processes keyboard events for text editing and navigation.

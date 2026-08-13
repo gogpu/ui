@@ -3,6 +3,7 @@ package tabview
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -23,6 +24,9 @@ type Widget struct {
 	widget.WidgetBase
 	cfg     config
 	painter Painter
+
+	// Gesture recognizer for tab click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
 
 	// Computed layout state.
 	tabBarBounds geometry.Rect
@@ -66,7 +70,49 @@ func New(tabs []Tab, opts ...Option) *Widget {
 		}
 	}
 
+	// Create ClickRecognizer for tab click handling (ADR-049).
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick:       w.handleGestureClick,
+	})
+
 	return w
+}
+
+// handleGestureClick processes a click from the gesture recognizer.
+// Checks close buttons first, then tab selection.
+func (w *Widget) handleGestureClick(details gesture.ClickDetails) {
+	if details.Button != event.ButtonLeft {
+		return
+	}
+	if !w.tabBarBounds.Contains(details.LocalPosition) {
+		return
+	}
+	// Check close buttons first.
+	for i := range w.tabStates {
+		ts := &w.tabStates[i]
+		if !ts.Closeable || ts.CloseButtonBounds.IsEmpty() {
+			continue
+		}
+		if ts.CloseButtonBounds.Contains(details.LocalPosition) {
+			if w.cfg.onClose != nil {
+				w.cfg.onClose(i)
+			}
+			w.MarkNeedsLayout()
+			return
+		}
+	}
+	// Check tab selection.
+	for i := range w.tabStates {
+		ts := &w.tabStates[i]
+		if ts.Disabled {
+			continue
+		}
+		if ts.Bounds.Contains(details.LocalPosition) {
+			w.selectTab(i)
+			return
+		}
+	}
 }
 
 // IsFocusable reports whether the tabview can currently receive focus.
@@ -242,7 +288,19 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the tabview is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	if w.clickRec != nil {
+		w.clickRec.Dispose()
+	}
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.clickRec}
 }
 
 // TabCount returns the number of tabs.
@@ -346,7 +404,8 @@ func (w *Widget) updateTabStates(selectedIdx int) {
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )
