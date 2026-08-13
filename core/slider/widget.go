@@ -3,6 +3,7 @@ package slider
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -36,6 +37,13 @@ type Widget struct {
 	interaction interactionState
 	painter     Painter
 
+	// Gesture recognizers for drag and click-to-position (ADR-049).
+	// Drag is captain in the Team so it wins over click when movement starts.
+	clickRec *gesture.ClickRecognizer
+	dragRec  *gesture.DragRecognizer
+	team     *gesture.Team
+	teamRecs []gesture.Recognizer // team-wrapped recognizers
+
 	// Styling overrides set via fluent methods.
 	padding float32
 }
@@ -62,6 +70,25 @@ func New(opts ...Option) *Widget {
 	// Apply painter from config if set.
 	if w.cfg.painter != nil {
 		w.painter = w.cfg.painter
+	}
+
+	// Create gesture recognizers for gesture arena participation (ADR-049).
+	// Slider uses a Team: click (tap-to-position) + drag (thumb drag).
+	// Drag is captain so it wins when movement exceeds slop.
+	//
+	// The recognizers participate in the arena but do NOT modify widget state
+	// or set values — all interaction (stateDragging, setValue, CapturePointer)
+	// is handled by the derived MouseEvent handlers in event.go. Gesture
+	// callbacks that modify w.interaction would race with the derived event
+	// (gesture fires in Part 1 of HandlePointerEvent, derived event in Part 2).
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+	})
+	w.dragRec = gesture.NewDragRecognizer(gesture.DragConfig{})
+	w.team = &gesture.Team{Captain: w.dragRec}
+	w.teamRecs = []gesture.Recognizer{
+		w.team.Add(w.clickRec),
+		w.team.Add(w.dragRec),
 	}
 
 	return w
@@ -172,12 +199,25 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the slider is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	if w.clickRec != nil {
+		w.clickRec.Dispose()
+	}
+	if w.dragRec != nil {
+		w.dragRec.Dispose()
+	}
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	return w.teamRecs
 }
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

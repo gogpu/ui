@@ -3,6 +3,7 @@ package scrollview
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -21,6 +22,9 @@ type Widget struct {
 	cfg     config
 	content widget.Widget
 	painter Painter
+
+	// Gesture recognizer for scrollbar thumb drag (ADR-049).
+	dragRec *gesture.DragRecognizer
 
 	// Cached layout measurements.
 	contentSize  geometry.Size
@@ -63,6 +67,30 @@ func New(content widget.Widget, opts ...Option) *Widget {
 	if w.cfg.painter != nil {
 		w.painter = w.cfg.painter
 	}
+
+	// Create DragRecognizer for scrollbar thumb drag (ADR-049).
+	w.dragRec = gesture.NewDragRecognizer(gesture.DragConfig{
+		OnDragStart: func(_ gesture.DragStartDetails) {
+			// Drag start is handled by the existing handleMousePress which
+			// sets dragAxis and dragScrollStart based on hit-testing.
+		},
+		OnDragUpdate: func(details gesture.DragUpdateDetails) {
+			if w.dragging == dragNone {
+				return
+			}
+			handleDragUpdateDirect(w, details.LocalPosition)
+		},
+		OnDragEnd: func(_ gesture.DragEndDetails) {
+			w.dragging = dragNone
+			w.trackRepeat = trackRepeatState{}
+			w.MarkRedrawLocal()
+		},
+		OnDragCancel: func() {
+			w.dragging = dragNone
+			w.trackRepeat = trackRepeatState{}
+			w.MarkRedrawLocal()
+		},
+	})
 
 	return w
 }
@@ -387,7 +415,19 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the scroll view is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	if w.dragRec != nil {
+		w.dragRec.Dispose()
+	}
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.dragRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.dragRec}
 }
 
 // Content returns the scroll view's content widget.
@@ -552,7 +592,8 @@ func (w *Widget) Padding(_ float32) *Widget {
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

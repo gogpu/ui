@@ -3,6 +3,7 @@ package docking
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -88,6 +89,9 @@ type Host struct {
 	cfg     hostConfig
 	painter Painter
 
+	// Gesture recognizer for zone tab click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
+
 	// Zone groups, indexed by Zone constant.
 	zones [zoneCount]group
 
@@ -126,6 +130,17 @@ func NewHost(opts ...HostOption) *Host {
 			ps.SetParent(h)
 		}
 	}
+
+	// Create ClickRecognizer for zone tab click handling (ADR-049).
+	h.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			// Zone tab click is handled by handleZoneTabEvents.
+		},
+	})
 
 	return h
 }
@@ -725,5 +740,17 @@ const (
 	defaultHostHeight float32 = 600
 )
 
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (h *Host) GestureRecognizers() []gesture.Recognizer {
+	if h.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{h.clickRec}
+}
+
 // Verify Host implements required interfaces at compile time.
-var _ widget.Widget = (*Host)(nil)
+var (
+	_ widget.Widget        = (*Host)(nil)
+	_ gesture.GestureAware = (*Host)(nil)
+)

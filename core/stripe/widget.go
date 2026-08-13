@@ -4,6 +4,7 @@ import (
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -43,6 +44,9 @@ type Widget struct {
 	painter  Painter
 	activeID string
 
+	// Gesture recognizer for button click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
+
 	topStates    []buttonState
 	bottomStates []buttonState
 	hoveredIdx   int // index into allButtons() or noHover
@@ -74,6 +78,18 @@ func New(opts ...Option) *Widget {
 
 	w.topStates = make([]buttonState, len(w.cfg.topItems))
 	w.bottomStates = make([]buttonState, len(w.cfg.bottomItems))
+
+	// Create ClickRecognizer for button click handling (ADR-049).
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			// Button click is handled by handlePress/handleRelease.
+		},
+	})
+
 	return w
 }
 
@@ -435,8 +451,18 @@ func (w *Widget) AccessibilityActions() []a11y.Action {
 // a11yLabel is the accessibility label for the stripe.
 const a11yLabel = "Tool Window Strip"
 
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.clickRec}
+}
+
 // Compile-time interface checks.
 var (
-	_ widget.Widget   = (*Widget)(nil)
-	_ a11y.Accessible = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ a11y.Accessible      = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

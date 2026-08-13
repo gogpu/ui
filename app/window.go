@@ -11,6 +11,7 @@ import (
 	"github.com/gogpu/ui/dnd"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/internal/dirty"
 	ifocus "github.com/gogpu/ui/internal/focus"
 	internalRender "github.com/gogpu/ui/internal/render"
@@ -165,6 +166,12 @@ type Window struct {
 	// Used by both internal widget-to-widget drags and OS file drops
 	// bridged via desktop.Run's OnDragDrop callback.
 	dndManager *dnd.Manager
+
+	// gestureArena manages gesture disambiguation for all pointers.
+	// Created lazily on first HandlePointerEvent call to avoid allocation
+	// overhead for windows with no GestureAware widgets. One arena per
+	// window is the Flutter pattern (GestureBinding.gestureArena).
+	gestureArena *gesture.Arena
 }
 
 // newWindow creates a Window with the given providers.
@@ -1304,6 +1311,146 @@ func (w *Window) DndManager() *dnd.Manager {
 		w.dndManager = dnd.NewManager()
 	}
 	return w.dndManager
+}
+
+// HandlePointerEvent is the unified entry point for all pointer input
+// (ADR-049 Phase 3).
+//
+// It performs TWO functions:
+//  1. Feed the gesture arena: collect GestureAware recognizers on PointerDown,
+//     route subsequent events, sweep on PointerUp.
+//  2. Derive MouseEvent: synthesize a legacy MouseEvent from the PointerEvent
+//     and dispatch it to the widget tree via HandleEvent, so existing widgets
+//     continue to work unchanged.
+//
+// This replaces the previous dual-dispatch architecture where legacy mouse
+// callbacks and pointer events were dispatched independently.
+func (w *Window) HandlePointerEvent(ev *gesture.PointerEvent) {
+	if w.root == nil || ev == nil {
+		return
+	}
+
+	// Lazy arena creation.
+	if w.gestureArena == nil {
+		w.gestureArena = gesture.NewArena()
+	}
+
+	// --- Part 1: Gesture Arena ---
+	switch ev.EventType {
+	case gesture.PointerDown:
+		// Hit-test: find all GestureAware widgets under the pointer.
+		// Collect their recognizers and add them to the arena.
+		recognizers := w.hitTestGestureAware(ev.GlobalPosition)
+		for _, rec := range recognizers {
+			rec.AddPointer(ev, w.gestureArena)
+		}
+		// Close the arena for this pointer — no more members can join.
+		w.gestureArena.Close(ev.PointerID)
+
+	case gesture.PointerMove, gesture.PointerUp, gesture.PointerCancel:
+		// Route to all recognizers tracking this pointer.
+		w.gestureArena.Route(ev)
+	}
+
+	// Sweep after PointerUp: if no recognizer has claimed victory,
+	// the first remaining member wins by default.
+	if ev.EventType == gesture.PointerUp {
+		w.gestureArena.Sweep(ev.PointerID)
+	}
+
+	// --- Part 2: Derive MouseEvent for existing widget dispatch ---
+	derived := deriveMouseEvent(ev)
+	if derived != nil {
+		w.HandleEvent(derived)
+	}
+}
+
+// deriveMouseEvent synthesizes a legacy MouseEvent from a gesture.PointerEvent
+// so that existing widgets continue to receive mouse events unchanged.
+//
+// Mapping:
+//   - PointerDown  -> MousePress
+//   - PointerUp    -> MouseRelease
+//   - PointerMove  -> MouseMove
+//   - PointerCancel -> (no MouseEvent derived — cancel is gesture-only)
+func deriveMouseEvent(ev *gesture.PointerEvent) *event.MouseEvent {
+	var mouseType event.MouseEventType
+	switch ev.EventType {
+	case gesture.PointerDown:
+		mouseType = event.MousePress
+	case gesture.PointerUp:
+		mouseType = event.MouseRelease
+	case gesture.PointerMove:
+		mouseType = event.MouseMove
+	default:
+		// PointerCancel has no legacy MouseEvent equivalent.
+		return nil
+	}
+
+	return event.NewMouseEvent(
+		mouseType,
+		ev.Button,
+		ev.Buttons,
+		ev.Position,
+		ev.GlobalPosition,
+		ev.Modifiers(),
+	)
+}
+
+// GestureArena returns the window's gesture arena, or nil if no pointer
+// events have been processed yet. Exposed for testing.
+func (w *Window) GestureArena() *gesture.Arena {
+	return w.gestureArena
+}
+
+// hitTestGestureAware walks the widget tree from root, collecting
+// recognizers from all GestureAware widgets whose ScreenBounds contain
+// the given position. Children are checked in reverse order (topmost
+// first in z-order) to match visual ordering.
+//
+// This is a separate hit-test from overlayAwareHitTest (used for hover):
+// gesture hit-testing collects ALL matching widgets on the path (not just
+// the deepest one), because parent and child may both have recognizers
+// that compete in the arena.
+func (w *Window) hitTestGestureAware(pos geometry.Point) []gesture.Recognizer {
+	var recognizers []gesture.Recognizer
+	hitTestGestureRecursive(w.root, pos, &recognizers)
+	return recognizers
+}
+
+// hitTestGestureRecursive walks the widget tree depth-first, collecting
+// recognizers from GestureAware widgets that contain the point.
+func hitTestGestureRecursive(w widget.Widget, pos geometry.Point, out *[]gesture.Recognizer) {
+	if w == nil {
+		return
+	}
+
+	// Check visibility.
+	if base, ok := w.(interface{ IsVisible() bool }); ok && !base.IsVisible() {
+		return
+	}
+
+	// Check if the widget's ScreenBounds contains the position.
+	if sb, ok := w.(interface{ ScreenBounds() geometry.Rect }); ok {
+		bounds := sb.ScreenBounds()
+		if !bounds.Contains(pos) {
+			return
+		}
+	}
+
+	// Collect recognizers from GestureAware widgets.
+	if ga, ok := w.(gesture.GestureAware); ok {
+		recs := ga.GestureRecognizers()
+		if len(recs) > 0 {
+			*out = append(*out, recs...)
+		}
+	}
+
+	// Recurse into children (reverse order for z-order consistency).
+	children := w.Children()
+	for i := len(children) - 1; i >= 0; i-- {
+		hitTestGestureRecursive(children[i], pos, out)
+	}
 }
 
 // windowOverlayManager adapts the Window's overlay.Stack to the

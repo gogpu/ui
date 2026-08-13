@@ -18,6 +18,7 @@ import (
 	"github.com/gogpu/ui/dnd"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/render"
+	"github.com/gogpu/ui/widget"
 )
 
 var (
@@ -69,6 +70,8 @@ func Run(gogpuApp *gogpu.App, uiApp *app.App) error {
 		gogpuApp: gogpuApp,
 		uiApp:    uiApp,
 	}
+
+	widget.RegisterClipboardProvider(gogpuApp)
 
 	gogpuApp.OnDraw(rl.draw)
 

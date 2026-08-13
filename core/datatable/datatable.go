@@ -8,6 +8,7 @@ import (
 	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -285,6 +286,9 @@ type Widget struct {
 	cfg     config
 	painter Painter
 
+	// Gesture recognizer for header/row click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
+
 	// Internal scroll view for the data rows (not header).
 	scroll  *scrollview.Widget
 	virtual *virtualContent
@@ -355,6 +359,19 @@ func New(opts ...Option) *Widget {
 	// ADR-028: parent chain for upward dirty propagation.
 	// Flutter: RenderObject.adoptChild sets parent on each child.
 	w.scroll.SetParent(w)
+
+	// Create ClickRecognizer for header/row click handling (ADR-049).
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			// Header sort and row selection are handled by content
+			// mouse event dispatch. The recognizer participates in
+			// the arena for this widget.
+		},
+	})
 
 	return w
 }
@@ -521,7 +538,19 @@ func (w *Widget) Mount(ctx widget.Context) {
 
 // Unmount is called when the table is removed from the widget tree.
 func (w *Widget) Unmount() {
+	if w.clickRec != nil {
+		w.clickRec.Dispose()
+	}
 	w.scroll.Unmount()
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.clickRec}
 }
 
 // --- Public API ---
@@ -1268,8 +1297,9 @@ const (
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
-	_ a11y.Accessible  = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ a11y.Accessible      = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )

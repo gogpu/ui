@@ -3,6 +3,7 @@ package radio
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -27,6 +28,9 @@ type Item struct {
 	group   *Group
 	state   interactionState
 	painter Painter
+
+	// Gesture recognizer for click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
 }
 
 // newItem creates a new radio item linked to the given group.
@@ -39,6 +43,31 @@ func newItem(def ItemDef, group *Group, painter Painter) *Item {
 	}
 	it.SetVisible(true)
 	it.SetEnabled(true)
+
+	// Create ClickRecognizer for unified pointer pipeline (ADR-049).
+	it.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClickDown: func(details gesture.ClickDownDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			it.state = statePressed
+			it.SetNeedsRedraw(true)
+		},
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			it.state = stateNormal
+			it.SetNeedsRedraw(true)
+			it.group.selectValue(it.value)
+		},
+		OnClickCancel: func() {
+			it.state = stateNormal
+			it.SetNeedsRedraw(true)
+		},
+	})
+
 	return it
 }
 
@@ -118,8 +147,30 @@ func (it *Item) Children() []widget.Widget {
 	return nil
 }
 
+// Mount is called when the item is added to the widget tree.
+// Implements [widget.Lifecycle].
+func (it *Item) Mount(_ widget.Context) {}
+
+// Unmount disposes gesture recognizers. Implements [widget.Lifecycle].
+func (it *Item) Unmount() {
+	if it.clickRec != nil {
+		it.clickRec.Dispose()
+	}
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this item.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (it *Item) GestureRecognizers() []gesture.Recognizer {
+	if it.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{it.clickRec}
+}
+
 // Verify Item implements required interfaces at compile time.
 var (
-	_ widget.Widget    = (*Item)(nil)
-	_ widget.Focusable = (*Item)(nil)
+	_ widget.Widget        = (*Item)(nil)
+	_ widget.Focusable     = (*Item)(nil)
+	_ widget.Lifecycle     = (*Item)(nil)
+	_ gesture.GestureAware = (*Item)(nil)
 )

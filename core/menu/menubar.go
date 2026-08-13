@@ -3,6 +3,7 @@ package menu
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/overlay"
 	"github.com/gogpu/ui/widget"
 )
@@ -20,6 +21,9 @@ type Bar struct {
 	painter      Painter
 	openIndex    int // index of open top-level menu (-1 for none)
 	hoveredIndex int // index of hovered label (-1 for none)
+
+	// Gesture recognizer for menu label click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
 
 	// Active menu panel state.
 	activePanel *menuPanel
@@ -51,6 +55,17 @@ func NewBar(menus []TopMenu, opts ...BarOption) *Bar {
 	for _, opt := range opts {
 		opt(b)
 	}
+
+	// Create ClickRecognizer for menu label click handling (ADR-049).
+	b.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+		OnClick: func(details gesture.ClickDetails) {
+			if details.Button != event.ButtonLeft {
+				return
+			}
+			// Menu open/close is handled by handleMouseEvent.
+		},
+	})
 
 	return b
 }
@@ -378,8 +393,18 @@ const (
 	a11yLabelMenuBar = "menu bar"
 )
 
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (b *Bar) GestureRecognizers() []gesture.Recognizer {
+	if b.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{b.clickRec}
+}
+
 // Compile-time interface checks.
 var (
-	_ widget.Widget    = (*Bar)(nil)
-	_ widget.Focusable = (*Bar)(nil)
+	_ widget.Widget        = (*Bar)(nil)
+	_ widget.Focusable     = (*Bar)(nil)
+	_ gesture.GestureAware = (*Bar)(nil)
 )

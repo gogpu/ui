@@ -1,12 +1,15 @@
 package textfield
 
-import "unicode"
+import (
+	"unicode"
+
+	"github.com/gogpu/ui/widget"
+)
 
 // selection tracks cursor position and text selection state.
 type selection struct {
-	cursor    int    // cursor position (byte offset in runes slice)
-	anchor    int    // anchor for selection (same as cursor when no selection)
-	clipboard string // internal clipboard (placeholder for platform clipboard)
+	cursor int // cursor position (byte offset in runes slice)
+	anchor int // anchor for selection (same as cursor when no selection)
 }
 
 // HasSelection returns true if text is selected (anchor != cursor).
@@ -138,14 +141,21 @@ func wordBoundsAt(runes []rune, pos int) (int, int) {
 	return start, end
 }
 
-// copyToClipboard stores the given text in the internal clipboard.
-// This is a placeholder; a real implementation would use platform APIs.
-func (s *selection) copyToClipboard(text string) {
-	s.clipboard = text
+// selectAll selects the entire text content given the total rune count.
+// Used for triple-click (select line/all).
+func (s *selection) selectAll(runeCount int) {
+	s.anchor = 0
+	s.cursor = runeCount
 }
 
-// pasteFromClipboard returns the text from the internal clipboard.
-// This is a placeholder; a real implementation would use platform APIs.
+// copyToClipboard writes text to the system clipboard via the registered
+// ClipboardProvider. Falls back to no-op if no provider is registered.
+func (s *selection) copyToClipboard(text string) {
+	widget.ClipboardWrite(text)
+}
+
+// pasteFromClipboard reads text from the system clipboard via the registered
+// ClipboardProvider. Returns empty string if no provider is registered.
 func (s *selection) pasteFromClipboard() string {
-	return s.clipboard
+	return widget.ClipboardRead()
 }

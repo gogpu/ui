@@ -44,21 +44,36 @@ func bridgeWithRecorder(t *testing.T) (*mockEventSource, *modRecorder) {
 	return es, rec
 }
 
+// simulatePointerDown dispatches a PointerDown event through the unified
+// pointer pipeline. Used by modifier tests that need a click to reach
+// widgets via HandlePointerEvent -> deriveMouseEvent -> HandleEvent.
+func simulatePointerDown(es *mockEventSource, x, y float64, mods gpucontext.Modifiers) {
+	es.onPointer(gpucontext.PointerEvent{
+		Type:        gpucontext.PointerDown,
+		X:           x,
+		Y:           y,
+		PointerID:   1,
+		PointerType: gpucontext.PointerTypeMouse,
+		Button:      gpucontext.ButtonLeft,
+		Buttons:     gpucontext.ButtonsLeft,
+		Modifiers:   mods,
+		IsPrimary:   true,
+	})
+}
+
 // A click while a modifier is held has to arrive as a modified click.
 //
-// The platform's mouse callbacks carry only a button and a position, so the
-// bridge has to remember what the keyboard is holding. Without that every mouse
-// event is built with ModNone and ⌥click, ⇧click and ⌃click cannot be expressed
-// at all — an application either does without them or reimplements this
-// tracking on top of the key events itself.
+// The platform delivers rich PointerEvents with modifier state. The unified
+// pipeline converts these to MouseEvents that carry the modifier bits.
 func TestMouseEventsCarryHeldModifiers(t *testing.T) {
 	es, rec := bridgeWithRecorder(t)
 
-	// Alt down, then click. Nothing else is pressed in between: that is the
-	// gesture, and it is why the key's own modifier bit has to be folded in —
-	// a key event reports what was held BEFORE it, so this one reports nothing.
+	// Alt down. Platform modifier state is tracked in the PointerEvent.
 	es.onKeyPress(gpucontext.KeyLeftAlt, gpucontext.Modifiers(0))
-	es.onMousePress(gpucontext.MouseButtonLeft, 10, 10)
+
+	// Click via PointerEvent with Alt modifier. In the unified pipeline,
+	// modifiers are carried by the PointerEvent from the platform.
+	simulatePointerDown(es, 10, 10, gpucontext.ModAlt)
 
 	if rec.seen == 0 {
 		t.Fatal("the click never reached the widget")
@@ -74,8 +89,13 @@ func TestMouseModifiersClearOnRelease(t *testing.T) {
 
 	es.onKeyPress(gpucontext.KeyLeftAlt, gpucontext.Modifiers(0))
 	es.onKeyRelease(gpucontext.KeyLeftAlt, gpucontext.Modifiers(0))
-	es.onMousePress(gpucontext.MouseButtonLeft, 10, 10)
 
+	// Click after Alt released — PointerEvent carries no modifier.
+	simulatePointerDown(es, 10, 10, 0)
+
+	if rec.seen == 0 {
+		t.Fatal("the click never reached the widget")
+	}
 	if last := rec.got[len(rec.got)-1]; last.Has(event.ModAlt) {
 		t.Errorf("click carried %v after Alt was released", last)
 	}
@@ -89,8 +109,13 @@ func TestMouseModifiersClearOnFocusLoss(t *testing.T) {
 
 	es.onKeyPress(gpucontext.KeyLeftAlt, gpucontext.Modifiers(0))
 	es.onFocus(false)
-	es.onMousePress(gpucontext.MouseButtonLeft, 10, 10)
 
+	// Click after focus loss — PointerEvent carries no modifier.
+	simulatePointerDown(es, 10, 10, 0)
+
+	if rec.seen == 0 {
+		t.Fatal("the click never reached the widget")
+	}
 	if last := rec.got[len(rec.got)-1]; last.Has(event.ModAlt) {
 		t.Errorf("click carried %v after the window lost focus", last)
 	}

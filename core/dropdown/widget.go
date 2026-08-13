@@ -3,6 +3,7 @@ package dropdown
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/gesture"
 	"github.com/gogpu/ui/overlay"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
@@ -34,6 +35,9 @@ type Widget struct {
 	open          bool
 	selectedIndex int
 	menuWidget    *menuWidget // active menu widget (nil when closed)
+
+	// Gesture recognizer for trigger click handling (ADR-049).
+	clickRec *gesture.ClickRecognizer
 }
 
 // New creates a new dropdown Widget with the given options.
@@ -64,6 +68,17 @@ func New(opts ...Option) *Widget {
 	if w.cfg.signal != nil {
 		w.selectedIndex = w.cfg.signal.Get()
 	}
+
+	// Create ClickRecognizer for gesture arena participation (ADR-049).
+	// The recognizer participates in the arena but does NOT modify widget state —
+	// all state transitions (pressed, hover, toggle) are handled by the derived
+	// MouseEvent handlers in handleMouseEvent. Gesture callbacks that modify
+	// w.state would race with the derived event (gesture fires in Part 1 of
+	// HandlePointerEvent, derived event in Part 2), corrupting the state that
+	// MouseRelease depends on to decide whether to toggle.
+	w.clickRec = gesture.NewClickRecognizer(gesture.ClickConfig{
+		MaxClickCount: 1,
+	})
 
 	return w
 }
@@ -358,12 +373,25 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the dropdown is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	if w.clickRec != nil {
+		w.clickRec.Dispose()
+	}
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
+}
+
+// GestureRecognizers returns the gesture recognizers owned by this widget.
+// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
+func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+	if w.clickRec == nil {
+		return nil
+	}
+	return []gesture.Recognizer{w.clickRec}
 }
 
 // Compile-time interface checks.
 var (
-	_ widget.Widget    = (*Widget)(nil)
-	_ widget.Focusable = (*Widget)(nil)
-	_ widget.Lifecycle = (*Widget)(nil)
+	_ widget.Widget        = (*Widget)(nil)
+	_ widget.Focusable     = (*Widget)(nil)
+	_ widget.Lifecycle     = (*Widget)(nil)
+	_ gesture.GestureAware = (*Widget)(nil)
 )
