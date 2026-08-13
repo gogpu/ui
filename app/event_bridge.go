@@ -6,6 +6,68 @@ import (
 	"github.com/gogpu/ui/geometry"
 )
 
+// eventBridgeState is shared by the platform callbacks installed by
+// attachEventBridge. EventSource callbacks run on the UI thread, so the state
+// does not need synchronization.
+type eventBridgeState struct {
+	pressedButtons  event.ButtonState
+	lastMousePos    geometry.Point
+	cursorInside    bool
+	leaveDispatched bool
+	mods            event.Modifiers
+}
+
+// pointInWindow reports whether pos is inside the window's logical content
+// bounds. A size can be unavailable briefly during window creation; preserve
+// event delivery until the first real size arrives in that case.
+func pointInWindow(w *Window, pos geometry.Point) bool {
+	size := w.WindowSize()
+	if size.IsEmpty() {
+		return true
+	}
+	return geometry.FromPointSize(geometry.Point{}, size).Contains(pos)
+}
+
+// handleBridgeMouseMove rejects ordinary mouse movement outside the window.
+// A held button bypasses the gate so pointer capture and drag tracking keep
+// receiving moves after the pointer crosses the window edge.
+func handleBridgeMouseMove(w *Window, state *eventBridgeState, x, y float64) {
+	pos := geometry.Pt(float32(x), float32(y))
+	inside := pointInWindow(w, pos)
+	if !inside && state.pressedButtons == 0 {
+		if state.cursorInside {
+			// Some platforms keep sending moves in a narrow area outside the
+			// window without first sending PointerLeave. Synthesize one leave
+			// on the transition so widget hover and cursor state are cleared.
+			state.cursorInside = false
+			state.leaveDispatched = true
+			w.HandleEvent(event.NewMouseEvent(
+				event.MouseLeave,
+				event.ButtonNone,
+				state.pressedButtons,
+				pos,
+				pos,
+				state.mods,
+			))
+		}
+		return
+	}
+
+	state.cursorInside = inside
+	if inside {
+		state.leaveDispatched = false
+	}
+	state.lastMousePos = pos
+	w.HandleEvent(event.NewMouseEvent(
+		event.MouseMove,
+		event.ButtonNone,
+		state.pressedButtons,
+		pos,
+		pos, // global position same as local for root dispatch
+		state.mods,
+	))
+}
+
 // attachEventBridge registers event callbacks on the EventSource that
 // translate platform events into ui/event types and dispatch them to
 // the Window.
@@ -13,49 +75,33 @@ import (
 // This function is called once during App creation when an EventSource
 // is provided. The callbacks are invoked on the main thread by the host
 // application's event loop.
+//
+// Window-bound checks belong here: Window.HandleEvent also serves the public
+// App.HandleEvent API and uitest, whose caller-supplied coordinates must remain
+// available for synthetic input.
 func attachEventBridge(es gpucontext.EventSource, w *Window) {
-	// Track which mouse buttons are currently pressed so that MouseMove
-	// events carry accurate ButtonState. Without this, widgets that rely
-	// on drag state (e.g., scrollbar thumb dragging) cannot detect a
-	// "lost" MouseRelease (e.g., released outside widget bounds).
-	var pressedButtons event.ButtonState
-
-	// Track last known mouse position so WheelEvents carry correct position
-	// (the platform's OnScroll callback doesn't provide mouse coordinates).
-	var lastMousePos geometry.Point
-
-	// Track the keyboard modifiers so mouse and wheel events can carry them.
-	// The platform's mouse callbacks report only a button and a position, so
-	// without this every MouseEvent is built with ModNone and ⌥click, ⇧click,
-	// ⌃click and shift-extend-selection are simply not expressible — an app
-	// either does without them or reimplements this tracking itself.
-	var mods event.Modifiers
+	state := &eventBridgeState{}
 
 	es.OnMouseMove(func(x, y float64) {
-		pos := geometry.Pt(float32(x), float32(y))
-		lastMousePos = pos
-		e := event.NewMouseEvent(
-			event.MouseMove,
-			event.ButtonNone,
-			pressedButtons,
-			pos,
-			pos, // global position same as local for root dispatch
-			mods,
-		)
-		w.HandleEvent(e)
+		handleBridgeMouseMove(w, state, x, y)
 	})
 
 	es.OnMousePress(func(button gpucontext.MouseButton, x, y float64) {
 		pos := geometry.Pt(float32(x), float32(y))
 		btn := translateMouseButton(button)
-		pressedButtons |= buttonToState(btn)
+		state.pressedButtons |= buttonToState(btn)
+		state.cursorInside = pointInWindow(w, pos)
+		if state.cursorInside {
+			state.leaveDispatched = false
+		}
+		state.lastMousePos = pos
 		e := event.NewMouseEvent(
 			event.MousePress,
 			btn,
-			pressedButtons,
+			state.pressedButtons,
 			pos,
 			pos,
-			mods,
+			state.mods,
 		)
 		w.HandleEvent(e)
 	})
@@ -63,14 +109,19 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 	es.OnMouseRelease(func(button gpucontext.MouseButton, x, y float64) {
 		pos := geometry.Pt(float32(x), float32(y))
 		btn := translateMouseButton(button)
-		pressedButtons &^= buttonToState(btn)
+		state.pressedButtons &^= buttonToState(btn)
+		state.cursorInside = pointInWindow(w, pos)
+		if state.cursorInside {
+			state.leaveDispatched = false
+		}
+		state.lastMousePos = pos
 		e := event.NewMouseEvent(
 			event.MouseRelease,
 			btn,
-			pressedButtons,
+			state.pressedButtons,
 			pos,
 			pos,
-			mods,
+			state.mods,
 		)
 		w.HandleEvent(e)
 	})
@@ -82,7 +133,7 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		// alone reports no Shift. Fold the key itself in, or holding a modifier
 		// and clicking — with no other key in between, which is the whole
 		// gesture — would leave the state empty.
-		mods = uiMods | modifierForKey(uiKey)
+		state.mods = uiMods | modifierForKey(uiKey)
 		// Rune=0: character input is delivered separately via OnTextInput.
 		// KeyPress only carries the key code for navigation (arrows, Tab,
 		// Backspace, etc.) and modifier detection (Ctrl+C, etc.).
@@ -99,7 +150,7 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		uiKey := translateKey(key)
 		uiMods := translateModifiers(platMods)
 		// Releasing a modifier clears it: the reported state still contains it.
-		mods = uiMods &^ modifierForKey(uiKey)
+		state.mods = uiMods &^ modifierForKey(uiKey)
 		e := event.NewKeyEvent(
 			event.KeyRelease,
 			uiKey,
@@ -121,16 +172,7 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		}
 	})
 
-	es.OnScroll(func(dx, dy float64) {
-		delta := geometry.Pt(float32(dx), float32(dy))
-		e := event.NewWheelEvent(
-			delta,
-			lastMousePos,
-			lastMousePos,
-			mods,
-		)
-		w.HandleEvent(e)
-	})
+	attachScrollBridge(es, w, state)
 
 	es.OnResize(func(width, height int) {
 		w.HandleResize(width, height)
@@ -140,12 +182,68 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		// A modifier believed to be held after the window lost focus would turn
 		// the next ordinary click into a modified one: the release happened
 		// somewhere else and this window never saw it.
-		mods = event.ModNone
+		state.mods = event.ModNone
+		if !focused {
+			// Focus loss does not guarantee matching mouse releases or a
+			// PointerLeave. Reset bridge ownership at this boundary; otherwise
+			// stale buttons would bypass the outside-window gate indefinitely.
+			state.pressedButtons = 0
+			state.cursorInside = false
+		}
 		w.HandleFocusChange(focused)
 	})
 
 	// Wire W3C Pointer Events for Enter/Leave (cursor/hover support).
-	attachPointerBridge(es, w, &pressedButtons, &lastMousePos)
+	attachPointerBridge(es, w, state)
+}
+
+// attachScrollBridge prefers ScrollEventSource because it reports the pointer
+// position for each wheel event. The basic EventSource callback has no
+// position, so it falls back to the last pointer position and cursor state.
+func attachScrollBridge(es gpucontext.EventSource, w *Window, state *eventBridgeState) {
+	if scrollSource, ok := es.(gpucontext.ScrollEventSource); ok {
+		scrollSource.OnScrollEvent(func(scroll gpucontext.ScrollEvent) {
+			pos := geometry.Pt(float32(scroll.X), float32(scroll.Y))
+			inside := pointInWindow(w, pos)
+			zeroWithoutPosition := pos.IsZero() &&
+				(!state.cursorInside || !state.lastMousePos.IsZero())
+			if !inside || zeroWithoutPosition {
+				// A few EventSource implementations historically reported wheel
+				// positions in the wrong coordinate space, or as (0,0). Treat the
+				// position as untrusted unless the independently tracked cursor
+				// state (or an active drag) confirms that the event belongs here.
+				if !state.cursorInside && state.pressedButtons == 0 {
+					return
+				}
+				pos = state.lastMousePos
+			}
+
+			delta := geometry.Pt(float32(scroll.DeltaX), float32(scroll.DeltaY))
+			w.HandleEvent(event.NewWheelEvent(
+				delta,
+				pos,
+				pos,
+				translateModifiers(scroll.Modifiers),
+			))
+		})
+		// gogpu dispatches a detailed scroll event to both its detailed and
+		// legacy callbacks. Register exactly one to avoid duplicate wheels.
+		return
+	}
+
+	es.OnScroll(func(dx, dy float64) {
+		if !state.cursorInside && state.pressedButtons == 0 {
+			return
+		}
+
+		delta := geometry.Pt(float32(dx), float32(dy))
+		w.HandleEvent(event.NewWheelEvent(
+			delta,
+			state.lastMousePos,
+			state.lastMousePos,
+			state.mods,
+		))
+	})
 }
 
 // attachPointerBridge wires W3C PointerEventSource for Enter/Leave events.
@@ -155,28 +253,31 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 // hover state when the mouse exits the window entirely.
 //
 // PointerMove/Down/Up are already handled by the legacy OnMouseMove,
-// OnMousePress, and OnMouseRelease callbacks, so only Enter and Leave
-// are handled here to avoid duplicate event dispatch.
-func attachPointerBridge(
-	es gpucontext.EventSource,
-	w *Window,
-	pressedButtons *event.ButtonState,
-	lastMousePos *geometry.Point,
-) {
+// OnMousePress, and OnMouseRelease callbacks. Enter, Leave, and Cancel are
+// handled here because the legacy EventSource has no equivalent callbacks.
+func attachPointerBridge(es gpucontext.EventSource, w *Window, state *eventBridgeState) {
 	pes, ok := es.(gpucontext.PointerEventSource)
 	if !ok {
 		return
 	}
 
 	pes.OnPointer(func(ev gpucontext.PointerEvent) {
+		// Legacy mouse state and cursor hover must not be changed by an
+		// independent touch or pen pointer.
+		if ev.PointerType != gpucontext.PointerTypeMouse {
+			return
+		}
+
 		switch ev.Type {
 		case gpucontext.PointerEnter:
 			pos := geometry.Pt(float32(ev.X), float32(ev.Y))
-			*lastMousePos = pos
+			state.cursorInside = true
+			state.leaveDispatched = false
+			state.lastMousePos = pos
 			e := event.NewMouseEvent(
 				event.MouseEnter,
 				event.ButtonNone,
-				*pressedButtons,
+				state.pressedButtons,
 				pos, pos,
 				translateModifiers(ev.Modifiers),
 			)
@@ -184,14 +285,27 @@ func attachPointerBridge(
 
 		case gpucontext.PointerLeave:
 			pos := geometry.Pt(float32(ev.X), float32(ev.Y))
+			state.cursorInside = false
+			if state.leaveDispatched {
+				return
+			}
+			state.leaveDispatched = true
 			e := event.NewMouseEvent(
 				event.MouseLeave,
 				event.ButtonNone,
-				*pressedButtons,
+				state.pressedButtons,
 				pos, pos,
 				translateModifiers(ev.Modifiers),
 			)
 			w.HandleEvent(e)
+
+		case gpucontext.PointerCancel:
+			// The platform has ended the gesture without guaranteeing legacy
+			// mouse-release callbacks. Drop bridge and window capture state, then
+			// fail closed until a new pointer event establishes cursor state.
+			state.pressedButtons = 0
+			state.cursorInside = false
+			w.cancelPointerState()
 		}
 	})
 }

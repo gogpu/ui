@@ -44,9 +44,14 @@ func handleContentMouseEvent(lv *Widget, ctx widget.Context, e *event.MouseEvent
 func handleContentMouseMove(lv *Widget, _ widget.Context, e *event.MouseEvent) bool {
 	// Position is already in content space — ScrollView applies the inverse
 	// of its Draw transform before dispatching to content children.
+	contentX := e.Position.X
 	contentY := e.Position.Y
 
-	idx := lv.heights.findIndexAtOffset(contentY)
+	idx := noHoveredIndex
+	rowWidth, hasRowWidth := contentRowWidth(lv)
+	if contentX >= 0 && (!hasRowWidth || contentX <= rowWidth) {
+		idx = lv.heights.findIndexAtOffset(contentY)
+	}
 	itemCount := lv.cfg.ResolvedItemCount()
 	if idx < 0 || idx >= itemCount {
 		idx = noHoveredIndex
@@ -74,7 +79,12 @@ func handleContentMousePress(lv *Widget, ctx widget.Context, e *event.MouseEvent
 
 	// Position is already in content space — ScrollView applies the inverse
 	// of its Draw transform before dispatching to content children.
+	contentX := e.Position.X
 	contentY := e.Position.Y
+	rowWidth, hasRowWidth := contentRowWidth(lv)
+	if contentX < 0 || (hasRowWidth && contentX > rowWidth) {
+		return false
+	}
 
 	idx := lv.heights.findIndexAtOffset(contentY)
 	itemCount := lv.cfg.ResolvedItemCount()
@@ -96,6 +106,16 @@ func handleContentMousePress(lv *Widget, ctx widget.Context, e *event.MouseEvent
 	ctx.RequestFocus(lv)
 
 	return true
+}
+
+// contentRowWidth reports the horizontal hit band used to paint list rows.
+// Before layout establishes viewport geometry, only the always-invalid
+// negative X range can be rejected safely.
+func contentRowWidth(lv *Widget) (float32, bool) {
+	if lv.scroll == nil || lv.viewportWidth <= 0 {
+		return 0, false
+	}
+	return lv.viewportWidth - lv.scroll.ScrollbarInset(), true
 }
 
 // handleListKeyEvent processes keyboard events for list-level navigation.

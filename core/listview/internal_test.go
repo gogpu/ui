@@ -1707,6 +1707,81 @@ func TestListView_HoverChangesVisibleOnRedraw(t *testing.T) {
 	}
 }
 
+func TestContentMouseMoveRejectsOutsideRowWidth(t *testing.T) {
+	lv := New(ItemCount(10), FixedItemHeight(20))
+	ctx := widget.NewContext()
+	lv.Layout(ctx, geometry.Tight(geometry.Sz(100, 100)))
+	rowWidth, ok := contentRowWidth(lv)
+	if !ok {
+		t.Fatal("row width unavailable after layout")
+	}
+
+	tests := []struct {
+		name string
+		x    float32
+		want int
+	}{
+		{name: "negative", x: -1, want: noHoveredIndex},
+		{name: "left edge", x: 0, want: 1},
+		{name: "right edge", x: rowWidth, want: 1},
+		{name: "past right edge", x: rowWidth + 1, want: noHoveredIndex},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lv.hoveredIndex = noHoveredIndex
+			handleContentMouseMove(lv, ctx, &event.MouseEvent{
+				MouseType: event.MouseMove,
+				Position:  geometry.Pt(tt.x, 25),
+			})
+			if lv.hoveredIndex != tt.want {
+				t.Errorf("hoveredIndex = %d, want %d", lv.hoveredIndex, tt.want)
+			}
+		})
+	}
+}
+
+func TestContentMousePressRejectsOutsideRowWidth(t *testing.T) {
+	clicked := make([]int, 0, 2)
+	lv := New(
+		ItemCount(10),
+		FixedItemHeight(20),
+		OnItemClick(func(index int) { clicked = append(clicked, index) }),
+	)
+	ctx := widget.NewContext()
+	lv.Layout(ctx, geometry.Tight(geometry.Sz(100, 100)))
+	rowWidth, ok := contentRowWidth(lv)
+	if !ok {
+		t.Fatal("row width unavailable after layout")
+	}
+
+	tests := []struct {
+		name         string
+		x            float32
+		wantConsumed bool
+		wantClicks   int
+	}{
+		{name: "negative", x: -1, wantClicks: 0},
+		{name: "left edge", x: 0, wantConsumed: true, wantClicks: 1},
+		{name: "right edge", x: rowWidth, wantConsumed: true, wantClicks: 2},
+		{name: "past right edge", x: rowWidth + 1, wantClicks: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			consumed := handleContentMousePress(lv, ctx, &event.MouseEvent{
+				MouseType: event.MousePress,
+				Button:    event.ButtonLeft,
+				Position:  geometry.Pt(tt.x, 25),
+			})
+			if consumed != tt.wantConsumed {
+				t.Errorf("consumed = %v, want %v", consumed, tt.wantConsumed)
+			}
+			if len(clicked) != tt.wantClicks {
+				t.Errorf("click count = %d, want %d", len(clicked), tt.wantClicks)
+			}
+		})
+	}
+}
+
 // TestListView_WheelEventDispatch verifies that mouse wheel events reach
 // the ScrollView inside ListView and trigger scroll + redraw.
 func TestListView_WheelEventDispatch(t *testing.T) {
