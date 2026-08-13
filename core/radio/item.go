@@ -158,9 +158,11 @@ func (it *Item) Unmount() {
 	}
 }
 
-// GestureRecognizers returns the gesture recognizers owned by this item.
+// GestureHitTest returns the gesture recognizers for a pointer event at pos.
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (it *Item) GestureRecognizers() []gesture.Recognizer {
+// Radio item is a leaf widget — always returns recognizers (hit-test already
+// confirmed bounds containment).
+func (it *Item) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 	if it.clickRec == nil {
 		return nil
 	}

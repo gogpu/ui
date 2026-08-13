@@ -3,6 +3,7 @@ package gesture_test
 import (
 	"testing"
 
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/gesture"
 )
 
@@ -11,7 +12,7 @@ type testGestureWidget struct {
 	recognizers []gesture.Recognizer
 }
 
-func (w *testGestureWidget) GestureRecognizers() []gesture.Recognizer {
+func (w *testGestureWidget) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 	return w.recognizers
 }
 
@@ -24,20 +25,20 @@ func TestGestureAware_InterfaceCompliance(t *testing.T) {
 		recognizers: []gesture.Recognizer{click},
 	}
 
-	recs := w.GestureRecognizers()
+	recs := w.GestureHitTest(geometry.Pt(0, 0))
 	if len(recs) != 1 {
-		t.Fatalf("GestureRecognizers() returned %d, want 1", len(recs))
+		t.Fatalf("GestureHitTest() returned %d, want 1", len(recs))
 	}
 	if recs[0] != click {
-		t.Error("GestureRecognizers() returned wrong recognizer")
+		t.Error("GestureHitTest() returned wrong recognizer")
 	}
 }
 
 func TestGestureAware_EmptyRecognizers(t *testing.T) {
 	w := &testGestureWidget{}
-	recs := w.GestureRecognizers()
+	recs := w.GestureHitTest(geometry.Pt(0, 0))
 	if len(recs) != 0 {
-		t.Errorf("GestureRecognizers() returned %d, want 0", len(recs))
+		t.Errorf("GestureHitTest() returned %d, want 0", len(recs))
 	}
 }
 
@@ -48,9 +49,9 @@ func TestGestureAware_MultipleRecognizers(t *testing.T) {
 		recognizers: []gesture.Recognizer{click, drag},
 	}
 
-	recs := w.GestureRecognizers()
+	recs := w.GestureHitTest(geometry.Pt(0, 0))
 	if len(recs) != 2 {
-		t.Fatalf("GestureRecognizers() returned %d, want 2", len(recs))
+		t.Fatalf("GestureHitTest() returned %d, want 2", len(recs))
 	}
 }
 

@@ -332,67 +332,9 @@ func setScroll(w *Widget, ctx widget.Context, rawX, rawY float32) {
 	ctx.InvalidateRect(w.Bounds())
 }
 
-// setScrollDirect updates scroll position without requiring a widget.Context.
-// Used by gesture recognizer callbacks.
-func setScrollDirect(w *Widget, rawX, rawY float32) {
-	newX := clampScroll(rawX, w.contentSize.Width, w.viewportSize.Width)
-	newY := clampScroll(rawY, w.contentSize.Height, w.viewportSize.Height)
-
-	currentX := w.cfg.ResolvedScrollX()
-	currentY := w.cfg.ResolvedScrollY()
-
-	if newX == currentX && newY == currentY {
-		return
-	}
-
-	if w.cfg.scrollXSignal != nil {
-		w.cfg.scrollXSignal.Set(newX)
-	} else {
-		w.cfg.scrollX = newX
-	}
-
-	if w.cfg.scrollYSignal != nil {
-		w.cfg.scrollYSignal.Set(newY)
-	} else {
-		w.cfg.scrollY = newY
-	}
-
-	if w.cfg.onScroll != nil {
-		w.cfg.onScroll(newX, newY)
-	}
-
-	w.SetNeedsRedraw(true)
-}
-
-// handleDragUpdateDirect processes a drag position update for scrollbar
-// thumb dragging, without requiring a widget.Context.
-func handleDragUpdateDirect(w *Widget, pos geometry.Point) {
-	_, hTrack := w.computeTrackRects()
-	vTrack, _ := w.computeTrackRects()
-
-	switch w.dragging {
-	case dragVertical:
-		deltaPixels := pos.Y - w.dragStart.Y
-		trackLen := vTrack.Height()
-		thumbSize := computeThumbSize(w.viewportSize.Height, w.contentSize.Height, trackLen)
-		scrollableTrack := trackLen - thumbSize
-		if scrollableTrack > 0 {
-			maxScrollY := w.contentSize.Height - w.viewportSize.Height
-			newScrollY := w.dragScrollStart + deltaPixels*(maxScrollY/scrollableTrack)
-			setScrollDirect(w, w.cfg.ResolvedScrollX(), newScrollY)
-		}
-	case dragHorizontal:
-		deltaPixels := pos.X - w.dragStart.X
-		trackLen := hTrack.Width()
-		thumbSize := computeThumbSize(w.viewportSize.Width, w.contentSize.Width, trackLen)
-		scrollableTrack := trackLen - thumbSize
-		if scrollableTrack > 0 {
-			maxScrollX := w.contentSize.Width - w.viewportSize.Width
-			newScrollX := w.dragScrollStart + deltaPixels*(maxScrollX/scrollableTrack)
-			setScrollDirect(w, newScrollX, w.cfg.ResolvedScrollY())
-		}
-	}
-}
+// Gesture-based scroll helpers removed: ScrollView does not implement
+// GestureAware. Scrollbar drag is handled by Event() handler
+// (MousePress/Move/Release) with proper scrollbar hit-testing.
 
 // clampScroll clamps a scroll offset to [0, maxScroll].
 func clampScroll(offset, contentSize, viewportSize float32) float32 {

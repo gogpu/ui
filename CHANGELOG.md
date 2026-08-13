@@ -16,12 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- All 20+ interactive widgets implement `gesture.GestureAware` — button, checkbox, radio, textfield, dropdown, slider, dialog, scrollview, tabview, listview, gridview, collapsible, popover, splitview, treeview, datatable, toolbar, menu, docking, chip, stripe, titlebar.
+- All 20+ interactive widgets implement `gesture.GestureAware` with `GestureHitTest(pos)` — container widgets (Collapsible, TabView, Docking) scope recognizers to their interactive region (header, tab strip, zone tabs). Leaf widgets (Button, Checkbox, TextField, etc.) always return recognizers.
+- ScrollView removed from `GestureAware` — scrollbar drag handled by Event() handler with proper thumb hit-testing. Container widgets must not compete with child recognizers.
 - Event bridge: unified pointer pipeline (ADR-049 Phase 3) — pointer events flow through gesture arena before widget dispatch.
 - **deps:** gg v0.52.2 → v0.52.3, gogpu v0.52.1 → v0.53.0, gpucontext v0.27.0 → v0.28.0, wgpu v0.31.2 → v0.31.4
 
 ### Fixed
 
+- **fix(gesture): GestureHitTest scoped hit-test** — container widgets (Collapsible, TabView, Docking) no longer consume child widget clicks. `GestureRecognizers()` replaced by `GestureHitTest(pos geometry.Point)` which receives widget-local coordinates and returns recognizers only for the interactive region.
 - **fix(desktop): retain unchanged boundaries on resize** ([#176](https://github.com/gogpu/ui/issues/176), @besmpl) — unchanged boundaries preserved during window resize.
 - **fix(app): keep pointer events within window bounds** ([#179](https://github.com/gogpu/ui/issues/179), @besmpl) — pointer coordinates clamped to window dimensions.
 

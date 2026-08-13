@@ -68,29 +68,9 @@ func New(content widget.Widget, opts ...Option) *Widget {
 		w.painter = w.cfg.painter
 	}
 
-	// Create DragRecognizer for scrollbar thumb drag (ADR-049).
-	w.dragRec = gesture.NewDragRecognizer(gesture.DragConfig{
-		OnDragStart: func(_ gesture.DragStartDetails) {
-			// Drag start is handled by the existing handleMousePress which
-			// sets dragAxis and dragScrollStart based on hit-testing.
-		},
-		OnDragUpdate: func(details gesture.DragUpdateDetails) {
-			if w.dragging == dragNone {
-				return
-			}
-			handleDragUpdateDirect(w, details.LocalPosition)
-		},
-		OnDragEnd: func(_ gesture.DragEndDetails) {
-			w.dragging = dragNone
-			w.trackRepeat = trackRepeatState{}
-			w.MarkRedrawLocal()
-		},
-		OnDragCancel: func() {
-			w.dragging = dragNone
-			w.trackRepeat = trackRepeatState{}
-			w.MarkRedrawLocal()
-		},
-	})
+	// Scrollbar drag handled by Event() handler (MousePress/Move/Release).
+	// GestureAware intentionally not implemented: container widgets must not
+	// compete with child widget recognizers in the gesture arena.
 
 	return w
 }
@@ -421,14 +401,12 @@ func (w *Widget) Unmount() {
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
 }
 
-// GestureRecognizers returns the gesture recognizers owned by this widget.
-// Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (w *Widget) GestureRecognizers() []gesture.Recognizer {
-	if w.dragRec == nil {
-		return nil
-	}
-	return []gesture.Recognizer{w.dragRec}
-}
+// ScrollView does NOT implement GestureAware. Scrollbar drag is handled
+// by the Event() handler (MousePress/Move/Release) which correctly
+// hit-tests the scrollbar thumb area. Adding GestureAware would cause
+// ScrollView's DragRecognizer to compete with child widget recognizers
+// (e.g., TextField's TapAndDragRecognizer for text selection), consuming
+// drags that should reach the child.
 
 // Content returns the scroll view's content widget.
 func (w *Widget) Content() widget.Widget {
@@ -592,8 +570,9 @@ func (w *Widget) Padding(_ float32) *Widget {
 
 // Verify Widget implements required interfaces at compile time.
 var (
-	_ widget.Widget        = (*Widget)(nil)
-	_ widget.Focusable     = (*Widget)(nil)
-	_ widget.Lifecycle     = (*Widget)(nil)
-	_ gesture.GestureAware = (*Widget)(nil)
+	_ widget.Widget    = (*Widget)(nil)
+	_ widget.Focusable = (*Widget)(nil)
+	_ widget.Lifecycle = (*Widget)(nil)
+	// ScrollView intentionally does NOT implement gesture.GestureAware.
+	// See comment on GestureHitTest removal above.
 )

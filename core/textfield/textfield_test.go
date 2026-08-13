@@ -606,7 +606,7 @@ func TestMouse_DoubleClickSelectsWord(t *testing.T) {
 
 	// Double-click is now handled by the TapAndDragRecognizer.
 	// Simulate two rapid taps at the same position through the gesture system.
-	recs := tf.GestureRecognizers()
+	recs := tf.GestureHitTest(geometry.Pt(0, 0))
 	if len(recs) == 0 {
 		t.Fatal("TextField should have a TapAndDragRecognizer")
 	}
@@ -670,7 +670,7 @@ func TestMouse_TripleClickSelectsAll(t *testing.T) {
 	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
 	tf.SetFocused(true)
 
-	recs := tf.GestureRecognizers()
+	recs := tf.GestureHitTest(geometry.Pt(0, 0))
 	if len(recs) == 0 {
 		t.Fatal("TextField should have a TapAndDragRecognizer")
 	}
@@ -725,9 +725,9 @@ func TestTextField_GestureAwareInterface(t *testing.T) {
 		t.Fatal("TextField should implement gesture.GestureAware")
 	}
 
-	recs := ga.GestureRecognizers()
+	recs := ga.GestureHitTest(geometry.Pt(0, 0))
 	if len(recs) != 1 {
-		t.Errorf("GestureRecognizers() returned %d, want 1", len(recs))
+		t.Errorf("GestureHitTest() returned %d, want 1", len(recs))
 	}
 }
 

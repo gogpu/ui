@@ -31,7 +31,7 @@ func newGestureAwareMock(recs ...gesture.Recognizer) *gestureAwareMock {
 	return m
 }
 
-func (m *gestureAwareMock) GestureRecognizers() []gesture.Recognizer {
+func (m *gestureAwareMock) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 	return m.recognizers
 }
 
@@ -241,7 +241,7 @@ func newContainerGestureMock(children []widget.Widget, recs ...gesture.Recognize
 	return m
 }
 
-func (m *containerGestureMock) GestureRecognizers() []gesture.Recognizer {
+func (m *containerGestureMock) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 	return m.recognizers
 }
 

@@ -352,10 +352,21 @@ func (w *Widget) Unmount() {
 	}
 }
 
-// GestureRecognizers returns the gesture recognizers owned by this widget.
+// GestureHitTest returns the gesture recognizers for a pointer event at pos
+// (widget-local coordinates).
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+//
+// Collapsible is a container widget — returns recognizers ONLY when pos is
+// within the header area. Content-area clicks return nil so child widgets'
+// recognizers are the sole participants in the gesture arena.
+func (w *Widget) GestureHitTest(pos geometry.Point) []gesture.Recognizer {
 	if w.clickRec == nil {
+		return nil
+	}
+	// Header occupies the top headerHeight pixels in local coordinates.
+	b := w.Bounds()
+	localHeader := geometry.NewRect(0, 0, b.Width(), w.cfg.headerHeight)
+	if !localHeader.Contains(pos) {
 		return nil
 	}
 	return []gesture.Recognizer{w.clickRec}

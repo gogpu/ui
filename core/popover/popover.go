@@ -313,9 +313,11 @@ func (p *Popover) Unmount() {
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
 }
 
-// GestureRecognizers returns the gesture recognizers owned by this widget.
+// GestureHitTest returns the gesture recognizers for a pointer event at pos.
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (p *Popover) GestureRecognizers() []gesture.Recognizer {
+// Popover is a leaf widget — always returns recognizers (hit-test already
+// confirmed bounds containment).
+func (p *Popover) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 	if p.clickRec == nil {
 		return nil
 	}

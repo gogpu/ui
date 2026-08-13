@@ -1412,6 +1412,10 @@ func (w *Window) GestureArena() *gesture.Arena {
 // gesture hit-testing collects ALL matching widgets on the path (not just
 // the deepest one), because parent and child may both have recognizers
 // that compete in the arena.
+//
+// Each GestureAware widget receives the pointer position in widget-local
+// coordinates, allowing container widgets (Collapsible, TabView, Docking)
+// to filter recognizers based on their interactive region.
 func (w *Window) hitTestGestureAware(pos geometry.Point) []gesture.Recognizer {
 	var recognizers []gesture.Recognizer
 	hitTestGestureRecursive(w.root, pos, &recognizers)
@@ -1420,6 +1424,11 @@ func (w *Window) hitTestGestureAware(pos geometry.Point) []gesture.Recognizer {
 
 // hitTestGestureRecursive walks the widget tree depth-first, collecting
 // recognizers from GestureAware widgets that contain the point.
+//
+// When calling GestureHitTest, the window-coordinate position is translated
+// to widget-local coordinates using ScreenOrigin. This lets container widgets
+// decide whether the click is within their interactive area (e.g., Collapsible
+// header) before returning recognizers.
 func hitTestGestureRecursive(w widget.Widget, pos geometry.Point, out *[]gesture.Recognizer) {
 	if w == nil {
 		return
@@ -1439,8 +1448,14 @@ func hitTestGestureRecursive(w widget.Widget, pos geometry.Point, out *[]gesture
 	}
 
 	// Collect recognizers from GestureAware widgets.
+	// Translate pos to widget-local coordinates using ScreenOrigin.
 	if ga, ok := w.(gesture.GestureAware); ok {
-		recs := ga.GestureRecognizers()
+		localPos := pos
+		if so, ok2 := w.(interface{ ScreenOrigin() geometry.Point }); ok2 {
+			origin := so.ScreenOrigin()
+			localPos = geometry.Pt(pos.X-origin.X, pos.Y-origin.Y)
+		}
+		recs := ga.GestureHitTest(localPos)
 		if len(recs) > 0 {
 			*out = append(*out, recs...)
 		}

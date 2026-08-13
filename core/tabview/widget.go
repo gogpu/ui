@@ -294,10 +294,19 @@ func (w *Widget) Unmount() {
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
 }
 
-// GestureRecognizers returns the gesture recognizers owned by this widget.
+// GestureHitTest returns the gesture recognizers for a pointer event at pos
+// (widget-local coordinates).
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+//
+// TabView is a container widget — returns recognizers ONLY when pos is
+// within the tab strip area. Content-area clicks return nil so child widgets'
+// recognizers are the sole participants in the gesture arena.
+func (w *Widget) GestureHitTest(pos geometry.Point) []gesture.Recognizer {
 	if w.clickRec == nil {
+		return nil
+	}
+	// tabBarBounds is in local coordinates (computed by computeTabLayout).
+	if !w.tabBarBounds.Contains(pos) {
 		return nil
 	}
 	return []gesture.Recognizer{w.clickRec}
