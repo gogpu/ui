@@ -393,9 +393,11 @@ const (
 	a11yLabelMenuBar = "menu bar"
 )
 
-// GestureRecognizers returns the gesture recognizers owned by this widget.
+// GestureHitTest returns the gesture recognizers for a pointer event at pos.
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (b *Bar) GestureRecognizers() []gesture.Recognizer {
+// MenuBar is a leaf widget — always returns recognizers (hit-test already
+// confirmed bounds containment).
+func (b *Bar) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 	if b.clickRec == nil {
 		return nil
 	}

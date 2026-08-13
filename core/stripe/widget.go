@@ -451,9 +451,11 @@ func (w *Widget) AccessibilityActions() []a11y.Action {
 // a11yLabel is the accessibility label for the stripe.
 const a11yLabel = "Tool Window Strip"
 
-// GestureRecognizers returns the gesture recognizers owned by this widget.
+// GestureHitTest returns the gesture recognizers for a pointer event at pos.
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (w *Widget) GestureRecognizers() []gesture.Recognizer {
+// Stripe is a leaf widget — always returns recognizers (hit-test already
+// confirmed bounds containment).
+func (w *Widget) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 	if w.clickRec == nil {
 		return nil
 	}

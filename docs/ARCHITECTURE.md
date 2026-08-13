@@ -497,11 +497,15 @@ PointerDown event arrives
 
 ```go
 type GestureAware interface {
-    GestureRecognizers() []Recognizer
+    GestureHitTest(pos geometry.Point) []Recognizer
 }
 ```
 
-All 20+ interactive widgets implement `GestureAware`. Widgets that do not implement it continue to receive events through the existing `Event(ctx, event.Event)` path.
+Leaf widgets (Button, Checkbox, TextField) always return their recognizers.
+Container widgets with partial interactive areas (Collapsible header, TabView tab strip,
+Docking zone tabs) return recognizers only when `pos` is within their interactive region.
+ScrollView intentionally does NOT implement GestureAware — scrollbar drag is handled by
+Event() handler with proper thumb hit-testing to avoid competing with child recognizers.
 
 **Signals integration:**
 Recognizers support opt-in reactive signals via functional options (e.g., `WithDraggingSignal` binds a `Signal[bool]` to drag state).

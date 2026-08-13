@@ -740,13 +740,31 @@ const (
 	defaultHostHeight float32 = 600
 )
 
-// GestureRecognizers returns the gesture recognizers owned by this widget.
+// GestureHitTest returns the gesture recognizers for a pointer event at pos
+// (widget-local coordinates).
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-func (h *Host) GestureRecognizers() []gesture.Recognizer {
+//
+// Docking host is a container widget — returns recognizers ONLY when pos is
+// within a zone tab bar area. Content-area clicks return nil so child
+// widgets' recognizers are the sole participants in the gesture arena.
+func (h *Host) GestureHitTest(pos geometry.Point) []gesture.Recognizer {
 	if h.clickRec == nil {
 		return nil
 	}
-	return []gesture.Recognizer{h.clickRec}
+	// Zone bounds are stored in parent-relative coordinates (include
+	// h.Bounds().Min offset). Convert pos to parent-relative for comparison.
+	origin := h.Bounds().Min
+	parentPos := geometry.Pt(pos.X+origin.X, pos.Y+origin.Y)
+	for z := Zone(0); z < zoneCount; z++ {
+		if z == Center || h.zones[z].isEmpty() {
+			continue
+		}
+		tabBar := zoneTabBarRect(h.zones[z].bounds)
+		if tabBar.Contains(parentPos) {
+			return []gesture.Recognizer{h.clickRec}
+		}
+	}
+	return nil
 }
 
 // Verify Host implements required interfaces at compile time.
