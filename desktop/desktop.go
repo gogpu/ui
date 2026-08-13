@@ -114,7 +114,11 @@ type renderLoop struct {
 	// Each boundary rendered into its own offscreen texture.
 	// Clean boundaries: texture reused. Dirty: re-rendered.
 	boundaryTextures map[uint64]*boundaryTexEntry
-	fullRedrawNeeded bool // First frame, resize, theme change
+	fullRedrawNeeded bool // First frame, before boundary textures exist
+	// A canvas resize clears the surface but does not invalidate retained
+	// boundary textures. Keep the surface work distinct from fullRedrawNeeded,
+	// which deliberately makes every boundary texture dirty.
+	surfaceResizePending bool
 
 	// Damage-aware blit (ADR-030): when only child boundaries changed
 	// (root clean), skip root DrawGPUTextureBase and use
@@ -135,7 +139,7 @@ type renderLoop struct {
 
 	// Persistent layer tree (D5). Survives across frames; UpdateLayerTree
 	// reuses PictureLayerImpl/OffsetLayerImpl objects for unchanged boundaries.
-	// Nil on first frame or after releaseBoundaryTextures (resize, close).
+	// Nil on first frame or after releaseBoundaryTextures (close).
 	layerTree *compositor.OffsetLayerImpl
 
 	// Diagnostic counters (reset each frame, logged with GOGPU_DEBUG_DAMAGE=1).
@@ -153,6 +157,43 @@ type boundaryTexEntry struct {
 	sceneVersion uint64        // tracks which scene version was last rendered into texture
 	clipRect     geometry.Rect // screen-space clip for compositor scissoring
 	hasClip      bool          // whether clipRect is set
+}
+
+type surfaceResizer interface {
+	Resize(width, height int) error
+}
+
+func (rl *renderLoop) resizeSurface(resizer surfaceResizer, width, height int) bool {
+	if err := resizer.Resize(width, height); err != nil {
+		log.Printf("desktop: canvas.Resize: %v", err)
+		return false
+	}
+	rl.surfaceResizePending = true
+	return true
+}
+
+func (rl *renderLoop) finishSurfaceRender(err error) {
+	if err != nil {
+		log.Printf("desktop: canvas.Render: %v", err)
+		return
+	}
+	// A successful full render has populated the resized surface. Keep the
+	// flag on errors so the next platform redraw retries the frame.
+	rl.surfaceResizePending = false
+}
+
+// needsFrame reports whether the retained compositor has any work to present.
+// Kept as a policy seam so surface-only work cannot accidentally become
+// boundary texture invalidation.
+func (rl *renderLoop) needsFrame(win *app.Window) bool {
+	return rl.surfaceResizePending || rl.fullRedrawNeeded ||
+		win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
+}
+
+// requiresFullSurfaceRender reports whether the swapchain must be fully
+// recomposed instead of preserving its previous contents with LoadOpLoad.
+func (rl *renderLoop) requiresFullSurfaceRender() bool {
+	return rl.surfaceResizePending || rl.rootTextureChanged || rl.fullRedrawNeeded
 }
 
 // draw is the OnDraw callback registered with gogpu.App.
@@ -181,12 +222,14 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 
 	cw, ch := rl.canvas.Size()
 	if cw != w || ch != h {
-		if err := rl.canvas.Resize(w, h); err != nil {
-			log.Printf("desktop: canvas.Resize: %v", err)
+		if rl.resizeSurface(rl.canvas, w, h) {
+			cw, ch = w, h
 		}
-		cw, ch = w, h
-		rl.releaseBoundaryTextures()
-		rl.fullRedrawNeeded = true
+		// Boundary texture lifetime follows each boundary's physical size,
+		// not the swapchain size. ensureBoundaryTexture below selectively
+		// replaces only entries whose dimensions changed. The separate
+		// surfaceResizePending flag still forces the cleared canvas to be
+		// recomposed and presented during platform live-resize ticks.
 	}
 
 	// A display-scale change can leave the logical size unchanged, so it does
@@ -203,7 +246,8 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	// No O(n) tree walk needed — the flat dirty set is authoritative.
 	//
 	// Work sources (all O(1)):
-	//   - fullRedrawNeeded: resize, first frame, texture release
+	//   - surfaceResizePending: canvas changed size and needs recomposition
+	//   - fullRedrawNeeded: first frame, before boundary textures exist
 	//   - win.NeedsRedraw(): layout changed, ctx.Invalidate, signal dirty
 	//   - win.HasDirtyBoundaries(): upward propagation → RegisterDirtyBoundary
 	//   - win.NeedsAnimationFrame(): spinner ScheduleAnimationFrame
@@ -211,7 +255,7 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	// Flutter equivalent: _hasScheduledFrame || _nodesNeedingPaint.isNotEmpty
 	// Before Phase C: NeedsRedrawInTreeNonBoundary O(n) walked entire tree.
 	// After Phase C: HasDirtyBoundaries O(1) checks map length.
-	needsAnyWork := rl.fullRedrawNeeded || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
+	needsAnyWork := rl.needsFrame(win)
 	// Dirty widget overlay animation frames are handled by gogpu's
 	// drawDebugOverlays (self-sustaining render loop via RequestRedraw).
 	if isDebugDamageEnabled() && rl.canvas != nil && rl.canvas.NeedsAnimationFrame() {
@@ -228,9 +272,9 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	rl.blitCount = 0
 
 	if isDebugDamageEnabled() {
-		log.Printf("[FRAME] #%d needsRedraw=%v dirtyBoundaries=%d animFrame=%v fullRedraw=%v",
+		log.Printf("[FRAME] #%d needsRedraw=%v dirtyBoundaries=%d animFrame=%v fullRedraw=%v surfaceResize=%v",
 			rl.frameCounter, win.NeedsRedraw(), win.DirtyBoundaryCount(),
-			win.NeedsAnimationFrame(), rl.fullRedrawNeeded)
+			win.NeedsAnimationFrame(), rl.fullRedrawNeeded, rl.surfaceResizePending)
 	}
 
 	cc := rl.canvas.Context()
@@ -436,12 +480,13 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	// ADR-021 Phase 7: Pass damage rects to gg for partial present.
 	// Chain: ui → gg SetPresentDamage → gogpu SetDamageRects → wgpu PresentWithDamage → OS.
 	//
-	// When root texture changed (full repaint), send full-window damage to the
-	// OS compositor. Wayland compositors use wl_surface.damage_buffer as an
-	// optimization hint — without full damage on full repaint, vacated areas
-	// (e.g. collapsed content) may show stale pixels on the physical display
-	// because the compositor doesn't know those pixels changed.
-	if rl.rootTextureChanged || rl.fullRedrawNeeded {
+	// When the root texture changed or the canvas resized, send full-window
+	// damage to the OS compositor. Wayland compositors use
+	// wl_surface.damage_buffer as an optimization hint — without full damage
+	// on full repaint, vacated areas (e.g. collapsed content) may show stale
+	// pixels on the physical display because the compositor doesn't know those
+	// pixels changed.
+	if rl.requiresFullSurfaceRender() {
 		rl.canvas.SetPresentDamage([]image.Rectangle{
 			image.Rect(0, 0, cw, ch),
 		})
@@ -462,7 +507,7 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	// content preserved. Fallback to full Render when root changed or overlays present.
 	rl.canvas.MarkDirty()
 
-	skipRootBlit := !rl.rootTextureChanged && !rl.fullRedrawNeeded
+	skipRootBlit := !rl.requiresFullSurfaceRender()
 	hasOverlays := win.HasOverlays()
 
 	// Damage-aware blit: enabled by default (ADR-007 Phase 7, TASK-UI-OPT-003).
@@ -483,7 +528,7 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 	if isDebugDamageEnabled() || isDebugDirtyEnabled() {
 		damageBlitEnabled = false
 	}
-	if damageBlitEnabled && skipRootBlit && !hasOverlays && len(rl.frameDamageRects) > 0 { //nolint:nestif // damage blit feature flag path selection
+	if damageBlitEnabled && skipRootBlit && !hasOverlays && len(rl.frameDamageRects) > 0 {
 		// ADR-030: Multi-rect damage-aware path.
 		// Accumulate damage across N swapchain buffers (ring buffer).
 		// Pass individual rects for per-draw dynamic scissor — zero pixel waste
@@ -495,10 +540,8 @@ func (rl *renderLoop) draw(dc *gogpu.Context) { //nolint:gocyclo,cyclop,gocognit
 			log.Printf("desktop: RenderDirectWithDamageRects: %v", err)
 		}
 	} else {
-		// Full blit path: root changed, overlays present, or first frame.
-		if err := rl.canvas.Render(dc.RenderTarget()); err != nil {
-			log.Printf("desktop: canvas.Render: %v", err)
-		}
+		// Full blit path: root changed, surface resized, overlays present, or first frame.
+		rl.finishSurfaceRender(rl.canvas.Render(dc.RenderTarget()))
 		// Fill ALL ring buffer slots with fullWindow so every swapchain
 		// buffer (up to 4 on Linux Wayland) knows the entire screen
 		// changed. Without this, buffer N-1 from a previous frame has
@@ -728,7 +771,6 @@ func (rl *renderLoop) ensureBoundaryTexture(key uint64, bw, bh int, cc *gg.Conte
 		tex, release := cc.CreateOffscreenTexture(pw, ph)
 		entry = &boundaryTexEntry{texture: tex, release: release, width: pw, height: ph}
 		rl.boundaryTextures[key] = entry
-		rl.fullRedrawNeeded = true
 	}
 	return entry
 }

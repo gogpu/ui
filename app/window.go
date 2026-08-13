@@ -499,14 +499,13 @@ func (w *Window) HandleEvent(e event.Event) {
 // HandleResize processes a window resize.
 //
 // This updates the window size and marks layout as needing recalculation.
+// LayoutChild's constraint cache invalidates only widgets whose incoming
+// constraints changed; fixed-size subtrees remain clean across the resize.
 func (w *Window) HandleResize(width, height int) {
 	w.windowSize = geometry.Sz(float32(width), float32(height))
 	w.needsLayout = true
 	w.needsRedraw = true
 	w.needsFullRepaint = true
-	if w.root != nil {
-		widget.MarkRedrawInTree(w.root)
-	}
 }
 
 // HandleScaleChange applies a new display scale and invalidates retained
@@ -978,6 +977,13 @@ func (w *Window) DrawTo(canvas widget.Canvas) bool {
 		return false
 	}
 
+	// Root has no parent to invalidate its cached scene when callers render
+	// directly after a resize without an intervening Frame/layout pass. Keep
+	// this root-only: descendants rely on their own layout and paint dirtiness.
+	if w.needsRedraw || w.needsFullRepaint {
+		w.invalidateRootScene()
+	}
+
 	// Collect dirty regions (always — for RepaintBoundary Intersects fast path).
 	w.dirtyTracker.Reset()
 	w.dirtyCollector.Collect(w.root)
@@ -1004,6 +1010,28 @@ func (w *Window) DrawTo(canvas widget.Canvas) bool {
 	}
 
 	return drawn
+}
+
+// invalidateRootScene marks only the root RepaintBoundary dirty without
+// scheduling another frame while the current draw is already in progress.
+func (w *Window) invalidateRootScene() {
+	type sceneDirtier interface {
+		IsRepaintBoundary() bool
+		InvalidateScene()
+	}
+	sd, ok := w.root.(sceneDirtier)
+	if !ok || !sd.IsRepaintBoundary() {
+		return
+	}
+
+	type dirtySuppressor interface{ SetSuppressDirtyCallback(bool) }
+	if ds, ok := w.root.(dirtySuppressor); ok {
+		ds.SetSuppressDirtyCallback(true)
+		sd.InvalidateScene()
+		ds.SetSuppressDirtyCallback(false)
+		return
+	}
+	sd.InvalidateScene()
 }
 
 // drawHostManaged draws the full widget tree without clearing the canvas.

@@ -199,7 +199,7 @@ func TestRootTextureChanged_TrackedCorrectly(t *testing.T) {
 func TestDamageBlitDecision_RootDirty_FullBlit(t *testing.T) {
 	// When root texture changed, should use full blit (not damage-aware).
 	rl := &renderLoop{rootTextureChanged: true}
-	skipRootBlit := !rl.rootTextureChanged && !rl.fullRedrawNeeded
+	skipRootBlit := !rl.requiresFullSurfaceRender()
 
 	if skipRootBlit {
 		t.Error("should NOT skip root blit when root texture changed")
@@ -213,7 +213,7 @@ func TestDamageBlitDecision_SpinnerOnly_DamageAware(t *testing.T) {
 		fullRedrawNeeded:   false,
 		frameDamageRects:   []image.Rectangle{image.Rect(100, 200, 148, 248)},
 	}
-	skipRootBlit := !rl.rootTextureChanged && !rl.fullRedrawNeeded
+	skipRootBlit := !rl.requiresFullSurfaceRender()
 	hasDamage := len(rl.frameDamageRects) > 0
 
 	if !skipRootBlit {
@@ -225,12 +225,12 @@ func TestDamageBlitDecision_SpinnerOnly_DamageAware(t *testing.T) {
 }
 
 func TestDamageBlitDecision_FullRedrawNeeded_FullBlit(t *testing.T) {
-	// First frame or resize — always full blit.
+	// First frame or another explicit full redraw — always full blit.
 	rl := &renderLoop{fullRedrawNeeded: true, rootTextureChanged: false}
-	skipRootBlit := !rl.rootTextureChanged && !rl.fullRedrawNeeded
+	skipRootBlit := !rl.requiresFullSurfaceRender()
 
 	if skipRootBlit {
-		t.Error("should NOT skip root blit on first frame/resize")
+		t.Error("should NOT skip root blit on first frame/full redraw")
 	}
 }
 

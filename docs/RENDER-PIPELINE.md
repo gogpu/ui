@@ -79,6 +79,8 @@ Recursively walks the widget tree (`paintBoundaryWithDepth`). Each dirty+visible
 
 **DrawChild skip pattern:** During recording, child boundaries are SKIPPED — they have their own GPU textures. The parent scene contains only non-boundary children (text, backgrounds, dividers).
 
+**Draw invariant:** A widget's drawing must be a function of its bounds and widget state. Window size belongs in layout constraints or an explicit signal, not a direct read from `Draw`; resize invalidates only boundaries whose layout or state actually changed.
+
 ### Step 5: Paint Overlay Boundaries
 
 ```
@@ -212,7 +214,7 @@ GOGPU_DAMAGE_BLIT=0 go run ./examples/gallery/
 | Spinner animating | 48×48 scissor blit at 30fps |
 | Spinner scrolled offscreen | 0% — boundary culled |
 | Dropdown open | Overlay boundary + scrim |
-| Window resize | Full redraw (all boundaries) |
+| Window resize | Root plus size-changed/reflowed boundaries; fixed-size boundary textures retained |
 
 ## Enterprise References
 
