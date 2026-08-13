@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - All 20+ interactive widgets implement `gesture.GestureAware` — button, checkbox, radio, textfield, dropdown, slider, dialog, scrollview, tabview, listview, gridview, collapsible, popover, splitview, treeview, datatable, toolbar, menu, docking, chip, stripe, titlebar.
 - Event bridge: unified pointer pipeline (ADR-049 Phase 3) — pointer events flow through gesture arena before widget dispatch.
+- **deps:** gg v0.52.2 → v0.52.3, gogpu v0.52.1 → v0.53.0, gpucontext v0.27.0 → v0.28.0, wgpu v0.31.2 → v0.31.4
 
 ### Fixed
 
