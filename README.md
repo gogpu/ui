@@ -44,6 +44,7 @@
 | **CGO-free** | Yes | No | Yes |
 | **WebGPU rendering** | Yes (Vulkan/DX12/Metal/GLES/Software) | OpenGL | Direct GPU |
 | **Reactive state** | Signals (push-pull, zero glitch) | Binding | Events |
+| **Gesture recognition** | Arena-based (Flutter pattern) | No | No |
 | **Layout engine** | Flexbox + Grid + per-widget cache | Custom | Flex |
 | **Accessibility** | Day 1 (35+ ARIA roles) | Limited | Limited |
 | **Design systems** | 4 (M3, DevTools, Fluent, Cupertino) | 1 | 1 |
@@ -212,10 +213,11 @@ func main() {
 
 | `core/stripe` | Vertical sidebar strip: tool window buttons, top/bottom items, icon buttons | 96%+ |
 | `core/titlebar` | Window title bar: CSD, drag, minimize/maximize/close, WindowChrome interface | 96%+ |
+| `gesture` | Gesture recognition: Arena, ClickRecognizer, DragRecognizer, LongPressRecognizer, TapAndDragRecognizer, VelocityTracker, Team | 96.0% |
 | `compositor` | Layer Tree compositor: OffsetLayer, PictureLayer, ClipRectLayer, OpacityLayer — production render pipeline | 95%+ |
 | `desktop` | Production render loop: Layer Tree → GPU textures → damage-aware blit | — |
 
-**Total: ~207,000+ lines of code | 56+ packages | ~7,500+ tests | 97%+ average coverage**
+**Total: ~220,000+ lines of code | 70 packages | ~7,800+ tests | 97%+ average coverage**
 
 ### Backend Selection
 
@@ -261,6 +263,8 @@ The **software backend** runs on any machine without GPU drivers. It uses the sa
 │  RepaintBoundary   │  Orchestration  │                      │
 ├─────────────────────────────────────────────────────────────┤
 │  icon/  │  i18n/  │  dnd/   │  uitest/ │  theme/font/       │
+├─────────────────────────────────────────────────────────────┤
+│  gesture/          (Arena, Click, Drag, LongPress, Team)   │
 ├─────────────────────────────────────────────────────────────┤
 │  app/ + FocusManager │  focus/ │  overlay/ │  render/       │
 ├─────────────────────────────────────────────────────────────┤
@@ -708,6 +712,10 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] OS file drag-and-drop bridge (KindFile, DropExternal)
 - [x] Vector icon rendering (SVG → scene geometry, no bitmap)
 - [x] JetBrains SVG window controls (pixel-perfect filled rects)
+- [x] Gesture recognition system (ADR-049, arena-based, Flutter pattern)
+- [x] Unified pointer pipeline (PointerEvent as single source of pointer input)
+- [x] OS clipboard (ClipboardProvider DI, Win32/macOS/Linux)
+- [x] TextField drag selection (drag-to-select, double-click word, triple-click all)
 - [ ] Platform accessibility adapters (UIA, AT-SPI2, NSAccessibility)
 - [ ] Software backend performance optimization (naga Go+SIMD, SPIR-V SIMD)
 - [ ] Android support (wgpu#268, Vulkan arm64)

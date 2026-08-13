@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.54] — 2026-08-13
+
+### Added
+
+- **Gesture recognition system** (ADR-049) — Flutter-inspired arena-based gesture disambiguation. New `gesture/` package: `Arena`, `ClickRecognizer`, `DragRecognizer`, `LongPressRecognizer`, `TapAndDragRecognizer`, `VelocityTracker`, `Team` cooperative groups. `GestureAware` interface for widget opt-in. Per-device thresholds (mouse 1px, touch 18px). Signals integration via functional options. 124 tests, 96.0% coverage, ~5K LOC.
+- **Unified pointer pipeline** — `PointerEvent` as single source of all pointer input. Replaces legacy mouse event callbacks with a structured pointer event type that carries device kind, pointer ID, button state, and coordinates. Foundation for future touch/pen/stylus input.
+- **TextField drag selection** ([#225](https://github.com/gogpu/ui/issues/225)) — mouse drag to select text, double-click to select word, triple-click to select all.
+- **OS clipboard** — `widget.ClipboardProvider` DI pattern (same as `SoundPlayer`), wired to platform clipboard (Win32, macOS, Linux) via `widget.RegisterClipboardProvider()`. `widget.ClipboardRead()` / `widget.ClipboardWrite()` for widget-level clipboard access.
+
+### Changed
+
+- All 20+ interactive widgets implement `gesture.GestureAware` — button, checkbox, radio, textfield, dropdown, slider, dialog, scrollview, tabview, listview, gridview, collapsible, popover, splitview, treeview, datatable, toolbar, menu, docking, chip, stripe, titlebar.
+- Event bridge: unified pointer pipeline (ADR-049 Phase 3) — pointer events flow through gesture arena before widget dispatch.
+
+### Fixed
+
+- **fix(desktop): retain unchanged boundaries on resize** ([#176](https://github.com/gogpu/ui/issues/176), @besmpl) — unchanged boundaries preserved during window resize.
+- **fix(app): keep pointer events within window bounds** ([#179](https://github.com/gogpu/ui/issues/179), @besmpl) — pointer coordinates clamped to window dimensions.
+
 ## [0.1.53] — 2026-08-11
 
 ### Added

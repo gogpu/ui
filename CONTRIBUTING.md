@@ -209,9 +209,10 @@ Look for issues labeled `good first issue`:
 ### Larger Contributions
 
 For significant changes, **open an issue first** to discuss:
-- New widgets
+- New widgets (must implement `gesture.GestureAware` for pointer interaction)
 - Layout algorithms
 - Theme implementations
+- Custom gesture recognizers (implement `gesture.Recognizer` interface)
 - Accessibility features
 
 ---
