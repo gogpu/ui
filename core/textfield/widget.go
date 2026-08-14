@@ -134,6 +134,27 @@ func (w *Widget) IsFocusable() bool {
 	return w.IsVisible() && w.IsEnabled() && !w.cfg.ResolvedDisabled()
 }
 
+// SetEnabled updates the widget's enabled state and invalidates any transient
+// IME preedit immediately. Programmatic toggles do not necessarily produce a
+// FocusEvent, so waiting until Draw would let a disabled-then-reenabled field
+// resurrect stale composition text.
+func (w *Widget) SetEnabled(enabled bool) {
+	if !enabled {
+		w.CancelIMEComposition()
+	}
+	w.WidgetBase.SetEnabled(enabled)
+}
+
+// SetVisible updates visibility and clears transient IME state when the field
+// is hidden. This mirrors SetEnabled for callers that toggle visibility
+// reactively between frames.
+func (w *Widget) SetVisible(visible bool) {
+	if !visible {
+		w.CancelIMEComposition()
+	}
+	w.WidgetBase.SetVisible(visible)
+}
+
 // Layout calculates the text field's preferred size within the given constraints.
 func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
 	width := constraints.MaxWidth
@@ -164,9 +185,10 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	bounds := w.Bounds()
 	focused := w.IsFocused()
 	disabled := w.cfg.ResolvedDisabled()
-	if disabled || !w.IsEnabled() || !w.IsVisible() {
-		// A programmatic disable/visibility change may not emit a FocusEvent;
-		// cancel the in-memory preedit before it can reappear on re-enable.
+	if !focused || disabled || !w.IsEnabled() || !w.IsVisible() {
+		// A programmatic focus/disable/visibility change may not emit a
+		// FocusEvent; cancel the in-memory preedit before it can reappear on
+		// re-enable or on a later focus restore.
 		w.clearComposition()
 	}
 	hasSelection := w.sel.anchor != w.sel.cursor
@@ -226,6 +248,12 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		w.compositionPaintGeometry(tm, contentRect, displayText)
 	showComposition := focused && w.IsVisible() && w.IsEnabled() &&
 		compositionText != "" && !compositionRect.IsEmpty() && !disabled
+	if showComposition && !compositionCursorRect.IsEmpty() {
+		// The marked-text cursor is the only insertion caret during a visible
+		// preedit. Drawing the committed caret as well produces two cursors,
+		// often at different positions, while the IME is active.
+		showCursor = false
+	}
 	if showComposition {
 		// Candidate placement follows the active preedit cursor when the IME
 		// provides one; otherwise it remains anchored to the committed caret.

@@ -9,24 +9,45 @@ import (
 // handleEvent processes input events for the text field widget.
 // It manages hover, focus, text editing, and selection states.
 func handleEvent(w *Widget, ctx widget.Context, e event.Event) bool {
-	if w.cfg.ResolvedDisabled() {
-		return false
-	}
-
 	switch ev := e.(type) {
 	case *event.MouseEvent:
+		if w.cfg.ResolvedDisabled() {
+			return false
+		}
 		return handleMouseEvent(w, ctx, ev)
 	case *event.KeyEvent:
+		if w.cfg.ResolvedDisabled() {
+			return false
+		}
 		return handleKeyEvent(w, ctx, ev)
 	case *event.FocusEvent:
 		if ev.IsLost() {
 			w.clearComposition()
+			w.cachedIMEAreaSet = false
 			w.SetNeedsRedraw(true)
 			ctx.InvalidateRect(w.Bounds())
 			return false
 		}
 		return false
 	case *event.IMEEvent:
+		// A disabled/hidden field can still be the context's focused widget
+		// until the next focus pass. Clear any transient preedit immediately so
+		// it cannot reappear when the field is re-enabled, and consume the
+		// lifecycle event rather than letting it reach another text field.
+		if !w.IsFocused() {
+			if w.composing {
+				w.clearComposition()
+				w.SetNeedsRedraw(true)
+				ctx.InvalidateRect(w.Bounds())
+			}
+			return false
+		}
+		if w.cfg.ResolvedDisabled() || !w.IsEnabled() || !w.IsVisible() {
+			w.clearComposition()
+			w.SetNeedsRedraw(true)
+			ctx.InvalidateRect(w.Bounds())
+			return true
+		}
 		return handleIMEEvent(w, ctx, ev)
 	default:
 		return false
@@ -69,6 +90,14 @@ func handleIMEEvent(w *Widget, ctx widget.Context, e *event.IMEEvent) bool {
 
 	case event.IMECompositionEnd:
 		w.clearComposition()
+		if w.cfg.inputType == TypePassword {
+			// A disabled native password session may still queue its end
+			// callback after focus/content-type changes. Never commit that stale
+			// payload into a password field.
+			w.SetNeedsRedraw(true)
+			ctx.InvalidateRect(w.Bounds())
+			return true
+		}
 		if e.Committed != "" {
 			w.deleteSelection()
 			w.insertText(e.Committed)
@@ -86,6 +115,9 @@ func handleIMEEvent(w *Widget, ctx widget.Context, e *event.IMEEvent) bool {
 		return true
 
 	case event.IMEDeleteSurrounding:
+		if w.cfg.inputType == TypePassword {
+			return true
+		}
 		if !e.Delete.IsValid() {
 			return true
 		}
@@ -110,6 +142,7 @@ func (w *Widget) CancelIMEComposition() {
 		return
 	}
 	w.clearComposition()
+	w.cachedIMEAreaSet = false
 	w.SetNeedsRedraw(true)
 }
 

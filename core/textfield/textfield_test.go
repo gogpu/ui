@@ -1852,6 +1852,42 @@ func TestIMECompositionCancelAndDisabledDiscardPreedit(t *testing.T) {
 	}
 }
 
+func TestIMECompositionClearsAcrossProgrammaticStateToggles(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(textfield.PainterOpt(p))
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	composition := gpucontext.IMEComposition{
+		CompositionText: "draft",
+		CursorBegin:     0,
+		CursorEnd:       0,
+		SelectionStart:  0,
+		SelectionEnd:    len("draft"),
+	}
+	tf.Event(ctx, event.NewIMECompositionStart())
+	tf.Event(ctx, event.NewIMECompositionUpdate(composition))
+
+	// Neither transition necessarily emits a FocusEvent. Draw must still
+	// clear the transient preedit, including the case where the field is
+	// re-enabled before any frame is rendered while hidden/disabled.
+	tf.SetEnabled(false)
+	tf.SetEnabled(true)
+	tf.Draw(ctx, &mockCanvas{})
+	if p.state.ShowComposition || p.state.CompositionText != "" {
+		t.Fatalf("preedit survived disabled/re-enabled toggle: %#v", p.state)
+	}
+
+	tf.Event(ctx, event.NewIMECompositionStart())
+	tf.Event(ctx, event.NewIMECompositionUpdate(composition))
+	tf.SetVisible(false)
+	tf.SetVisible(true)
+	tf.Draw(ctx, &mockCanvas{})
+	if p.state.ShowComposition || p.state.CompositionText != "" {
+		t.Fatalf("preedit survived hidden/re-enabled toggle: %#v", p.state)
+	}
+}
+
 func TestIMEPasswordPrivacyAndHints(t *testing.T) {
 	tf := textfield.New(
 		textfield.InitialValue("secret"),
@@ -1879,6 +1915,18 @@ func TestIMEPasswordPrivacyAndHints(t *testing.T) {
 	composition := gpucontext.IMEComposition{CompositionText: "secret-preedit", CursorBegin: 0, CursorEnd: 0, SelectionStart: 0, SelectionEnd: 0}
 	tf.Event(ctx, event.NewIMECompositionStart())
 	tf.Event(ctx, event.NewIMECompositionUpdate(composition))
+	if !tf.Event(ctx, event.NewIMECompositionEnd("stale-commit")) {
+		t.Fatal("password IME end should be consumed")
+	}
+	if tf.Text() != "" {
+		t.Fatalf("password stale end committed %q", tf.Text())
+	}
+	if !tf.Event(ctx, event.NewIMEDeleteSurrounding(gpucontext.IMEDeleteSurroundingEvent{Before: 1})) {
+		t.Fatal("password delete-surrounding should be consumed")
+	}
+	if tf.Text() != "" {
+		t.Fatalf("password delete-surrounding changed text to %q", tf.Text())
+	}
 	tf.Draw(ctx, &mockCanvas{})
 	if p.state.ShowComposition || p.state.CompositionText != "" {
 		t.Fatalf("password paint state leaked composition: %#v", p.state)
@@ -1907,6 +1955,29 @@ func TestIMEDeleteSurroundingUsesUTF8ByteCounts(t *testing.T) {
 	}
 	if tf.Text() != "é你" || len(changes) != 1 || changes[0] != "é你" {
 		t.Fatalf("valid delete text=%q callbacks=%v, want é你/one callback", tf.Text(), changes)
+	}
+}
+
+func TestIMEDeleteSurroundingDeletesBeforeAndAfterAtRuneBoundaries(t *testing.T) {
+	var changes []string
+	tf := textfield.New(
+		textfield.InitialValue("é你a"),
+		textfield.OnChange(func(value string) { changes = append(changes, value) }),
+	)
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	pressKey(tf, ctx, event.KeyHome, event.ModNone)
+	pressKey(tf, ctx, event.KeyRight, event.ModNone) // between é and 你
+
+	request := gpucontext.IMEDeleteSurroundingEvent{Before: len("é"), After: len("你")}
+	if !tf.Event(ctx, event.NewIMEDeleteSurrounding(request)) {
+		t.Fatal("delete-surrounding request should be consumed")
+	}
+	if tf.Text() != "a" || tf.CursorPosition() != 0 {
+		t.Fatalf("delete before/after text=%q cursor=%d, want a/0", tf.Text(), tf.CursorPosition())
+	}
+	if len(changes) != 1 || changes[0] != "a" {
+		t.Fatalf("onChange=%v, want one callback for atomic deletion", changes)
 	}
 }
 
@@ -1945,5 +2016,63 @@ func TestIMECursorAreaAndCompositionPainting(t *testing.T) {
 	}
 	if !foundPreedit || len(paintCanvas.drawLines) < 2 {
 		t.Fatalf("composition paint calls = texts=%#v lines=%#v, want preedit and underline/cursor", paintCanvas.drawTexts, paintCanvas.drawLines)
+	}
+}
+
+func TestIMECompositionGeometryUsesUTF8RangesAndSingleCursor(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(textfield.PainterOpt(p))
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	composition := gpucontext.IMEComposition{
+		CompositionText: "aé你",
+		CursorBegin:     len("aé"),
+		CursorEnd:       len("aé你"),
+		SelectionStart:  len("a"),
+		SelectionEnd:    len("aé"),
+	}
+	tf.Event(ctx, event.NewIMECompositionStart())
+	tf.Event(ctx, event.NewIMECompositionUpdate(composition))
+	tf.Draw(ctx, &mockCanvas{})
+	if !p.state.ShowComposition || p.state.CompositionText != composition.CompositionText {
+		t.Fatalf("paint state = %#v, want UTF-8 preedit", p.state)
+	}
+	if p.state.CompositionSelectionRect.IsEmpty() || p.state.CompositionCursorRect.IsEmpty() {
+		t.Fatalf("paint state = %#v, want selected segment and cursor range", p.state)
+	}
+	if p.state.ShowCursor {
+		t.Fatal("committed cursor drawn alongside visible preedit cursor")
+	}
+
+	// A byte offset inside the two-byte rune is invalid and must never reach
+	// the painter as a malformed geometry range.
+	invalid := composition
+	invalid.SelectionStart = 2
+	tf.Event(ctx, event.NewIMECompositionUpdate(invalid))
+	tf.Draw(ctx, &mockCanvas{})
+	if p.state.ShowComposition || p.state.CompositionText != "" {
+		t.Fatalf("invalid UTF-8 range rendered as composition: %#v", p.state)
+	}
+}
+
+func TestIMECompositionHiddenCursorDoesNotInventPreeditCaret(t *testing.T) {
+	p := &testPainter{}
+	tf := textfield.New(textfield.PainterOpt(p))
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	composition := gpucontext.IMEComposition{
+		CompositionText: "かな",
+		CursorBegin:     -1,
+		CursorEnd:       -1,
+		SelectionStart:  0,
+		SelectionEnd:    len("かな"),
+	}
+	tf.Event(ctx, event.NewIMECompositionStart())
+	tf.Event(ctx, event.NewIMECompositionUpdate(composition))
+	tf.Draw(ctx, &mockCanvas{})
+	if !p.state.ShowComposition || !p.state.CompositionCursorRect.IsEmpty() {
+		t.Fatalf("hidden cursor composition state = %#v, want no preedit caret", p.state)
 	}
 }

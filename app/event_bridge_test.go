@@ -32,6 +32,9 @@ func TestEventBridge_V2IMECommitExactlyOnce(t *testing.T) {
 	// A backend may still echo the result through the legacy text callback;
 	// the bridge must drop that echo after routing the explicit end commit.
 	es.onTextInput("東京")
+	es.onTextInput("東京")
+	// A queued duplicate end from the same native session is also ignored.
+	es.onIMECompositionEnd("東京")
 
 	var keyEvents, updates, ends int
 	for _, raw := range root.events {
@@ -44,7 +47,7 @@ func TestEventBridge_V2IMECommitExactlyOnce(t *testing.T) {
 			if e.IsCompositionUpdate() {
 				updates++
 			}
-			if e.IsCompositionEnd() {
+			if e.IsCompositionEnd() && e.Committed != "" {
 				ends++
 				if e.Committed != "東京" {
 					t.Fatalf("end commit = %q, want 東京", e.Committed)
@@ -55,6 +58,313 @@ func TestEventBridge_V2IMECommitExactlyOnce(t *testing.T) {
 	if keyEvents != 0 || updates != 1 || ends != 1 {
 		t.Fatalf("IME routed key=%d updates=%d ends=%d events=%#v, want 0/1/1", keyEvents, updates, ends, root.events)
 	}
+}
+
+// legacyIMEOnlyWindowProvider deliberately exposes only the original
+// controller methods. A separate event source in the fallback test provides
+// the richer v2 controller, matching hosts that split these surfaces.
+type legacyIMEOnlyWindowProvider struct {
+	mockWindowProvider
+	positions []geometry.Point
+	enabled   []bool
+}
+
+func (p *legacyIMEOnlyWindowProvider) SetIMEPosition(x, y int) {
+	p.positions = append(p.positions, geometry.Pt(float32(x), float32(y)))
+}
+
+func (p *legacyIMEOnlyWindowProvider) SetIMEEnabled(enabled bool) {
+	p.enabled = append(p.enabled, enabled)
+}
+
+type v2ControllerEventSource struct {
+	mockV2EventSource
+	positions    []geometry.Point
+	enabled      []bool
+	areas        []gpucontext.IMECursorArea
+	contentTypes [][2]any
+	surrounding  []gpucontext.IMESurroundingText
+	sequence     []string
+	cancels      int
+}
+
+func (s *v2ControllerEventSource) SetIMEPosition(x, y int) {
+	s.sequence = append(s.sequence, "position")
+	s.positions = append(s.positions, geometry.Pt(float32(x), float32(y)))
+}
+
+func (s *v2ControllerEventSource) SetIMEEnabled(enabled bool) {
+	s.sequence = append(s.sequence, "enabled")
+	s.enabled = append(s.enabled, enabled)
+}
+
+func (s *v2ControllerEventSource) SetIMECursorArea(area gpucontext.IMECursorArea) {
+	s.sequence = append(s.sequence, "area")
+	s.areas = append(s.areas, area)
+}
+
+func (s *v2ControllerEventSource) SetIMEContentType(purpose gpucontext.ContentPurpose, hints gpucontext.ContentHint) {
+	s.sequence = append(s.sequence, "content")
+	s.contentTypes = append(s.contentTypes, [2]any{purpose, hints})
+}
+
+func (s *v2ControllerEventSource) SetIMESurroundingText(text gpucontext.IMESurroundingText) {
+	s.sequence = append(s.sequence, "surrounding")
+	s.surrounding = append(s.surrounding, text)
+}
+
+func (s *v2ControllerEventSource) CancelIME() {
+	s.cancels++
+	s.sequence = append(s.sequence, "cancel")
+}
+
+func TestWindowIMEIgnoresLateEventsAfterFocusLoss(t *testing.T) {
+	es := &mockV2EventSource{}
+	p := &imeStatePainter{}
+	a := New(WithEventSource(es))
+	tf := textfield.New(textfield.PainterOpt(p))
+	a.SetRoot(tf)
+	a.Window().Context().RequestFocus(tf)
+	a.Window().Frame()
+
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	tf.Draw(a.Window().Context(), &recordingCanvas{})
+	if !p.state.ShowComposition {
+		t.Fatal("composition did not become visible before focus loss")
+	}
+
+	a.Window().HandleFocusChange(false)
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	tf.Draw(a.Window().Context(), &recordingCanvas{})
+	if p.state.ShowComposition {
+		t.Fatalf("late IME update resurrected preedit after focus loss: %#v", p.state)
+	}
+}
+
+func TestWindowSetRootAndCloseDisableFocusedIME(t *testing.T) {
+	wp := &mockIMEWindowProvider{mockWindowProvider: mockWindowProvider{width: 400, height: 200, scale: 1}}
+	a := New(WithWindowProvider(wp))
+	first := textfield.New(textfield.InitialValue("first"))
+	second := textfield.New(textfield.InitialValue("second"))
+	a.SetRoot(first)
+	a.Window().Context().RequestFocus(first)
+	a.Window().Frame()
+	if len(wp.enabled) == 0 || !wp.enabled[len(wp.enabled)-1] {
+		t.Fatalf("initial enabled calls = %#v, want true", wp.enabled)
+	}
+
+	a.SetRoot(second)
+	if wp.enabled[len(wp.enabled)-1] {
+		t.Fatalf("root replacement retained IME enabled: %#v", wp.enabled)
+	}
+
+	a.Window().Context().RequestFocus(second)
+	a.Window().Frame()
+	if !wp.enabled[len(wp.enabled)-1] {
+		t.Fatalf("replacement field did not re-enable IME: %#v", wp.enabled)
+	}
+	a.Window().Close()
+	if wp.enabled[len(wp.enabled)-1] {
+		t.Fatalf("close retained IME enabled: %#v", wp.enabled)
+	}
+}
+
+func TestEventBridgeDropsQueuedEventsAcrossRootReplacement(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	first := textfield.New(textfield.InitialValue("first"))
+	second := textfield.New(textfield.InitialValue("second"))
+	a.SetRoot(first)
+	a.Window().Context().RequestFocus(first)
+	a.Window().Frame()
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	a.SetRoot(second)
+	es.onTextInput("stale")
+	es.onIMECompositionEnd("stale")
+	if first.Text() != "first" || second.Text() != "second" {
+		t.Fatalf("root replacement accepted stale IME text: first=%q second=%q", first.Text(), second.Text())
+	}
+}
+
+func TestWindowPrefersSplitV2ControllerOverLegacyProvider(t *testing.T) {
+	wp := &legacyIMEOnlyWindowProvider{mockWindowProvider: mockWindowProvider{width: 400, height: 200, scale: 1}}
+	es := &v2ControllerEventSource{}
+	a := New(WithWindowProvider(wp), WithEventSource(es))
+	tf := textfield.New(textfield.InitialValue("hello"))
+	a.SetRoot(tf)
+	a.Window().Context().RequestFocus(tf)
+	a.Window().Frame()
+	if len(es.enabled) == 0 || !es.enabled[len(es.enabled)-1] {
+		t.Fatalf("split v2 controller enabled calls = %#v, want true", es.enabled)
+	}
+	if len(wp.enabled) != 0 {
+		t.Fatalf("legacy provider unexpectedly received v2 session calls: %#v", wp.enabled)
+	}
+}
+
+func TestWindowCancelsNativeIMEWhenFocusOwnerChangesWithSameSnapshot(t *testing.T) {
+	es := &v2ControllerEventSource{}
+	a := New(WithEventSource(es))
+	a.SetRoot(newMockWidget())
+	first := textfield.New(textfield.InitialValue("same"))
+	second := textfield.New(textfield.InitialValue("same"))
+	a.Window().Context().RequestFocus(first)
+	a.Window().Frame()
+	a.Window().Context().RequestFocus(second)
+	a.Window().Frame()
+	if es.cancels == 0 {
+		t.Fatalf("native CancelIME calls=%d, want focus-owner transition cancellation", es.cancels)
+	}
+}
+
+func TestEventBridgeDropsEndQueuedBetweenFocusSwitchAndFrame(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	a.SetRoot(newMockWidget())
+	first := textfield.New(textfield.InitialValue("first"))
+	second := textfield.New(textfield.InitialValue("second"))
+	a.Window().Context().RequestFocus(first)
+	a.Window().Frame()
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	a.Window().Context().RequestFocus(second)
+	// No Frame has run yet; the bridge must still observe the Context owner
+	// change before routing this queued end callback.
+	es.onIMECompositionEnd("stale")
+	if second.Text() != "second" {
+		t.Fatalf("queued end committed across pre-frame focus switch: %q", second.Text())
+	}
+}
+
+type capabilityV2ControllerEventSource struct {
+	v2ControllerEventSource
+	caps gpucontext.IMECapabilities
+}
+
+func (s *capabilityV2ControllerEventSource) IMECapabilities() gpucontext.IMECapabilities {
+	return s.caps
+}
+
+func TestWindowHonorsAdvertisedIMECapabilities(t *testing.T) {
+	es := &capabilityV2ControllerEventSource{
+		caps: gpucontext.IMECapabilities{
+			Version: gpucontext.IMEContractVersion,
+			Features: gpucontext.IMECapabilityComposition |
+				gpucontext.IMECapabilityCommit |
+				gpucontext.IMECapabilityCancel |
+				gpucontext.IMECapabilityDisabled,
+		},
+	}
+	a := New(WithEventSource(es))
+	tf := textfield.New(textfield.InitialValue("é你"))
+	a.SetRoot(tf)
+	a.Window().Context().RequestFocus(tf)
+	a.Window().Frame()
+
+	if len(es.areas) != 0 || len(es.contentTypes) != 0 || len(es.surrounding) != 0 {
+		t.Fatalf("unsupported v2 operations were called: sequence=%v", es.sequence)
+	}
+	if len(es.enabled) == 0 || !es.enabled[len(es.enabled)-1] {
+		t.Fatalf("legacy enable fallback calls = %#v, want true", es.enabled)
+	}
+	if len(es.positions) == 0 {
+		t.Fatalf("legacy position fallback calls = %#v, want candidate position", es.positions)
+	}
+}
+
+func TestEventBridgeFallsBackWhenV2CompositionIsUnadvertised(t *testing.T) {
+	es := &capabilityV2ControllerEventSource{
+		caps: gpucontext.IMECapabilities{
+			Version:  gpucontext.IMEContractVersion,
+			Features: gpucontext.IMECapabilityCommit,
+		},
+	}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+
+	if es.onIMECompositionUpdateV2 != nil {
+		t.Fatal("v2 composition callback registered without advertised composition support")
+	}
+	if es.onIMECompositionUpdate == nil {
+		t.Fatal("legacy composition callback was not registered as fallback")
+	}
+	if es.onIMECanceled != nil || es.onIMEDisabled != nil || es.onIMEDeleteSurrounding != nil {
+		t.Fatal("unsupported v2 lifecycle callbacks were registered")
+	}
+	es.onIMECompositionUpdate(gpucontext.IMEState{
+		CompositionText: "候",
+		CursorPos:       len("候"),
+		SelectionStart:  0,
+		SelectionEnd:    len("候"),
+	})
+	var updates int
+	for _, raw := range root.events {
+		if e, ok := raw.(*event.IMEEvent); ok && e.IsCompositionUpdate() {
+			updates++
+		}
+	}
+	if updates != 1 {
+		t.Fatalf("legacy fallback updates=%d events=%#v, want one update", updates, root.events)
+	}
+}
+
+func TestWindowPublishesSurroundingAfterEnable(t *testing.T) {
+	es := &v2ControllerEventSource{}
+	a := New(WithEventSource(es))
+	tf := textfield.New(textfield.InitialValue("é你"))
+	a.SetRoot(tf)
+	a.Window().Context().RequestFocus(tf)
+	a.Window().Frame()
+
+	seenEnable, seenSurrounding := -1, -1
+	for i, call := range es.sequence {
+		if call == "enabled" && seenEnable == -1 && len(es.enabled) > 0 {
+			seenEnable = i
+		}
+		if call == "surrounding" {
+			seenSurrounding = i
+		}
+	}
+	if seenEnable == -1 || seenSurrounding == -1 || seenEnable > seenSurrounding {
+		t.Fatalf("IME call order = %v, want enable before surrounding", es.sequence)
+	}
+}
+
+func TestEventBridgeDropsDisabledPasswordSessionEcho(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	tf := textfield.New(
+		textfield.InitialValue("keep"),
+		textfield.InputTypeOpt(textfield.TypePassword),
+	)
+	a.SetRoot(tf)
+	a.Window().Context().RequestFocus(tf)
+	a.Window().Frame()
+	es.onIMEDisabled()
+	es.onTextInput("stale")
+	es.onIMECompositionEnd("stale")
+	if tf.Text() != "keep" {
+		t.Fatalf("disabled password session mutated text to %q", tf.Text())
+	}
+}
+
+func testIMEComposition() gpucontext.IMEComposition {
+	return gpucontext.IMEComposition{
+		CompositionText: "かな",
+		CursorBegin:     len("か"),
+		CursorEnd:       len("か"),
+		SelectionStart:  0,
+		SelectionEnd:    len("かな"),
+	}
+}
+
+type imeStatePainter struct{ state textfield.PaintState }
+
+func (p *imeStatePainter) PaintTextField(_ widget.Canvas, state *textfield.PaintState) {
+	p.state = *state
 }
 
 func TestEventBridge_V2IMETextInputBeforeEndIsNotDuplicated(t *testing.T) {
@@ -81,6 +391,143 @@ func TestEventBridge_V2IMETextInputBeforeEndIsNotDuplicated(t *testing.T) {
 	}
 	if keyEvents != len([]rune("候補")) || committedEnds != 0 {
 		t.Fatalf("routed key=%d committed ends=%d events=%#v, want %d/0", keyEvents, committedEnds, root.events, len([]rune("候補")))
+	}
+}
+
+func TestEventBridge_PartialTextEchoIsNotDuplicated(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onIMECompositionStart()
+	es.onTextInput("候")
+	es.onIMECompositionEnd("候補")
+
+	var runes []rune
+	var committed string
+	for _, raw := range root.events {
+		switch e := raw.(type) {
+		case *event.KeyEvent:
+			if e.HasRune() {
+				runes = append(runes, e.Rune)
+			}
+		case *event.IMEEvent:
+			if e.IsCompositionEnd() {
+				committed = e.Committed
+			}
+		}
+	}
+	if string(runes) != "候" || committed != "補" {
+		t.Fatalf("partial echo routing = keys=%q commit=%q events=%#v, want keys=候 commit=補", string(runes), committed, root.events)
+	}
+}
+
+func TestEventBridge_PartialTextSuffixEchoIsNotDuplicated(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onIMECompositionStart()
+	es.onTextInput("候")
+	es.onIMECompositionEnd("候補")
+	es.onTextInput("補") // some hosts echo only the accepted suffix
+
+	var runes []rune
+	for _, raw := range root.events {
+		if key, ok := raw.(*event.KeyEvent); ok && key.HasRune() {
+			runes = append(runes, key.Rune)
+		}
+	}
+	if got := string(runes); got != "候" {
+		t.Fatalf("suffix echo reached UI as %q, want only prefix 候", got)
+	}
+}
+
+func TestEventBridge_DropsQueuedEndAfterCancel(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	es.onIMECanceled()
+	es.onIMECompositionEnd("stale")
+
+	for _, raw := range root.events {
+		if e, ok := raw.(*event.IMEEvent); ok && e.IsCompositionEnd() && e.Committed != "" {
+			t.Fatalf("queued canceled end committed %q: events=%#v", e.Committed, root.events)
+		}
+	}
+}
+
+func TestEventBridge_DropsQueuedTextAfterCancel(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	es.onIMECanceled()
+	es.onTextInput("stale")
+	es.onIMECompositionEnd("stale")
+
+	for _, raw := range root.events {
+		if key, ok := raw.(*event.KeyEvent); ok && key.HasRune() {
+			t.Fatalf("queued canceled text reached UI: %#v", root.events)
+		}
+		if end, ok := raw.(*event.IMEEvent); ok && end.IsCompositionEnd() && end.Committed != "" {
+			t.Fatalf("queued canceled end committed %q: events=%#v", end.Committed, root.events)
+		}
+	}
+}
+
+func TestEventBridgeDirectTextAfterEndStartsNewDedupWindow(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onTextInput("first") // host omits both start and update callbacks
+	es.onIMECompositionEnd("first")
+	es.onTextInput("first") // echo from the first end
+	es.onTextInput("next")  // host omits the next composition-start callback
+	es.onIMECompositionEnd("next")
+
+	var keys string
+	var committed []string
+	for _, raw := range root.events {
+		switch e := raw.(type) {
+		case *event.KeyEvent:
+			if e.HasRune() {
+				keys += string(e.Rune)
+			}
+		case *event.IMEEvent:
+			if e.IsCompositionEnd() && e.Committed != "" {
+				committed = append(committed, e.Committed)
+			}
+		}
+	}
+	if got := string(keys); got != "firstnext" {
+		t.Fatalf("direct text keys=%q, want firstnext", got)
+	}
+	if len(committed) != 0 {
+		t.Fatalf("committed ends=%v, want none after text callbacks", committed)
+	}
+}
+
+func TestEventBridge_DropsQueuedEndAfterWindowFocusLoss(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	a.Window().HandleFocusChange(false)
+	es.onIMECompositionEnd("stale")
+
+	for _, raw := range root.events {
+		if e, ok := raw.(*event.IMEEvent); ok && e.IsCompositionEnd() && e.Committed != "" {
+			t.Fatalf("focus-loss queued end committed %q: events=%#v", e.Committed, root.events)
+		}
 	}
 }
 
