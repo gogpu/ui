@@ -1770,3 +1770,167 @@ func TestEventBridge_PointerEventSource_Registration(t *testing.T) {
 
 // Verify no unused imports by using geometry in a test.
 var _ = geometry.Pt(0, 0)
+
+func TestIMEBridgeStateDeduplicationBranches(t *testing.T) {
+	if got := commitWithoutEcho("", "x"); got != "x" {
+		t.Fatalf("empty prefix commit = %q", got)
+	}
+	if got := commitWithoutEcho(string([]byte{0xff}), "x"); got != "x" {
+		t.Fatalf("invalid UTF-8 prefix commit = %q", got)
+	}
+	if got := commitWithoutEcho("abc", "ab"); got != "" {
+		t.Fatalf("committed prefix already delivered = %q", got)
+	}
+	if got := commitWithoutEcho("ab", "abc"); got != "c" {
+		t.Fatalf("partial prefix commit = %q", got)
+	}
+	if got := commitWithoutEcho("x", "abc"); got != "abc" {
+		t.Fatalf("unrelated commit = %q", got)
+	}
+
+	s := &imeBridgeState{active: true, suppressNext: "full", suppressPartial: "part"}
+	if !s.dropTextInput("full") || s.suppressNext != "" {
+		t.Fatalf("full echo did not clear active-session guard: %#v", s)
+	}
+	if !s.dropTextInput("part") || s.suppressPartial != "" {
+		t.Fatalf("partial echo did not clear active-session guard: %#v", s)
+	}
+	s.invalidate()
+	if !s.dropTextInput("stale") {
+		t.Fatal("canceled text should be dropped")
+	}
+	s.noteKeyPress()
+	if s.canceled || !s.ended {
+		t.Fatalf("key press did not establish post-cancel boundary: %#v", s)
+	}
+	if got := s.end("stale-end"); got != "" {
+		t.Fatalf("queued end crossed key boundary: %q", got)
+	}
+}
+
+func TestEventBridgeIMECallbacksAllSupportedAndRejected(t *testing.T) {
+	es := &capabilityV2ControllerEventSource{caps: gpucontext.IMECapabilities{
+		Version: gpucontext.IMEContractVersion,
+		Features: gpucontext.IMECapabilityComposition |
+			gpucontext.IMECapabilityCancel |
+			gpucontext.IMECapabilityDisabled |
+			gpucontext.IMECapabilityDeleteSurrounding |
+			gpucontext.IMECapabilityCommit,
+	}}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	es.onIMEDeleteSurrounding(gpucontext.IMEDeleteSurroundingEvent{Before: 1, After: 1})
+	es.onIMECanceled()
+	es.onIMEDisabled()
+	es.onIMECompositionEnd("")
+	var starts, updates, deletes, cancels, disabled, ends int
+	for _, raw := range root.events {
+		if e, ok := raw.(*event.IMEEvent); ok {
+			switch {
+			case e.IsCompositionStart():
+				starts++
+			case e.IsCompositionUpdate():
+				updates++
+			case e.IsDeleteSurrounding():
+				deletes++
+			case e.IsCanceled():
+				cancels++
+			case e.IsDisabled():
+				disabled++
+			case e.IsCompositionEnd():
+				ends++
+			}
+		}
+	}
+	if starts != 1 || updates != 1 || deletes != 1 || cancels != 1 || disabled != 1 || ends != 1 {
+		t.Fatalf("supported IME events = start/%d update/%d delete/%d cancel/%d disabled/%d end/%d", starts, updates, deletes, cancels, disabled, ends)
+	}
+
+	// Teardown before callback delivery must reject every callback without panic.
+	a.SetRoot(nil)
+	es.onIMECompositionStart()
+	es.onIMECompositionUpdateV2(testIMEComposition())
+	es.onIMEDeleteSurrounding(gpucontext.IMEDeleteSurroundingEvent{})
+	es.onIMECanceled()
+	es.onIMEDisabled()
+	es.onIMECompositionEnd("stale")
+}
+
+func TestEventBridgeLegacyControllerAndFocusGate(t *testing.T) {
+	wp := &legacyIMEOnlyWindowProvider{mockWindowProvider: mockWindowProvider{width: 100, height: 100, scale: 1}}
+	a := New(WithWindowProvider(wp))
+	if _, v2, _, ok := a.Window().resolveIMEController(); !ok || v2 != nil {
+		t.Fatalf("legacy controller resolution = ok:%v v2:%v", ok, v2)
+	}
+	es := &mockV2EventSource{}
+	a = New(WithEventSource(es))
+	a.SetRoot(newMockWidget())
+	a.Window().HandleFocusChange(false)
+	if es.onTextInput != nil {
+		es.onTextInput("ignored")
+	}
+	if es.onKeyPress != nil {
+		es.onKeyPress(gpucontext.KeyA, 0)
+	}
+	a.Window().HandleEvent(event.NewKeyEvent(event.KeyPress, event.KeyA, 0, event.ModNone))
+	a.Window().HandleEvent(event.NewIMECompositionStart())
+
+	legacyES := &mockEventSource{}
+	legacyApp := New(WithEventSource(legacyES))
+	legacyApp.SetRoot(newMockWidget())
+	legacyApp.SetRoot(nil)
+	legacyES.onIMECompositionUpdate(gpucontext.IMEState{CompositionText: "stale"})
+}
+
+func TestWindowCloseInvalidatesAttachedIMEBridge(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	a.SetRoot(newMockWidget())
+	a.Window().Close()
+	es.onIMECompositionStart()
+	es.onIMECompositionEnd("stale")
+}
+
+type imeFocusContainer struct {
+	widget.WidgetBase
+	kids []widget.Widget
+}
+
+func (w *imeFocusContainer) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+	return c.Constrain(geometry.Sz(400, 100))
+}
+
+func (w *imeFocusContainer) Draw(ctx widget.Context, canvas widget.Canvas) {
+	for _, child := range w.kids {
+		child.Draw(ctx, canvas)
+	}
+}
+
+func (w *imeFocusContainer) Event(ctx widget.Context, e event.Event) bool {
+	for _, child := range w.kids {
+		if child.Event(ctx, e) {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *imeFocusContainer) Children() []widget.Widget { return w.kids }
+
+func TestEventBridgeFocusSwitchInvalidatesBeforeFrame(t *testing.T) {
+	es := &v2ControllerEventSource{}
+	a := New(WithEventSource(es))
+	first := textfield.New(textfield.InitialValue("first"))
+	second := textfield.New(textfield.InitialValue("second"))
+	root := &imeFocusContainer{kids: []widget.Widget{first, second}}
+	root.AddChild(first)
+	root.AddChild(second)
+	a.SetRoot(root)
+	a.Window().Context().RequestFocus(first)
+	a.Window().Frame()
+	a.Window().Context().RequestFocus(second)
+	es.onIMECompositionEnd("stale")
+}

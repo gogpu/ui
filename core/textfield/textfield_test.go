@@ -2076,3 +2076,91 @@ func TestIMECompositionHiddenCursorDoesNotInventPreeditCaret(t *testing.T) {
 		t.Fatalf("hidden cursor composition state = %#v, want no preedit caret", p.state)
 	}
 }
+
+func TestIMEPolicyVariantsAndInputGates(t *testing.T) {
+	cases := []struct {
+		name    string
+		input   textfield.InputType
+		purpose gpucontext.ContentPurpose
+		hints   gpucontext.ContentHint
+	}{
+		{"normal", textfield.TypeText, gpucontext.ContentPurposeNormal, gpucontext.ContentHintNone},
+		{"email", textfield.TypeEmail, gpucontext.ContentPurposeEmail, gpucontext.ContentHintNone},
+		{"number", textfield.TypeNumber, gpucontext.ContentPurposeNumber, gpucontext.ContentHintNone},
+		{"search", textfield.TypeSearch, gpucontext.ContentPurposeNormal, gpucontext.ContentHintCompletion},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tf := textfield.New(textfield.InputTypeOpt(tc.input), textfield.InitialValue("é你"))
+			tf.SetFocused(true)
+			purpose, hints := tf.IMEContentType()
+			if purpose != tc.purpose || hints != tc.hints {
+				t.Fatalf("content type=(%v,%v), want (%v,%v)", purpose, hints, tc.purpose, tc.hints)
+			}
+			if !tf.IMEEnabled() || tf.IMESurroundingText().Text != "é你" {
+				t.Fatalf("enabled field did not expose surrounding text: %#v", tf.IMESurroundingText())
+			}
+			tf.SetFocused(false)
+			if tf.IMEEnabled() || tf.IMESurroundingText() != (gpucontext.IMESurroundingText{}) {
+				t.Fatalf("unfocused field leaked IME state: enabled=%v surrounding=%#v", tf.IMEEnabled(), tf.IMESurroundingText())
+			}
+		})
+	}
+}
+
+func TestIMEFallbackCursorAreaBeforeDraw(t *testing.T) {
+	tf := textfield.New()
+	tf.SetBounds(geometry.NewRect(10, 20, 200, 48))
+	area := tf.IMECursorArea()
+	if area.Width <= 0 || area.Height <= 0 {
+		t.Fatalf("fallback cursor area = %#v, want non-empty", area)
+	}
+}
+
+func TestIMEEventInputGatesAndInvalidPayloads(t *testing.T) {
+	ctx := widget.NewContext()
+	bound := geometry.NewRect(0, 0, 300, 48)
+	invalid := gpucontext.IMEComposition{CompositionText: "é", CursorBegin: 1, CursorEnd: 1, SelectionStart: 0, SelectionEnd: len("é")}
+	for _, tc := range []struct {
+		name  string
+		setup func(*textfield.Widget)
+	}{
+		{"unfocused", func(tf *textfield.Widget) { tf.SetFocused(false) }},
+		{"disabled", func(tf *textfield.Widget) { tf.SetFocused(true); tf.SetEnabled(false) }},
+		{"hidden", func(tf *textfield.Widget) { tf.SetFocused(true); tf.SetVisible(false) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tf := textfield.New(textfield.InitialValue("keep"))
+			tf.SetBounds(bound)
+			tf.SetFocused(true)
+			if !tf.Event(ctx, event.NewIMECompositionStart()) {
+				t.Fatal("composition start should be consumed before gate")
+			}
+			tc.setup(tf)
+			if tf.Event(ctx, event.NewIMECompositionUpdate(invalid)) && tc.name == "unfocused" {
+				t.Fatal("unfocused IME event should not be consumed")
+			}
+			if tc.name != "unfocused" && !tf.Event(ctx, event.NewIMECompositionEnd("stale")) {
+				t.Fatal("disabled/hidden IME event should be consumed")
+			}
+		})
+	}
+
+	tf := textfield.New(textfield.InitialValue("keep"))
+	tf.SetBounds(bound)
+	tf.SetFocused(true)
+	if !tf.Event(ctx, event.NewIMECompositionUpdate(invalid)) {
+		t.Fatal("invalid composition update should be consumed")
+	}
+	if tf.Event(ctx, event.NewIMEDeleteSurrounding(gpucontext.IMEDeleteSurroundingEvent{Before: -1})) != true {
+		t.Fatal("invalid delete request should be consumed")
+	}
+	if !tf.Event(ctx, event.NewIMECompositionEnd("")) {
+		t.Fatal("empty composition end should be consumed")
+	}
+	// FocusLost is intentionally not consumed so parent focus managers can
+	// observe it after the field clears its transient IME state.
+	_ = tf.Event(ctx, event.NewFocusEvent(event.FocusLost))
+	_ = tf.Event(ctx, event.NewFocusEvent(event.FocusGained))
+	_ = tf.Event(ctx, nil)
+}

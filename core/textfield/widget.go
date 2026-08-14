@@ -316,19 +316,14 @@ func (w *Widget) compositionPaintGeometry(
 		return "", geometry.Rect{}, geometry.Rect{}, geometry.Rect{}
 	}
 
-	start, ok := compositionRangeToRunes(composition.CompositionText, composition.SelectionStart, composition.SelectionEnd)
-	if !ok {
-		return "", geometry.Rect{}, geometry.Rect{}, geometry.Rect{}
-	}
+	// IsValid above guarantees that all supplied byte offsets are UTF-8
+	// boundaries in CompositionText, so conversion cannot fail here.
+	start, _ := compositionRangeToRunes(composition.CompositionText, composition.SelectionStart, composition.SelectionEnd)
 	cursorBegin, cursorEnd := composition.CursorBegin, composition.CursorEnd
 	if cursorBegin < 0 || cursorEnd < 0 {
 		cursorBegin, cursorEnd = 0, 0
 	}
-	cursorStart, cursorOK := byteOffsetToRune(composition.CompositionText, cursorBegin)
-	cursorFinish, cursorEndOK := byteOffsetToRune(composition.CompositionText, cursorEnd)
-	if !cursorOK || !cursorEndOK {
-		return "", geometry.Rect{}, geometry.Rect{}, geometry.Rect{}
-	}
+	cursorStart, _ := byteOffsetToRune(composition.CompositionText, cursorBegin)
 
 	startX := tm.CursorX(contentRect, displayText, w.sel.cursor) + w.scrollOffsetX
 	width := tm.Canvas.MeasureText(composition.CompositionText, tm.FontSize, false)
@@ -344,12 +339,9 @@ func (w *Widget) compositionPaintGeometry(
 	}
 	cursorRect := geometry.Rect{}
 	if composition.HasCursor() {
-		// CursorBegin may be a range start; the caret is placed at its leading
-		// edge so selected segments remain visibly underlined instead.
+		// CursorBegin is the leading edge of the valid cursor range, so selected
+		// segments remain visibly underlined instead of moving the caret.
 		cursorRect = tm.CursorRect(compositionRect, composition.CompositionText, cursorStart, resolveLayoutMetrics(w.painter).TextFieldCursorWidth())
-		if cursorFinish < cursorStart {
-			cursorRect = tm.CursorRect(compositionRect, composition.CompositionText, cursorFinish, resolveLayoutMetrics(w.painter).TextFieldCursorWidth())
-		}
 	}
 	return composition.CompositionText, compositionRect, selectionRect, cursorRect
 }

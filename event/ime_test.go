@@ -75,3 +75,38 @@ func TestIMEEventTypeString(t *testing.T) {
 		}
 	}
 }
+
+func TestIMEEventAllPredicatesAndAliases(t *testing.T) {
+	composition := gpucontext.IMEComposition{CompositionText: "x", CursorBegin: 0, CursorEnd: 0, SelectionStart: 0, SelectionEnd: 0}
+	request := gpucontext.IMEDeleteSurroundingEvent{Before: 1, After: 2}
+	events := []*IMEEvent{
+		NewIMECompositionStart(),
+		NewIMECompositionUpdate(composition),
+		NewIMECompositionEnd("x"),
+		NewIMECanceled(),
+		NewIMEDisabled(),
+		NewIMEDeleteSurrounding(request),
+	}
+	if !events[0].IsCompositionStart() || events[0].IsCompositionUpdate() || events[0].IsCompositionEnd() {
+		t.Fatalf("start predicates incorrect: %#v", events[0])
+	}
+	if !events[1].IsCompositionUpdate() || events[1].IsCompositionStart() || events[1].IsCompositionEnd() {
+		t.Fatalf("update predicates incorrect: %#v", events[1])
+	}
+	if !events[2].IsCompositionEnd() || events[2].IsCompositionStart() || events[2].IsCompositionUpdate() {
+		t.Fatalf("end predicates incorrect: %#v", events[2])
+	}
+	if !events[3].IsCanceled() || !events[4].IsDisabled() || !events[5].IsDeleteSurrounding() {
+		t.Fatalf("lifecycle predicates incorrect: %#v", events)
+	}
+	if events[5].Delete != request {
+		t.Fatalf("delete request = %#v, want %#v", events[5].Delete, request)
+	}
+	var nilEvent *IMEEvent
+	if nilEvent.IsCompositionStart() || nilEvent.IsCompositionUpdate() || nilEvent.IsCompositionEnd() || nilEvent.IsCanceled() || nilEvent.IsDisabled() || nilEvent.IsDeleteSurrounding() {
+		t.Fatal("nil event predicates must be false")
+	}
+	if got := nilEvent.String(); got != "<nil>" {
+		t.Fatalf("nil event String() = %q, want <nil>", got)
+	}
+}
