@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/event"
@@ -1769,5 +1770,180 @@ func TestUnmount_CleansBindings(t *testing.T) {
 
 	if sched.PendingCount() != 0 {
 		t.Error("signal change after unmount should not mark widget dirty")
+	}
+}
+
+// --- IME composition tests ---
+
+func TestIMECompositionLifecycleDoesNotMutatePreedit(t *testing.T) {
+	var changes []string
+	p := &testPainter{}
+	tf := textfield.New(
+		textfield.PainterOpt(p),
+		textfield.OnChange(func(value string) { changes = append(changes, value) }),
+	)
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	canvas := &mockCanvas{}
+
+	composition := gpucontext.IMEComposition{
+		CompositionText: "かな",
+		CursorBegin:     len("か"),
+		CursorEnd:       len("か"),
+		SelectionStart:  0,
+		SelectionEnd:    len("かな"),
+	}
+	if !tf.Event(ctx, event.NewIMECompositionStart()) {
+		t.Fatal("composition start should be consumed")
+	}
+	if !tf.Event(ctx, event.NewIMECompositionUpdate(composition)) {
+		t.Fatal("composition update should be consumed")
+	}
+	if got := tf.Text(); got != "" {
+		t.Fatalf("preedit changed committed text to %q", got)
+	}
+	tf.Draw(ctx, canvas)
+	if !p.state.ShowComposition || p.state.CompositionText != composition.CompositionText {
+		t.Fatalf("paint state = %#v, want visible preedit", p.state)
+	}
+	if p.state.CompositionSelectionRect.IsEmpty() || p.state.CompositionCursorRect.IsEmpty() {
+		t.Fatalf("paint state = %#v, want marked range and cursor", p.state)
+	}
+
+	if !tf.Event(ctx, event.NewIMECompositionEnd("仮名")) {
+		t.Fatal("composition end should be consumed")
+	}
+	if got := tf.Text(); got != "仮名" {
+		t.Fatalf("committed text = %q, want %q", got, "仮名")
+	}
+	if len(changes) != 1 || changes[0] != "仮名" {
+		t.Fatalf("onChange = %#v, want one committed callback", changes)
+	}
+	tf.Draw(ctx, canvas)
+	if p.state.ShowComposition || p.state.CompositionText != "" {
+		t.Fatalf("composition remained after commit: %#v", p.state)
+	}
+}
+
+func TestIMECompositionCancelAndDisabledDiscardPreedit(t *testing.T) {
+	for _, cancel := range []struct {
+		name string
+		e    event.Event
+	}{
+		{name: "cancel", e: event.NewIMECanceled()},
+		{name: "disabled", e: event.NewIMEDisabled()},
+	} {
+		t.Run(cancel.name, func(t *testing.T) {
+			tf := textfield.New(textfield.InitialValue("keep"))
+			tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+			tf.SetFocused(true)
+			ctx := widget.NewContext()
+			composition := gpucontext.IMEComposition{CompositionText: "draft", CursorBegin: 0, CursorEnd: 0, SelectionStart: 0, SelectionEnd: 0}
+			tf.Event(ctx, event.NewIMECompositionStart())
+			tf.Event(ctx, event.NewIMECompositionUpdate(composition))
+			if !tf.Event(ctx, cancel.e) {
+				t.Fatal("cancel/disabled event should be consumed")
+			}
+			if tf.Text() != "keep" {
+				t.Fatalf("text = %q, want committed value unchanged", tf.Text())
+			}
+		})
+	}
+}
+
+func TestIMEPasswordPrivacyAndHints(t *testing.T) {
+	tf := textfield.New(
+		textfield.InitialValue("secret"),
+		textfield.InputTypeOpt(textfield.TypePassword),
+	)
+	tf.SetFocused(true)
+	if tf.IMEEnabled() {
+		t.Fatal("password field must not enable native IME")
+	}
+	purpose, hints := tf.IMEContentType()
+	if purpose != gpucontext.ContentPurposePassword ||
+		!hints.Has(gpucontext.ContentHintHiddenText) ||
+		!hints.Has(gpucontext.ContentHintSensitiveData) {
+		t.Fatalf("content type = (%v, %v), want password privacy hints", purpose, hints)
+	}
+	if surrounding := tf.IMESurroundingText(); surrounding != (gpucontext.IMESurroundingText{}) {
+		t.Fatalf("password surrounding text = %#v, want empty", surrounding)
+	}
+
+	p := &testPainter{}
+	tf = textfield.New(textfield.InputTypeOpt(textfield.TypePassword), textfield.PainterOpt(p))
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	composition := gpucontext.IMEComposition{CompositionText: "secret-preedit", CursorBegin: 0, CursorEnd: 0, SelectionStart: 0, SelectionEnd: 0}
+	tf.Event(ctx, event.NewIMECompositionStart())
+	tf.Event(ctx, event.NewIMECompositionUpdate(composition))
+	tf.Draw(ctx, &mockCanvas{})
+	if p.state.ShowComposition || p.state.CompositionText != "" {
+		t.Fatalf("password paint state leaked composition: %#v", p.state)
+	}
+}
+
+func TestIMEDeleteSurroundingUsesUTF8ByteCounts(t *testing.T) {
+	var changes []string
+	tf := textfield.New(
+		textfield.InitialValue("é你a"),
+		textfield.OnChange(func(value string) { changes = append(changes, value) }),
+	)
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+
+	// Three bytes before the end would split the three-byte rune 你, so the
+	// request is rejected without a callback or text mutation.
+	if !tf.Event(ctx, event.NewIMEDeleteSurrounding(gpucontext.IMEDeleteSurroundingEvent{Before: 3})) {
+		t.Fatal("invalid UTF-8-boundary delete should still be consumed")
+	}
+	if tf.Text() != "é你a" || len(changes) != 0 {
+		t.Fatalf("invalid delete changed text=%q callbacks=%v", tf.Text(), changes)
+	}
+	if !tf.Event(ctx, event.NewIMEDeleteSurrounding(gpucontext.IMEDeleteSurroundingEvent{Before: 1})) {
+		t.Fatal("valid surrounding delete should be consumed")
+	}
+	if tf.Text() != "é你" || len(changes) != 1 || changes[0] != "é你" {
+		t.Fatalf("valid delete text=%q callbacks=%v, want é你/one callback", tf.Text(), changes)
+	}
+}
+
+func TestIMECursorAreaAndCompositionPainting(t *testing.T) {
+	tf := textfield.New(textfield.InitialValue("x"))
+	tf.SetBounds(geometry.NewRect(10, 20, 300, 48))
+	tf.SetFocused(true)
+	ctx := widget.NewContext()
+	canvas := &recordingCanvas{}
+	tf.Draw(ctx, canvas)
+	area := tf.IMECursorArea()
+	if area.Width <= 0 || area.Height <= 0 || area.X <= 0 || area.Y <= 0 {
+		t.Fatalf("cursor area = %#v, want non-empty window-local rect", area)
+	}
+
+	st := &textfield.PaintState{
+		Focused:                  true,
+		Bounds:                   geometry.NewRect(0, 0, 100, 40),
+		ContentRect:              geometry.NewRect(0, 0, 100, 40),
+		CompositionText:          "preedit",
+		CompositionTextRect:      geometry.NewRect(10, 5, 40, 20),
+		CompositionSelectionRect: geometry.NewRect(20, 5, 10, 20),
+		CompositionCursorRect:    geometry.NewRect(25, 5, 1, 20),
+		ShowComposition:          true,
+	}
+	paintCanvas := &recordingCanvas{}
+	(textfield.DefaultPainter{}).PaintTextField(paintCanvas, st)
+	foundPreedit := false
+	for _, call := range paintCanvas.drawTexts {
+		if call.text == "preedit" {
+			foundPreedit = true
+			if call.fontSize <= 0 {
+				t.Errorf("preedit font size = %v, want positive fallback", call.fontSize)
+			}
+		}
+	}
+	if !foundPreedit || len(paintCanvas.drawLines) < 2 {
+		t.Fatalf("composition paint calls = texts=%#v lines=%#v, want preedit and underline/cursor", paintCanvas.drawTexts, paintCanvas.drawLines)
 	}
 }

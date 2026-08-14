@@ -67,6 +67,8 @@ func (s *eventBridgeState) scrollAllowed() bool {
 // application's event loop.
 func attachEventBridge(es gpucontext.EventSource, w *Window) {
 	st := &eventBridgeState{}
+	ime := &imeBridgeState{}
+	w.setIMEController(es)
 
 	_, hasPointerSource := es.(gpucontext.PointerEventSource)
 
@@ -134,7 +136,8 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		})
 	}
 
-	attachKeyboardBridge(es, w, &st.mods)
+	attachKeyboardBridge(es, w, &st.mods, ime)
+	attachIMEBridge(es, w, ime)
 	attachScrollBridge(es, w, st)
 
 	es.OnResize(func(width, height int) {
@@ -239,8 +242,9 @@ func attachScrollBridge(es gpucontext.EventSource, w *Window, st *eventBridgeSta
 }
 
 // attachKeyboardBridge wires keyboard and text input callbacks.
-func attachKeyboardBridge(es gpucontext.EventSource, w *Window, mods *event.Modifiers) {
+func attachKeyboardBridge(es gpucontext.EventSource, w *Window, mods *event.Modifiers, ime *imeBridgeState) {
 	es.OnKeyPress(func(key gpucontext.Key, platMods gpucontext.Modifiers) {
+		ime.noteKeyPress()
 		uiKey := translateKey(key)
 		uiMods := translateModifiers(platMods)
 		// A key event reports the modifiers held BEFORE it, so pressing Shift
@@ -275,15 +279,121 @@ func attachKeyboardBridge(es gpucontext.EventSource, w *Window, mods *event.Modi
 	})
 
 	es.OnTextInput(func(text string) {
-		for _, r := range text {
-			e := event.NewKeyEvent(
-				event.KeyPress,
-				event.KeyUnknown,
-				r,
-				event.ModNone,
-			)
-			w.HandleEvent(e)
+		if ime.dropTextInput(text) {
+			return
 		}
+		if ime.active {
+			// Some platform bridges deliver a committed result through
+			// OnTextInput before the explicit composition-end callback. Keep
+			// the text routed normally, but remember it so the end callback
+			// cannot insert the same result a second time.
+			ime.lastText += text
+		}
+		dispatchTextInput(w, text)
+	})
+}
+
+// imeBridgeState keeps the small amount of ordering state needed to make
+// legacy OnTextInput and the versioned IME commit callback exactly-once. The
+// native P3 bridge already suppresses WM_CHAR echoes, but retaining this guard
+// at the UI boundary protects other backends and test doubles as well.
+type imeBridgeState struct {
+	active       bool
+	lastText     string
+	suppressNext string
+}
+
+func (s *imeBridgeState) noteKeyPress() {
+	// A new key gesture cannot be an echo of the previous IME result.
+	s.suppressNext = ""
+}
+
+func (s *imeBridgeState) dropTextInput(text string) bool {
+	if s.suppressNext == "" || text != s.suppressNext {
+		return false
+	}
+	s.suppressNext = ""
+	return true
+}
+
+func (s *imeBridgeState) begin() {
+	s.active = true
+	s.lastText = ""
+	s.suppressNext = ""
+}
+
+func (s *imeBridgeState) end(committed string) string {
+	duplicate := committed != "" && committed == s.lastText
+	s.active = false
+	s.lastText = ""
+	if duplicate {
+		s.suppressNext = ""
+		return ""
+	}
+	s.suppressNext = committed
+	return committed
+}
+
+func (s *imeBridgeState) cancel() {
+	s.active = false
+	s.lastText = ""
+	s.suppressNext = ""
+}
+
+func dispatchTextInput(w *Window, text string) {
+	for _, r := range text {
+		e := event.NewKeyEvent(
+			event.KeyPress,
+			event.KeyUnknown,
+			r,
+			event.ModNone,
+		)
+		w.HandleEvent(e)
+	}
+}
+
+// attachIMEBridge subscribes to the optional versioned IME event extension
+// when the host provides it. Legacy update callbacks are used only when the
+// extension is absent; the P3 adapter emits both forms, so subscribing to both
+// would render every preedit twice.
+func attachIMEBridge(es gpucontext.EventSource, w *Window, bridgeState *imeBridgeState) {
+	es.OnIMECompositionStart(func() {
+		bridgeState.begin()
+		w.HandleEvent(event.NewIMECompositionStartEvent())
+	})
+
+	if v2, ok := es.(gpucontext.IMEEventSourceV2); ok {
+		v2.OnIMECompositionUpdateV2(func(composition gpucontext.IMEComposition) {
+			bridgeState.active = true
+			w.HandleEvent(event.NewIMECompositionUpdateEvent(composition))
+		})
+		v2.OnIMECanceled(func() {
+			bridgeState.cancel()
+			w.HandleEvent(event.NewIMECanceledEvent())
+		})
+		v2.OnIMEDisabled(func() {
+			bridgeState.cancel()
+			w.HandleEvent(event.NewIMEDisabledEvent())
+		})
+		v2.OnIMEDeleteSurrounding(func(request gpucontext.IMEDeleteSurroundingEvent) {
+			w.HandleEvent(event.NewIMEDeleteSurroundingEvent(request))
+		})
+	} else {
+		es.OnIMECompositionUpdate(func(state gpucontext.IMEState) {
+			state.Composing = true
+			// Legacy providers are allowed to omit the explicit start callback;
+			// an update still establishes the duplicate-suppression window.
+			bridgeState.active = true
+			w.HandleEvent(event.NewIMECompositionUpdateEvent(state.Composition()))
+		})
+	}
+
+	es.OnIMECompositionEnd(func(committed string) {
+		accepted := bridgeState.end(committed)
+		// Always send an end event so the widget clears its preedit. If the
+		// legacy text callback already delivered the result, the payload is
+		// intentionally empty and cannot commit it twice.
+		w.HandleEvent(event.NewIMECompositionEndEvent(accepted))
 	})
 }
 

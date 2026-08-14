@@ -52,14 +52,23 @@ type animationStopper interface {
 }
 
 type Window struct {
-	root      widget.Widget
-	ctx       *widget.ContextImpl
-	wp        gpucontext.WindowProvider
-	pp        gpucontext.PlatformProvider
-	scheduler *state.Scheduler
-	theme     *theme.Theme
-	overlays  *overlay.Stack
-	focusMgr  *ifocus.Manager
+	root widget.Widget
+	ctx  *widget.ContextImpl
+	wp   gpucontext.WindowProvider
+	pp   gpucontext.PlatformProvider
+
+	// imeSource is the optional controller exposed by the event source or
+	// window provider. It is intentionally kept outside gpucontext's required
+	// WindowProvider/EventSource contracts so legacy hosts remain compatible.
+	imeSource      interface{}
+	imeWindowFocus bool
+	imeFocused     widget.Widget
+	imeSnapshot    imeSnapshot
+	imeSnapshotSet bool
+	scheduler      *state.Scheduler
+	theme          *theme.Theme
+	overlays       *overlay.Stack
+	focusMgr       *ifocus.Manager
 
 	// renderMode controls background ownership and incremental rendering.
 	// See RenderMode documentation for details.
@@ -174,6 +183,32 @@ type Window struct {
 	gestureArena *gesture.Arena
 }
 
+// imeClient is the small optional surface a focused widget exposes to let the
+// app synchronize the host IME. Keeping this as a structural interface avoids
+// making every widget or Context implementation depend on gpucontext.
+type imeClient interface {
+	IMEEnabled() bool
+	IMEContentType() (gpucontext.ContentPurpose, gpucontext.ContentHint)
+	IMESurroundingText() gpucontext.IMESurroundingText
+	IMECursorArea() gpucontext.IMECursorArea
+}
+
+// imeFocusReset is implemented by widgets that keep transient preedit state.
+// Window focus changes are not necessarily delivered as widget FocusEvents
+// when Context.RequestFocus switches between controls, so the old owner gets
+// an explicit composition reset before the new snapshot is published.
+type imeFocusReset interface {
+	CancelIMEComposition()
+}
+
+type imeSnapshot struct {
+	enabled     bool
+	purpose     gpucontext.ContentPurpose
+	hints       gpucontext.ContentHint
+	surrounding gpucontext.IMESurroundingText
+	area        gpucontext.IMECursorArea
+}
+
 // newWindow creates a Window with the given providers.
 func newWindow(
 	wp gpucontext.WindowProvider,
@@ -187,13 +222,17 @@ func newWindow(
 	tracker := dirty.NewTracker()
 	imgCache := internalRender.DefaultImageCache()
 	w := &Window{
-		ctx:              ctx,
-		wp:               wp,
-		pp:               pp,
-		scheduler:        scheduler,
-		theme:            t,
-		renderMode:       renderMode,
-		focusMgr:         ifocus.New(nil),
+		ctx:        ctx,
+		wp:         wp,
+		pp:         pp,
+		scheduler:  scheduler,
+		theme:      t,
+		renderMode: renderMode,
+		focusMgr:   ifocus.New(nil),
+		// Treat a newly-created window as focused until the host reports a
+		// focus loss. This keeps headless/test behavior deterministic while
+		// still gating IME ownership across real focus transitions.
+		imeWindowFocus:   true,
 		needsLayout:      true,
 		needsFullRepaint: true,
 		dirtyTracker:     tracker,
@@ -316,6 +355,95 @@ func newWindow(
 	return w
 }
 
+// setIMEController records an optional controller exposed by the event
+// source. Most gogpu hosts expose the controller on their WindowProvider
+// (gogpu.App); accepting it here also makes headless and adapter tests easy to
+// drive without changing the required gpucontext interfaces.
+func (w *Window) setIMEController(source interface{}) {
+	if source != nil {
+		w.imeSource = source
+	}
+	w.syncIMEController()
+}
+
+// resolveIMEController returns the strongest controller available. Prefer the
+// WindowProvider because gogpu.App keeps controller state there; fall back to
+// the event source for hosts that expose the optional interface on it.
+func (w *Window) resolveIMEController() (gpucontext.IMEController, gpucontext.IMEControllerV2, bool) {
+	if w.wp != nil {
+		legacy, _ := w.wp.(gpucontext.IMEController)
+		v2, _ := w.wp.(gpucontext.IMEControllerV2)
+		if legacy != nil || v2 != nil {
+			return legacy, v2, true
+		}
+	}
+	if w.imeSource != nil {
+		legacy, _ := w.imeSource.(gpucontext.IMEController)
+		v2, _ := w.imeSource.(gpucontext.IMEControllerV2)
+		if legacy != nil || v2 != nil {
+			return legacy, v2, true
+		}
+	}
+	return nil, nil, false
+}
+
+// syncIMEController applies the currently focused widget's IME policy to the
+// optional host controller. It is called after event dispatch and after draw,
+// so candidate placement follows the latest caret geometry while surrounding
+// text is never sent while a field is disabled or unfocused.
+func (w *Window) syncIMEController() {
+	legacy, v2, ok := w.resolveIMEController()
+	if !ok || w.ctx == nil {
+		return
+	}
+
+	snapshot := imeSnapshot{}
+	focusedWidget := widget.Widget(nil)
+	if w.imeWindowFocus {
+		focusedWidget = w.ctx.FocusedWidget()
+		if focusedWidget != nil {
+			if client, ok := focusedWidget.(imeClient); ok {
+				snapshot.enabled = client.IMEEnabled()
+				snapshot.purpose, snapshot.hints = client.IMEContentType()
+				snapshot.surrounding = client.IMESurroundingText()
+				snapshot.area = client.IMECursorArea()
+			}
+		}
+	}
+	if focusedWidget != w.imeFocused {
+		if reset, ok := w.imeFocused.(imeFocusReset); ok {
+			reset.CancelIMEComposition()
+		}
+		w.imeFocused = focusedWidget
+	}
+
+	if w.imeSnapshotSet && snapshot == w.imeSnapshot {
+		return
+	}
+	wasSet := w.imeSnapshotSet
+	w.imeSnapshot = snapshot
+	w.imeSnapshotSet = true
+	// Native IME starts disabled. Avoid emitting an initial disable/configure
+	// sequence when the bridge attaches before a root or focus target exists.
+	if !wasSet && !snapshot.enabled && snapshot.purpose == gpucontext.ContentPurposeNormal &&
+		snapshot.hints == gpucontext.ContentHintNone && snapshot.surrounding == (gpucontext.IMESurroundingText{}) &&
+		snapshot.area == (gpucontext.IMECursorArea{}) {
+		return
+	}
+
+	if v2 != nil {
+		v2.SetIMECursorArea(snapshot.area)
+		v2.SetIMEContentType(snapshot.purpose, snapshot.hints)
+		if snapshot.enabled && snapshot.surrounding.IsValid() {
+			v2.SetIMESurroundingText(snapshot.surrounding)
+		}
+	}
+	if legacy != nil {
+		legacy.SetIMEPosition(int(snapshot.area.X), int(snapshot.area.Y))
+		legacy.SetIMEEnabled(snapshot.enabled)
+	}
+}
+
 // SetRoot sets the root widget for this window.
 //
 // Setting a new root triggers a full layout on the next Frame call.
@@ -425,6 +553,7 @@ func (w *Window) HandleEvent(e event.Event) {
 	if w.root == nil || e == nil {
 		return
 	}
+	defer w.syncIMEController()
 
 	// Update context time for event processing.
 	w.ctx.SetNow(time.Now())
@@ -571,6 +700,8 @@ func invalidateScenesInTree(w widget.Widget) {
 
 // HandleFocusChange processes a window focus change.
 func (w *Window) HandleFocusChange(focused bool) {
+	w.imeWindowFocus = focused
+	defer w.syncIMEController()
 	if !focused {
 		w.cancelPointerState()
 	}
@@ -672,6 +803,7 @@ func (w *Window) Frame() {
 	if w.root == nil {
 		return
 	}
+	defer w.syncIMEController()
 
 	frameStart := time.Now()
 	didLayout := w.needsLayout
@@ -1093,6 +1225,7 @@ func (w *Window) DrawTo(canvas widget.Canvas) bool {
 			slog.String("mode", w.renderMode.String()),
 		)
 	}
+	w.syncIMEController()
 
 	return drawn
 }

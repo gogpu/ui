@@ -4,10 +4,171 @@ import (
 	"testing"
 
 	"github.com/gogpu/gpucontext"
+	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
+
+func TestEventBridge_V2IMECommitExactlyOnce(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+
+	if es.onIMECompositionStart == nil || es.onIMECompositionUpdateV2 == nil || es.onIMECompositionEnd == nil {
+		t.Fatal("versioned IME callbacks were not attached")
+	}
+	es.onIMECompositionStart()
+	composition := gpucontext.IMEComposition{
+		CompositionText: "to",
+		CursorBegin:     2,
+		CursorEnd:       2,
+		SelectionStart:  0,
+		SelectionEnd:    2,
+	}
+	es.onIMECompositionUpdateV2(composition)
+	es.onIMECompositionEnd("東京")
+	// A backend may still echo the result through the legacy text callback;
+	// the bridge must drop that echo after routing the explicit end commit.
+	es.onTextInput("東京")
+
+	var keyEvents, updates, ends int
+	for _, raw := range root.events {
+		switch e := raw.(type) {
+		case *event.KeyEvent:
+			if e.HasRune() {
+				keyEvents++
+			}
+		case *event.IMEEvent:
+			if e.IsCompositionUpdate() {
+				updates++
+			}
+			if e.IsCompositionEnd() {
+				ends++
+				if e.Committed != "東京" {
+					t.Fatalf("end commit = %q, want 東京", e.Committed)
+				}
+			}
+		}
+	}
+	if keyEvents != 0 || updates != 1 || ends != 1 {
+		t.Fatalf("IME routed key=%d updates=%d ends=%d events=%#v, want 0/1/1", keyEvents, updates, ends, root.events)
+	}
+}
+
+func TestEventBridge_V2IMETextInputBeforeEndIsNotDuplicated(t *testing.T) {
+	es := &mockV2EventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	es.onIMECompositionStart()
+	es.onTextInput("候補")
+	es.onIMECompositionEnd("候補")
+
+	var keyEvents, committedEnds int
+	for _, raw := range root.events {
+		switch e := raw.(type) {
+		case *event.KeyEvent:
+			if e.HasRune() {
+				keyEvents++
+			}
+		case *event.IMEEvent:
+			if e.IsCompositionEnd() && e.Committed != "" {
+				committedEnds++
+			}
+		}
+	}
+	if keyEvents != len([]rune("候補")) || committedEnds != 0 {
+		t.Fatalf("routed key=%d committed ends=%d events=%#v, want %d/0", keyEvents, committedEnds, root.events, len([]rune("候補")))
+	}
+}
+
+func TestEventBridge_LegacyIMEUpdateConvertsRangesAndDeduplicates(t *testing.T) {
+	es := &mockEventSource{}
+	a := New(WithEventSource(es))
+	root := newMockWidget()
+	a.SetRoot(root)
+	if es.onIMECompositionUpdate == nil {
+		t.Fatal("legacy IME update callback was not attached")
+	}
+
+	es.onIMECompositionUpdate(gpucontext.IMEState{
+		CompositionText: "かな",
+		CursorPos:       len("か"),
+		SelectionStart:  0,
+		SelectionEnd:    len("かな"),
+	})
+	es.onTextInput("仮名")
+	es.onIMECompositionEnd("仮名")
+
+	var updates, keyEvents, committedEnds int
+	for _, raw := range root.events {
+		switch e := raw.(type) {
+		case *event.IMEEvent:
+			if e.IsCompositionUpdate() {
+				updates++
+				if e.Composition.CursorBegin != len("か") || e.Composition.CursorEnd != len("か") {
+					t.Fatalf("legacy composition ranges = %#v, want collapsed UTF-8 cursor", e.Composition)
+				}
+			}
+			if e.IsCompositionEnd() && e.Committed != "" {
+				committedEnds++
+			}
+		case *event.KeyEvent:
+			if e.HasRune() {
+				keyEvents++
+			}
+		}
+	}
+	if updates != 1 || keyEvents != len([]rune("仮名")) || committedEnds != 0 {
+		t.Fatalf("legacy routed updates=%d keys=%d committed ends=%d events=%#v, want 1/%d/0", updates, keyEvents, committedEnds, root.events, len([]rune("仮名")))
+	}
+}
+
+func TestWindowIMESyncFocusPrivacyAndCandidateArea(t *testing.T) {
+	wp := &mockIMEWindowProvider{mockWindowProvider: mockWindowProvider{width: 500, height: 300, scale: 1}}
+	a := New(WithWindowProvider(wp))
+	tf := textfield.New(textfield.InitialValue("é你"))
+	a.SetRoot(tf)
+	a.Window().Context().RequestFocus(tf)
+	a.Window().Frame()
+
+	if len(wp.enabled) == 0 || !wp.enabled[len(wp.enabled)-1] {
+		t.Fatalf("enabled calls = %#v, want focused text field enabled", wp.enabled)
+	}
+	if len(wp.surrounding) == 0 || wp.surrounding[len(wp.surrounding)-1].Text != "é你" {
+		t.Fatalf("surrounding calls = %#v, want committed UTF-8 text", wp.surrounding)
+	}
+	if len(wp.areas) == 0 || wp.areas[len(wp.areas)-1].Height <= 0 {
+		t.Fatalf("cursor areas = %#v, want non-empty candidate rect", wp.areas)
+	}
+
+	beforeSurrounding := len(wp.surrounding)
+	a.Window().HandleFocusChange(false)
+	if wp.enabled[len(wp.enabled)-1] {
+		t.Fatalf("focus loss enabled calls = %#v, want disabled", wp.enabled)
+	}
+	if len(wp.surrounding) != beforeSurrounding {
+		t.Fatalf("focus loss sent surrounding text: %#v", wp.surrounding)
+	}
+
+	password := textfield.New(textfield.InitialValue("secret"), textfield.InputTypeOpt(textfield.TypePassword))
+	a.Window().Context().ReleaseFocus(tf)
+	a.SetRoot(password)
+	a.Window().Context().RequestFocus(password)
+	a.Window().HandleFocusChange(true)
+	a.Window().Frame()
+	if wp.enabled[len(wp.enabled)-1] {
+		t.Fatal("password field enabled native IME")
+	}
+	if len(wp.contentTypes) == 0 || wp.contentTypes[len(wp.contentTypes)-1][0] != gpucontext.ContentPurposePassword {
+		t.Fatalf("content type calls = %#v, want password purpose", wp.contentTypes)
+	}
+	if len(wp.surrounding) != beforeSurrounding {
+		t.Fatalf("password field sent surrounding text: %#v", wp.surrounding)
+	}
+}
 
 func newBoundedEventBridgeRoot(es gpucontext.EventSource) *mockWidget {
 	wp := &mockWindowProvider{width: 400, height: 300, scale: 1}
