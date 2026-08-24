@@ -788,11 +788,11 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## Star History
 
-<a href="https://star-history.com/#gogpu/ui&Date">
+<a href="https://starhistory.io">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=gogpu/ui&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=gogpu/ui&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=gogpu/ui&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.starhistory.io/png?repos=gogpu/ui&style=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.starhistory.io/png?repos=gogpu/ui&style=professional" />
+   <img alt="Star History Chart" src="https://api.starhistory.io/png?repos=gogpu/ui" width="800" />
  </picture>
 </a>
 
