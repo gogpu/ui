@@ -1225,6 +1225,10 @@ func (w *Window) drawDirtyRegions(canvas widget.Canvas) {
 	for i := 1; i < len(regions); i++ {
 		union = union.Union(regions[i].Bounds)
 	}
+	// Widget painters commonly center one-pixel strokes on their bounds.
+	// Leave one logical pixel around the dirty union so those strokes and
+	// their antialiasing fringe are not cut off during incremental redraws.
+	union = union.Expand(1)
 
 	// Clear dirty regions with theme background using CPU-only fill.
 	// DrawRect would trigger the GPU SDF accelerator, queuing SDF shapes
