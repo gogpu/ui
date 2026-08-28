@@ -19,6 +19,7 @@ func TestType_String(t *testing.T) {
 		{"Text", TypeText, "Text"},
 		{"Drop", TypeDrop, "Drop"},
 		{"Resize", TypeResize, "Resize"},
+		{"IME", TypeIME, "IME"},
 		{"Unknown", Type(99), "Unknown"},
 		{"Zero", Type(0), "Unknown"},
 	}
@@ -130,6 +131,7 @@ func TestBase_Type(t *testing.T) {
 		{"Text", TypeText},
 		{"Drop", TypeDrop},
 		{"Resize", TypeResize},
+		{"IME", TypeIME},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

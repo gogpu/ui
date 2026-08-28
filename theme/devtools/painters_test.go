@@ -1431,3 +1431,17 @@ func TestAllPaintersWithLightTheme(t *testing.T) {
 		})
 	}
 }
+
+func TestPaintTextFieldComposition(t *testing.T) {
+	canvas := &recordCanvas{}
+	(devtools.TextFieldPainter{}).PaintTextField(canvas, &textfield.PaintState{
+		DisplayText: "committed", TextRect: geometry.NewRect(0, 0, 100, 40), Bounds: geometry.NewRect(0, 0, 100, 40),
+		Focused: true, ShowComposition: true,
+		CompositionText: "preedit", CompositionTextRect: geometry.NewRect(10, 10, 30, 20),
+		CompositionSelectionRect: geometry.NewRect(10, 10, 10, 20),
+		CompositionCursorRect:    geometry.NewRect(20, 10, 1, 20),
+	})
+	if len(canvas.calls) == 0 {
+		t.Fatal("composition painter produced no draw calls")
+	}
+}

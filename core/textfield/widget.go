@@ -1,6 +1,9 @@
 package textfield
 
 import (
+	"unicode/utf8"
+
+	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/gesture"
@@ -55,10 +58,18 @@ type Widget struct {
 	// (positionFromGlobal) that don't have access to canvas.
 	cachedMetrics *textmetrics.Metrics
 	// Cached layout values from last Draw call.
-	cachedContentRect geometry.Rect
-	cachedDisplayText string
-	cachedFontSize    float32
-	gestureHandledTap bool
+	cachedContentRect   geometry.Rect
+	cachedDisplayText   string
+	cachedFontSize      float32
+	cachedIMECursorArea gpucontext.IMECursorArea
+	cachedIMEAreaSet    bool
+	gestureHandledTap   bool
+
+	// IME composition is kept separate from committed text. Cursor and
+	// selection positions in the preedit are UTF-8 byte offsets supplied by the
+	// gpucontext v2 contract and converted to rune positions only for drawing.
+	composition gpucontext.IMEComposition
+	composing   bool
 }
 
 // New creates a new text field Widget with the given options.
@@ -123,6 +134,27 @@ func (w *Widget) IsFocusable() bool {
 	return w.IsVisible() && w.IsEnabled() && !w.cfg.ResolvedDisabled()
 }
 
+// SetEnabled updates the widget's enabled state and invalidates any transient
+// IME preedit immediately. Programmatic toggles do not necessarily produce a
+// FocusEvent, so waiting until Draw would let a disabled-then-reenabled field
+// resurrect stale composition text.
+func (w *Widget) SetEnabled(enabled bool) {
+	if !enabled {
+		w.CancelIMEComposition()
+	}
+	w.WidgetBase.SetEnabled(enabled)
+}
+
+// SetVisible updates visibility and clears transient IME state when the field
+// is hidden. This mirrors SetEnabled for callers that toggle visibility
+// reactively between frames.
+func (w *Widget) SetVisible(visible bool) {
+	if !visible {
+		w.CancelIMEComposition()
+	}
+	w.WidgetBase.SetVisible(visible)
+}
+
 // Layout calculates the text field's preferred size within the given constraints.
 func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
 	width := constraints.MaxWidth
@@ -138,6 +170,7 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	if w.cfg.signal != nil {
 		current := w.cfg.signal.Get()
 		if current != w.cfg.value {
+			w.clearComposition()
 			w.cfg.value = current
 			runes := []rune(current)
 			w.sel.SetCursor(clampPos(w.sel.cursor, len(runes)))
@@ -152,6 +185,12 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	bounds := w.Bounds()
 	focused := w.IsFocused()
 	disabled := w.cfg.ResolvedDisabled()
+	if !focused || disabled || !w.IsEnabled() || !w.IsVisible() {
+		// A programmatic focus/disable/visibility change may not emit a
+		// FocusEvent; cancel the in-memory preedit before it can reappear on
+		// re-enable or on a later focus restore.
+		w.clearComposition()
+	}
 	hasSelection := w.sel.anchor != w.sel.cursor
 
 	displayText := text
@@ -205,6 +244,29 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		selectionRect.Max.X += w.scrollOffsetX
 	}
 
+	compositionText, compositionRect, compositionSelectionRect, compositionCursorRect :=
+		w.compositionPaintGeometry(tm, contentRect, displayText)
+	showComposition := focused && w.IsVisible() && w.IsEnabled() &&
+		compositionText != "" && !compositionRect.IsEmpty() && !disabled
+	if showComposition && !compositionCursorRect.IsEmpty() {
+		// The marked-text cursor is the only insertion caret during a visible
+		// preedit. Drawing the committed caret as well produces two cursors,
+		// often at different positions, while the IME is active.
+		showCursor = false
+	}
+	if showComposition {
+		// Candidate placement follows the active preedit cursor when the IME
+		// provides one; otherwise it remains anchored to the committed caret.
+		candidate := compositionCursorRect
+		if candidate.IsEmpty() {
+			candidate = cursorRect
+		}
+		w.cachedIMECursorArea = w.areaFromLocalRect(candidate, bounds)
+	} else {
+		w.cachedIMECursorArea = w.areaFromLocalRect(cursorRect, bounds)
+	}
+	w.cachedIMEAreaSet = true
+
 	w.painter.PaintTextField(canvas, &PaintState{
 		// Legacy fields.
 		Text:        text,
@@ -221,15 +283,172 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		Bounds:      bounds,
 
 		// Pre-computed fields.
-		DisplayText:   displayText,
-		ContentRect:   contentRect,
-		TextRect:      scrolledRect,
-		CursorRect:    cursorRect,
-		SelectionRect: selectionRect,
-		ShowCursor:    showCursor,
-		ShowSelection: showSelection,
-		FontSize:      fontSize,
+		DisplayText:              displayText,
+		ContentRect:              contentRect,
+		TextRect:                 scrolledRect,
+		CursorRect:               cursorRect,
+		SelectionRect:            selectionRect,
+		ShowCursor:               showCursor,
+		ShowSelection:            showSelection,
+		FontSize:                 fontSize,
+		CompositionText:          compositionText,
+		CompositionTextRect:      compositionRect,
+		CompositionSelectionRect: compositionSelectionRect,
+		CompositionCursorRect:    compositionCursorRect,
+		ShowComposition:          showComposition,
 	})
+}
+
+// compositionPaintGeometry converts the versioned UTF-8 composition ranges
+// into the rune-index geometry used by textmetrics. The committed text stays
+// unchanged; the preedit is drawn at the committed caret and therefore never
+// participates in selection or clipboard operations until it is committed.
+func (w *Widget) compositionPaintGeometry(
+	tm *textmetrics.Metrics,
+	contentRect geometry.Rect,
+	displayText string,
+) (string, geometry.Rect, geometry.Rect, geometry.Rect) {
+	if !w.composing || w.cfg.inputType == TypePassword {
+		return "", geometry.Rect{}, geometry.Rect{}, geometry.Rect{}
+	}
+	composition := w.composition
+	if !composition.IsValid() || composition.CompositionText == "" {
+		return "", geometry.Rect{}, geometry.Rect{}, geometry.Rect{}
+	}
+
+	// IsValid above guarantees that all supplied byte offsets are UTF-8
+	// boundaries in CompositionText, so conversion cannot fail here.
+	start, _ := compositionRangeToRunes(composition.CompositionText, composition.SelectionStart, composition.SelectionEnd)
+	cursorBegin, cursorEnd := composition.CursorBegin, composition.CursorEnd
+	if cursorBegin < 0 || cursorEnd < 0 {
+		cursorBegin, cursorEnd = 0, 0
+	}
+	cursorStart, _ := byteOffsetToRune(composition.CompositionText, cursorBegin)
+
+	startX := tm.CursorX(contentRect, displayText, w.sel.cursor) + w.scrollOffsetX
+	width := tm.Canvas.MeasureText(composition.CompositionText, tm.FontSize, false)
+	compositionRect := geometry.NewRect(
+		startX,
+		contentRect.Min.Y,
+		width,
+		contentRect.Height(),
+	)
+	selectionRect := geometry.Rect{}
+	if start != nil {
+		selectionRect = tm.SelectionRect(compositionRect, composition.CompositionText, start[0], start[1])
+	}
+	cursorRect := geometry.Rect{}
+	if composition.HasCursor() {
+		// CursorBegin is the leading edge of the valid cursor range, so selected
+		// segments remain visibly underlined instead of moving the caret.
+		cursorRect = tm.CursorRect(compositionRect, composition.CompositionText, cursorStart, resolveLayoutMetrics(w.painter).TextFieldCursorWidth())
+	}
+	return composition.CompositionText, compositionRect, selectionRect, cursorRect
+}
+
+// areaFromLocalRect converts a widget-local caret rectangle to window-local
+// logical DIP coordinates as required by gpucontext.IMECursorArea.
+func (w *Widget) areaFromLocalRect(rect, bounds geometry.Rect) gpucontext.IMECursorArea {
+	if rect.IsEmpty() {
+		return gpucontext.IMECursorArea{}
+	}
+	origin := w.ScreenOrigin()
+	return gpucontext.IMECursorArea{
+		X:      float64(origin.X + rect.Min.X - bounds.Min.X),
+		Y:      float64(origin.Y + rect.Min.Y - bounds.Min.Y),
+		Width:  float64(rect.Width()),
+		Height: float64(rect.Height()),
+	}
+}
+
+// byteOffsetToRune converts a validated UTF-8 byte offset to a rune index.
+func byteOffsetToRune(text string, offset int) (int, bool) {
+	if offset < 0 || offset > len(text) || !utf8.ValidString(text) {
+		return 0, false
+	}
+	if offset < len(text) && !utf8.RuneStart(text[offset]) {
+		return 0, false
+	}
+	return len([]rune(text[:offset])), true
+}
+
+func compositionRangeToRunes(text string, start, end int) ([]int, bool) {
+	if start == end {
+		return nil, true
+	}
+	first, ok := byteOffsetToRune(text, start)
+	if !ok {
+		return nil, false
+	}
+	last, ok := byteOffsetToRune(text, end)
+	if !ok || first > last {
+		return nil, false
+	}
+	return []int{first, last}, true
+}
+
+// IMEEnabled reports whether this field should own the platform IME.
+// Password fields deliberately disable native composition to avoid leaking
+// preedit/surrounding text into IME candidate stores.
+func (w *Widget) IMEEnabled() bool {
+	return w.IsFocused() && w.IsVisible() && w.IsEnabled() &&
+		!w.cfg.ResolvedDisabled() && w.cfg.inputType != TypePassword
+}
+
+// IMEContentType returns the advisory purpose and privacy hints for this
+// field's input type.
+func (w *Widget) IMEContentType() (gpucontext.ContentPurpose, gpucontext.ContentHint) {
+	switch w.cfg.inputType {
+	case TypePassword:
+		return gpucontext.ContentPurposePassword,
+			gpucontext.ContentHintHiddenText | gpucontext.ContentHintSensitiveData
+	case TypeEmail:
+		return gpucontext.ContentPurposeEmail, gpucontext.ContentHintNone
+	case TypeNumber:
+		// gpucontext deliberately models the semantic purpose separately from
+		// presentation hints; there is no digits-only hint in the contract.
+		return gpucontext.ContentPurposeNumber, gpucontext.ContentHintNone
+	case TypeSearch:
+		return gpucontext.ContentPurposeNormal, gpucontext.ContentHintCompletion
+	default:
+		return gpucontext.ContentPurposeNormal, gpucontext.ContentHintNone
+	}
+}
+
+// IMESurroundingText returns the committed UTF-8 text and cursor/anchor byte
+// offsets. It returns an empty payload whenever IME is disabled or unfocused.
+func (w *Widget) IMESurroundingText() gpucontext.IMESurroundingText {
+	if !w.IMEEnabled() {
+		return gpucontext.IMESurroundingText{}
+	}
+	text := w.resolvedText()
+	runes := []rune(text)
+	cursor := clampPos(w.sel.cursor, len(runes))
+	anchor := clampPos(w.sel.anchor, len(runes))
+	return gpucontext.IMESurroundingText{
+		Text:   text,
+		Cursor: runeToByteOffset(runes, cursor),
+		Anchor: runeToByteOffset(runes, anchor),
+	}
+}
+
+// IMECursorArea returns the latest caret rectangle in window-local logical
+// DIP coordinates. Before the first draw it falls back to the field's content
+// origin, which is still a safe candidate anchor for native IMEs.
+func (w *Widget) IMECursorArea() gpucontext.IMECursorArea {
+	if w.cachedIMEAreaSet {
+		return w.cachedIMECursorArea
+	}
+	bounds := w.Bounds()
+	lm := resolveLayoutMetrics(w.painter)
+	hPad, vPad := lm.ContentPadding()
+	area := geometry.NewRect(bounds.Min.X+hPad, bounds.Min.Y+vPad, lm.TextFieldCursorWidth(), bounds.Height()-2*vPad)
+	return w.areaFromLocalRect(area, bounds)
+}
+
+func runeToByteOffset(runes []rune, index int) int {
+	index = clampPos(index, len(runes))
+	return len(string(runes[:index]))
 }
 
 // scrollMargin is the horizontal margin in pixels to keep between the cursor
@@ -322,6 +541,7 @@ func (w *Widget) Text() string {
 
 // SetText sets the text value programmatically and revalidates.
 func (w *Widget) SetText(text string) {
+	w.clearComposition()
 	w.setText(text)
 	runes := []rune(text)
 	w.sel.SetCursor(clampPos(w.sel.cursor, len(runes)))

@@ -733,3 +733,17 @@ func absF32(v float32) float32 {
 	}
 	return v
 }
+
+func TestPaintTextFieldComposition(t *testing.T) {
+	canvas := &recordCanvas{}
+	(fluent.TextFieldPainter{}).PaintTextField(canvas, &textfield.PaintState{
+		DisplayText: "committed", TextRect: testBounds(), Bounds: testBounds(),
+		Focused: true, ShowComposition: true,
+		CompositionText: "preedit", CompositionTextRect: geometry.NewRect(10, 10, 30, 20),
+		CompositionSelectionRect: geometry.NewRect(10, 10, 10, 20),
+		CompositionCursorRect:    geometry.NewRect(20, 10, 1, 20),
+	})
+	if len(canvas.calls) == 0 {
+		t.Fatal("composition painter produced no draw calls")
+	}
+}

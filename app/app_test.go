@@ -19,6 +19,7 @@ type mockWidget struct {
 	drawCalled   bool
 	eventCalled  bool
 	lastEvent    event.Event
+	events       []event.Event
 	layoutSize   geometry.Size
 }
 
@@ -40,6 +41,7 @@ func (m *mockWidget) Draw(_ widget.Context, _ widget.Canvas) {
 func (m *mockWidget) Event(_ widget.Context, e event.Event) bool {
 	m.eventCalled = true
 	m.lastEvent = e
+	m.events = append(m.events, e)
 	return true
 }
 
@@ -61,6 +63,39 @@ func (m *mockWindowProvider) ScaleFactor() float64 {
 func (m *mockWindowProvider) RequestRedraw() {
 	m.redrawCount++
 }
+
+// mockIMEWindowProvider records the optional v2 controller calls made by the
+// Window IME synchronizer while retaining the normal WindowProvider behavior.
+type mockIMEWindowProvider struct {
+	mockWindowProvider
+	positions    []geometry.Point
+	enabled      []bool
+	areas        []gpucontext.IMECursorArea
+	contentTypes [][2]any
+	surrounding  []gpucontext.IMESurroundingText
+}
+
+func (m *mockIMEWindowProvider) SetIMEPosition(x, y int) {
+	m.positions = append(m.positions, geometry.Pt(float32(x), float32(y)))
+}
+
+func (m *mockIMEWindowProvider) SetIMEEnabled(enabled bool) {
+	m.enabled = append(m.enabled, enabled)
+}
+
+func (m *mockIMEWindowProvider) SetIMECursorArea(area gpucontext.IMECursorArea) {
+	m.areas = append(m.areas, area)
+}
+
+func (m *mockIMEWindowProvider) SetIMEContentType(purpose gpucontext.ContentPurpose, hints gpucontext.ContentHint) {
+	m.contentTypes = append(m.contentTypes, [2]any{purpose, hints})
+}
+
+func (m *mockIMEWindowProvider) SetIMESurroundingText(text gpucontext.IMESurroundingText) {
+	m.surrounding = append(m.surrounding, text)
+}
+
+func (m *mockIMEWindowProvider) CancelIME() {}
 
 // mockPlatformProvider implements gpucontext.PlatformProvider for testing.
 type mockPlatformProvider struct {
@@ -87,18 +122,42 @@ func (m *mockPlatformProvider) FontSmoothing() gpucontext.FontSmoothing {
 
 // mockEventSource implements gpucontext.EventSource and gpucontext.PointerEventSource for testing.
 type mockEventSource struct {
-	onKeyPress            func(gpucontext.Key, gpucontext.Modifiers)
-	onKeyRelease          func(gpucontext.Key, gpucontext.Modifiers)
-	onTextInput           func(string)
-	onMouseMove           func(float64, float64)
-	onMousePress          func(gpucontext.MouseButton, float64, float64)
-	onMouseRelease        func(gpucontext.MouseButton, float64, float64)
-	onScroll              func(float64, float64)
-	onResize              func(int, int)
-	onFocus               func(bool)
-	onIMECompositionStart func()
-	onIMECompositionEnd   func(string)
-	onPointer             func(gpucontext.PointerEvent)
+	onKeyPress             func(gpucontext.Key, gpucontext.Modifiers)
+	onKeyRelease           func(gpucontext.Key, gpucontext.Modifiers)
+	onTextInput            func(string)
+	onMouseMove            func(float64, float64)
+	onMousePress           func(gpucontext.MouseButton, float64, float64)
+	onMouseRelease         func(gpucontext.MouseButton, float64, float64)
+	onScroll               func(float64, float64)
+	onResize               func(int, int)
+	onFocus                func(bool)
+	onIMECompositionStart  func()
+	onIMECompositionUpdate func(gpucontext.IMEState)
+	onIMECompositionEnd    func(string)
+	onPointer              func(gpucontext.PointerEvent)
+}
+
+// mockV2EventSource exposes the additive IME callbacks without changing the
+// legacy mock's behavior. It is used to verify that the UI bridge subscribes
+// to one versioned update stream and routes a commit exactly once.
+type mockV2EventSource struct {
+	mockEventSource
+	onIMECompositionUpdateV2 func(gpucontext.IMEComposition)
+	onIMECanceled            func()
+	onIMEDisabled            func()
+	onIMEDeleteSurrounding   func(gpucontext.IMEDeleteSurroundingEvent)
+}
+
+func (m *mockV2EventSource) OnIMECompositionUpdateV2(fn func(gpucontext.IMEComposition)) {
+	m.onIMECompositionUpdateV2 = fn
+}
+
+func (m *mockV2EventSource) OnIMECanceled(fn func()) { m.onIMECanceled = fn }
+
+func (m *mockV2EventSource) OnIMEDisabled(fn func()) { m.onIMEDisabled = fn }
+
+func (m *mockV2EventSource) OnIMEDeleteSurrounding(fn func(gpucontext.IMEDeleteSurroundingEvent)) {
+	m.onIMEDeleteSurrounding = fn
 }
 
 func (m *mockEventSource) OnKeyPress(fn func(gpucontext.Key, gpucontext.Modifiers)) {
@@ -131,7 +190,9 @@ func (m *mockEventSource) OnFocus(fn func(bool)) {
 func (m *mockEventSource) OnIMECompositionStart(fn func()) {
 	m.onIMECompositionStart = fn
 }
-func (m *mockEventSource) OnIMECompositionUpdate(func(gpucontext.IMEState)) {}
+func (m *mockEventSource) OnIMECompositionUpdate(fn func(gpucontext.IMEState)) {
+	m.onIMECompositionUpdate = fn
+}
 func (m *mockEventSource) OnIMECompositionEnd(fn func(string)) {
 	m.onIMECompositionEnd = fn
 }
