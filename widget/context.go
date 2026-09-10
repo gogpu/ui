@@ -501,11 +501,12 @@ func NewContext() *ContextImpl {
 // RequestFocus requests focus for the given widget.
 func (c *ContextImpl) RequestFocus(w Widget) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	if c.focusedWidget == w {
+		c.mu.Unlock()
 		return // Already focused
 	}
+	previous := c.focusedWidget
 
 	// Clear focus from previous widget
 	if c.focusedWidget != nil {
@@ -521,14 +522,20 @@ func (c *ContextImpl) RequestFocus(w Widget) {
 			setter.SetFocused(true)
 		}
 	}
+	c.mu.Unlock()
+
+	// Both focus appearances changed. Propagate redraw outside the context
+	// lock because repaint-boundary callbacks may access the context.
+	invalidateFocusAppearance(previous)
+	invalidateFocusAppearance(w)
 }
 
 // ReleaseFocus releases focus from the given widget.
 func (c *ContextImpl) ReleaseFocus(w Widget) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	if c.focusedWidget != w {
+		c.mu.Unlock()
 		return // Widget doesn't have focus
 	}
 
@@ -536,6 +543,14 @@ func (c *ContextImpl) ReleaseFocus(w Widget) {
 		setter.SetFocused(false)
 	}
 	c.focusedWidget = nil
+	c.mu.Unlock()
+	invalidateFocusAppearance(w)
+}
+
+func invalidateFocusAppearance(w Widget) {
+	if redraw, ok := w.(interface{ SetNeedsRedraw(bool) }); ok {
+		redraw.SetNeedsRedraw(true)
+	}
 }
 
 // IsFocused returns true if the given widget currently has focus.

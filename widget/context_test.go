@@ -143,6 +143,81 @@ func TestContextImpl_RequestFocus_Nil(t *testing.T) {
 	}
 }
 
+func TestContextImpl_FocusInvalidatesChangedWidgets(t *testing.T) {
+	ctx := NewContext()
+	first, second := newMockWidget(), newMockWidget()
+	for _, step := range []struct {
+		name        string
+		change      func()
+		firstDirty  bool
+		secondDirty bool
+	}{
+		{"gain", func() { ctx.RequestFocus(first) }, true, false},
+		{"same focus", func() { ctx.RequestFocus(first) }, false, false},
+		{"transfer", func() { ctx.RequestFocus(second) }, true, true},
+		{"release other", func() { ctx.ReleaseFocus(first) }, false, false},
+		{"release", func() { ctx.ReleaseFocus(second) }, false, true},
+		{"refocus", func() { ctx.RequestFocus(first) }, true, false},
+		{"focus nil", func() { ctx.RequestFocus(nil) }, true, false},
+		{"release nil", func() { ctx.ReleaseFocus(nil) }, false, false},
+	} {
+		t.Run(step.name, func(t *testing.T) {
+			first.ClearRedraw()
+			second.ClearRedraw()
+			step.change()
+			if first.NeedsRedraw() != step.firstDirty || second.NeedsRedraw() != step.secondDirty {
+				t.Fatalf("dirty widgets = %t/%t, want %t/%t", first.NeedsRedraw(), second.NeedsRedraw(), step.firstDirty, step.secondDirty)
+			}
+		})
+	}
+}
+
+func TestContextImpl_FocusInvalidatesBoundariesOutsideContextLock(t *testing.T) {
+	ctx := NewContext()
+	first, second := newMockWidget(), newMockWidget()
+	boundary := newMockWidget()
+	boundary.SetRepaintBoundary(true)
+	first.SetParent(boundary)
+	second.SetParent(boundary)
+	var observed Widget
+	calls := 0
+	boundary.SetOnBoundaryDirty(func() {
+		// Real repaint-boundary callbacks register damage through the context.
+		// Querying focus here must not deadlock on the context's mutex.
+		observed = ctx.FocusedWidget()
+		calls++
+	})
+	for _, step := range []struct {
+		name   string
+		change func()
+		want   Widget
+	}{
+		{"gain", func() { ctx.RequestFocus(first) }, first},
+		{"transfer", func() { ctx.RequestFocus(second) }, second},
+		{"release", func() { ctx.ReleaseFocus(second) }, nil},
+	} {
+		t.Run(step.name, func(t *testing.T) {
+			first.ClearRedraw()
+			second.ClearRedraw()
+			boundary.ClearSceneDirty()
+			calls = 0
+			done := make(chan struct{})
+			go func() {
+				step.change()
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				t.Fatal("focus invalidation deadlocked")
+			}
+			if !boundary.IsSceneDirty() || calls != 1 || observed != step.want {
+				t.Fatalf("focus did not invalidate its boundary once with updated context: dirty=%t calls=%d focus=%v", boundary.IsSceneDirty(), calls, observed)
+			}
+		})
+	}
+}
+
 func TestContextImpl_Time(t *testing.T) {
 	ctx := NewContext()
 
