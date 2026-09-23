@@ -2,9 +2,11 @@
 // editing widgets. It is the single source of truth for cursor positioning,
 // selection highlighting, and mouse-click-to-rune conversion.
 //
-// All methods use [widget.Canvas.MeasureText] for accurate measurement,
-// replacing the approximate charWidthRatio constants that were previously
-// hardcoded in individual theme painters.
+// Positions come from [widget.TextCaretPositioner] when the canvas implements
+// it, so the caret sits where the renderer actually puts each glyph, and fall
+// back to [widget.Canvas.MeasureText] on the prefix otherwise. Both replace
+// the approximate charWidthRatio constants that were previously hardcoded in
+// individual theme painters.
 //
 // This package is INTERNAL — not part of the public API. Widget implementations
 // (TextField, future Editor) use it; theme painters do not.
@@ -18,28 +20,79 @@ import (
 )
 
 // Metrics provides text measurement for a specific canvas and font size.
+//
+// A Metrics value memoizes the caret offsets of the last string it was asked
+// about, so one paint measures the text once rather than once per cursor,
+// selection edge and hit test.
 type Metrics struct {
 	Canvas   widget.Canvas
 	FontSize float32
+
+	// cachedOffsets holds the caret offsets of cachedText at cachedSize.
+	// A nil slice means nothing has been measured yet.
+	cachedOffsets []float32
+	cachedText    string
+	cachedSize    float32
+}
+
+// CaretOffsets returns the caret offset, in pixels from the text origin,
+// before each rune of displayText, plus a final entry after the last rune.
+//
+// The canvas supplies them when it implements [widget.TextCaretPositioner];
+// that path shapes the whole string, so a kerning pair or ligature spanning
+// the caret is accounted for exactly as the renderer draws it. Otherwise each
+// offset is the measured width of the prefix before it, which is all a canvas
+// exposing only [widget.Canvas.MeasureText] can offer.
+func (m *Metrics) CaretOffsets(displayText string) []float32 {
+	if m.cachedOffsets != nil && m.cachedText == displayText && m.cachedSize == m.FontSize {
+		return m.cachedOffsets
+	}
+
+	var offsets []float32
+	if cp, ok := m.Canvas.(widget.TextCaretPositioner); ok {
+		offsets = cp.CaretOffsets(displayText, m.FontSize, false)
+	} else {
+		runes := []rune(displayText)
+		offsets = make([]float32, len(runes)+1)
+		for i := 1; i <= len(runes); i++ {
+			offsets[i] = m.Canvas.MeasureText(string(runes[:i]), m.FontSize, false)
+		}
+	}
+
+	m.cachedOffsets = offsets
+	m.cachedText = displayText
+	m.cachedSize = m.FontSize
+	return offsets
+}
+
+// CaretOffset returns the caret offset, in pixels from the text origin, before
+// the rune at runePos. runePos is clamped to the text.
+func (m *Metrics) CaretOffset(displayText string, runePos int) float32 {
+	offsets := m.CaretOffsets(displayText)
+	if runePos < 0 {
+		runePos = 0
+	}
+	if runePos >= len(offsets) {
+		runePos = len(offsets) - 1
+	}
+	return offsets[runePos]
+}
+
+// TextWidth returns the advance width of displayText as the renderer lays it
+// out, which is the caret offset past the last rune.
+func (m *Metrics) TextWidth(displayText string) float32 {
+	offsets := m.CaretOffsets(displayText)
+	return offsets[len(offsets)-1]
 }
 
 // CursorX returns the X coordinate for a cursor at the given rune position
-// within the content rect. Uses MeasureText for accurate positioning.
+// within the content rect.
 //
 // The base X is rounded to match DrawText's pixel-grid rounding (math.Round),
 // ensuring the cursor aligns with the rendered text origin.
 func (m *Metrics) CursorX(contentRect geometry.Rect, displayText string, runePos int) float32 {
 	baseX := float32(math.Round(float64(contentRect.Min.X)))
-	runes := []rune(displayText)
-	if runePos > len(runes) {
-		runePos = len(runes)
-	}
-	if runePos <= 0 {
-		return baseX
-	}
-	textBefore := string(runes[:runePos])
-	x := baseX + m.Canvas.MeasureText(textBefore, m.FontSize, false)
-	return x
+	return baseX + m.CaretOffset(displayText, runePos)
 }
 
 // RuneIndexFromX converts an X coordinate to a rune index (for hit-testing).
@@ -52,21 +105,18 @@ func (m *Metrics) RuneIndexFromX(contentRect geometry.Rect, displayText string, 
 	if localX <= 0 {
 		return 0
 	}
-	runes := []rune(displayText)
-	for i := 1; i <= len(runes); i++ {
-		w := m.Canvas.MeasureText(string(runes[:i]), m.FontSize, false)
-		if w > localX {
-			prevW := float32(0)
-			if i > 1 {
-				prevW = m.Canvas.MeasureText(string(runes[:i-1]), m.FontSize, false)
-			}
-			if localX-prevW < w-localX {
-				return i - 1
-			}
-			return i
+
+	offsets := m.CaretOffsets(displayText)
+	for i := 1; i < len(offsets); i++ {
+		if offsets[i] <= localX {
+			continue
 		}
+		if localX-offsets[i-1] < offsets[i]-localX {
+			return i - 1
+		}
+		return i
 	}
-	return len(runes)
+	return len(offsets) - 1
 }
 
 // caretHeightOffset is the amount by which the cursor is inset on each side

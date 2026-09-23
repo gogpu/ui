@@ -513,6 +513,14 @@ func (c *Canvas) MeasureText(s string, fontSize float32, bold bool) float32 {
 	return float32(w)
 }
 
+// CaretOffsets implements [widget.TextCaretPositioner]. It returns the caret
+// offset before each rune of s plus a final entry after the last rune, taken
+// from the shaped form of the whole string so the caret agrees with the glyphs
+// this canvas draws.
+func (c *Canvas) CaretOffsets(s string, fontSize float32, bold bool) []float32 {
+	return caretOffsets(defaultCaretFace(fontSize, bold), s, fontSize)
+}
+
 // DrawStyledText draws text within the given bounding rectangle using
 // a font resolved from the global [FontRegistry]. This enables rendering
 // with custom fonts (CJK, icon fonts, etc.) loaded via the plugin system.

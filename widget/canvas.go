@@ -388,6 +388,38 @@ type StyledTextDrawer interface {
 	MeasureStyledText(text string, style TextStyle) float32
 }
 
+// TextCaretPositioner is an optional interface for canvases that can report
+// caret positions taken from the shaped form of a whole string.
+//
+// [Canvas.MeasureText] measures a string on its own, so a caret placed by
+// measuring the prefix before it loses everything the renderer applies across
+// the cut: kerning pairs, ligatures, and — where the two differ — the advance
+// source itself. The caret then drifts away from the character it should sit
+// in front of. A canvas that shapes the whole string can report every caret
+// position at once, consistent with the glyphs it draws and cheaper than
+// re-measuring a prefix for every query.
+//
+// Use type assertion to check availability:
+//
+//	if cp, ok := canvas.(widget.TextCaretPositioner); ok {
+//	    offsets := cp.CaretOffsets("AV Wave", 14, false)
+//	}
+//
+// Widgets that place a caret should fall back to measuring the prefix with
+// [Canvas.MeasureText] when a canvas does not implement this interface. This
+// follows the same optional interface pattern as [ArcStroker], [SVGFiller],
+// [TextModeController] and [StyledTextDrawer].
+type TextCaretPositioner interface {
+	// CaretOffsets returns the horizontal offset, in logical pixels from the
+	// text origin, of the caret placed before each rune of text, followed by
+	// one final entry for the caret after the last rune.
+	//
+	// The result always has len([]rune(text))+1 entries and is
+	// non-decreasing; for empty text it is []float32{0}. The last entry is
+	// the advance width of the whole string as the renderer lays it out.
+	CaretOffsets(text string, fontSize float32, bold bool) []float32
+}
+
 // Color represents an RGBA color with float32 components.
 //
 // Each component is in the range [0, 1], where 0 is minimum intensity
