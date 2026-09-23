@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **fix(textfield): place the caret from the shaped glyph run** — `CursorX`, `CursorRect`, `SelectionRect`, `RuneIndexFromX` and horizontal scrolling measured the text before the caret as a string on its own. Kerning pairs spanning the caret were dropped and a prefix was summed from grid-fitted advances while the renderer positions glyphs from a shaping run, so the caret sat inside the character it should precede — up to 3.4px at 14px on the default font. Positions now come from the caret offsets of the whole shaped string, which also makes click-to-position exact and hit-testing one pass instead of one measurement per character.
+
+### Added
+
+- **`widget.TextCaretPositioner`** — optional Canvas interface reporting the caret offset before every rune of a string, from the shaped form of the whole string. Implemented by the render `Canvas` and `SceneCanvas`; canvases that do not implement it keep the previous prefix-measurement behavior.
+
 ## [0.1.54] — 2026-08-13
 
 ### Added
