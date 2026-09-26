@@ -126,3 +126,20 @@ func TestCaretOffsetsAgreeAcrossCanvases(t *testing.T) {
 		}
 	}
 }
+
+// TestCaretOffsetsWithoutAFace checks the fallback used when no font loaded:
+// every rune advances by the same average width MeasureText assumes.
+func TestCaretOffsetsWithoutAFace(t *testing.T) {
+	const fontSize float32 = 10
+
+	offsets := caretOffsets(nil, "café", fontSize)
+	want := []float32{0, 5, 10, 15, 20}
+	if len(offsets) != len(want) {
+		t.Fatalf("caretOffsets(nil, %q): %d entries, want %d", "café", len(offsets), len(want))
+	}
+	for i := range want {
+		if offsets[i] != want[i] {
+			t.Errorf("caretOffsets(nil, %q)[%d] = %v, want %v", "café", i, offsets[i], want[i])
+		}
+	}
+}
