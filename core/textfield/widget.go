@@ -244,7 +244,7 @@ const scrollMargin float32 = 2
 // When text fits entirely within contentRect, scrollOffsetX is clamped to 0.
 func (w *Widget) ensureCursorVisible(tm *textmetrics.Metrics, contentRect geometry.Rect, displayText string) {
 	// Measure the full text width.
-	fullTextWidth := tm.Canvas.MeasureText(displayText, tm.FontSize, false)
+	fullTextWidth := tm.TextWidth(displayText)
 	contentWidth := contentRect.Width()
 
 	// If text fits, no scrolling needed.
@@ -253,17 +253,11 @@ func (w *Widget) ensureCursorVisible(tm *textmetrics.Metrics, contentRect geomet
 		return
 	}
 
-	// Compute cursor X offset from content origin using MeasureText directly
-	// (NOT CursorX, which clamps to contentRect.Max.X and would hide overflow).
-	runes := []rune(displayText)
-	runePos := w.sel.cursor
-	if runePos > len(runes) {
-		runePos = len(runes)
-	}
-	var cursorRelative float32
-	if runePos > 0 {
-		cursorRelative = tm.Canvas.MeasureText(string(runes[:runePos]), tm.FontSize, false)
-	}
+	// Cursor X offset from the content origin, taken from the same caret
+	// offsets CursorRect uses so the scroll and the caret cannot disagree.
+	// CursorX itself is not usable here: it adds the rounded content origin,
+	// and the caller needs a text-local offset to scroll by.
+	cursorRelative := tm.CaretOffset(displayText, w.sel.cursor)
 
 	// Apply current scroll offset to get the visual cursor position.
 	visualCursorX := cursorRelative + w.scrollOffsetX
