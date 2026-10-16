@@ -210,7 +210,6 @@ func main() {
 | `offscreen` | Headless widget rendering: CPU-only `*image.RGBA` output, no GPU/window/app required | 100% |
 | `uitest` | Testing utilities: MockCanvas, MockContext, event factories, widget helpers, assertions | 93.1% |
 | `internal/dirty` | Dirty region tracking: Collector, Tracker, merge algorithm, partial repaints | 100% |
-
 | `core/stripe` | Vertical sidebar strip: tool window buttons, top/bottom items, icon buttons | 96%+ |
 | `core/titlebar` | Window title bar: CSD, drag, minimize/maximize/close, WindowChrome interface | 96%+ |
 | `gesture` | Gesture recognition: Arena, ClickRecognizer, DragRecognizer, LongPressRecognizer, TapAndDragRecognizer, VelocityTracker, Team | 96.0% |
