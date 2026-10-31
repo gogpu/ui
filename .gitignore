@@ -39,6 +39,7 @@ coverage.html
 .claude/
 .goco/
 .gode/
+.pm/
 docs/dev/
 
 # OS

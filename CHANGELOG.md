@@ -15,8 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `llms.txt` now describes what the toolkit does and how to add it to a project, and links the getting-started guide, architecture and render-pipeline docs and the key examples.
 - README and the getting-started guide no longer advise `go get github.com/gogpu/gogpu@latest` and `go get github.com/gogpu/gg@latest` next to `ui`. Upgrading those ahead of `ui` can select versions that do not build together. The docs now say to add `ui` and run `go mod tidy`, which keeps gogpu and gg at the versions the `ui` release was built with.
+- `golang.org/x/image` is marked `// indirect` in `go.mod` (`go mod tidy`); no package of the module imports it directly.
 
 ### Fixed
+
+- **Examples build against released versions** ([#239](https://github.com/gogpu/ui/issues/239)) — `examples/gallery`, `examples/hello`, `examples/signals` and `examples/taskmanager` had their own `go.mod` with `replace github.com/gogpu/ui => ../..` and stale pins (ui v0.1.37), which hid build failures that users got with tagged versions. They are now part of the main module, like the other examples, so CI builds every example on each change and an example always uses the dependency versions of the `ui` release it ships in.
 
 - **fix(textfield): place the caret from the shaped glyph run** — `CursorX`, `CursorRect`, `SelectionRect`, `RuneIndexFromX` and horizontal scrolling measured the text before the caret as a string on its own. Kerning pairs spanning the caret were dropped and a prefix was summed from grid-fitted advances while the renderer positions glyphs from a shaping run, so the caret sat inside the character it should precede — up to 3.4px at 14px on the default font. Positions now come from the caret offsets of the whole shaped string, which also makes click-to-position exact and hit-testing one pass instead of one measurement per character.
 
