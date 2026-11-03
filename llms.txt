@@ -1,14 +1,28 @@
-# ui — GoGPU Ecosystem
+# ui
 
-> Part of the GoGPU Pure Go GPU Computing Ecosystem.
+> GUI toolkit for Go. Retained-mode widgets (buttons, text fields, lists, trees, tables, tabs, menus, dialogs, docking panels and more) with reactive state built on signals, Flexbox and Grid layout, gesture recognition, animation and accessibility roles. Visuals come from pluggable design systems: Material Design 3, a JetBrains-style DevTools theme, Fluent and Cupertino. Rendering goes through gogpu/gg and gogpu/wgpu (Vulkan, DirectX 12, Metal, OpenGL ES, or a CPU software backend), and a layer-tree compositor with repaint boundaries redraws only what changed. Windows, input and the event loop come from gogpu/gogpu on Windows, Linux and macOS. Pure Go, zero CGO, Go 1.25+. Pre-1.0: the API may change before v1.0.
+
+To add it to a project, require only `github.com/gogpu/ui@latest` and run `go mod tidy`. Go then picks the gg and gogpu versions that ui release was built with.
 
 ## Docs
 
 - [API Reference](https://pkg.go.dev/github.com/gogpu/ui)
-- [AGENTS.md](https://github.com/gogpu/ui/blob/main/AGENTS.md): AI agent instructions
-- [README](https://github.com/gogpu/ui/blob/main/README.md): Human-readable overview
+- [README](https://github.com/gogpu/ui/blob/main/README.md): overview, package list and API examples
+- [Getting Started](https://github.com/gogpu/ui/blob/main/docs/GETTING_STARTED.md): first app step by step
+- [AGENTS.md](https://github.com/gogpu/ui/blob/main/AGENTS.md): instructions for AI agents using the toolkit
+- [ARCHITECTURE](https://github.com/gogpu/ui/blob/main/docs/ARCHITECTURE.md): layers, packages, widget and event model
+- [Render pipeline](https://github.com/gogpu/ui/blob/main/docs/RENDER-PIPELINE.md): frame lifecycle, layer tree, damage
+- [CHANGELOG](https://github.com/gogpu/ui/blob/main/CHANGELOG.md): release history
+- [ROADMAP](https://github.com/gogpu/ui/blob/main/ROADMAP.md): plan to v1.0
+
+## Examples
+
+- [Minimal app](https://github.com/gogpu/ui/blob/main/README.md#quick-start): a window with styled text, about 40 lines
+- [hello](https://github.com/gogpu/ui/tree/main/examples/hello): checkboxes, radio buttons, a 1000-item list, Material Design 3
+- [gallery](https://github.com/gogpu/ui/tree/main/examples/gallery): the widget set in all four design systems, with theme switching
+- [All examples](https://github.com/gogpu/ui/tree/main/examples)
 
 ## Ecosystem
 
-- [GoGPU Ecosystem](https://github.com/gogpu/gogpu/blob/main/AGENTS.md): Full ecosystem map
-- [Open Collective](https://opencollective.com/gogpu): Support development
+- [GoGPU ecosystem](https://gogpu.dev/llms.txt): map of all modules
+- [Open Collective](https://opencollective.com/gogpu): support development
