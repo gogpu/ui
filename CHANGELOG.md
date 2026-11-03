@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **fix(textfield): place the caret from the shaped glyph run** — `CursorX`, `CursorRect`, `SelectionRect`, `RuneIndexFromX` and horizontal scrolling measured the text before the caret as a string on its own. Kerning pairs spanning the caret were dropped and a prefix was summed from grid-fitted advances while the renderer positions glyphs from a shaping run, so the caret sat inside the character it should precede — up to 3.4px at 14px on the default font. Positions now come from the caret offsets of the whole shaped string, which also makes click-to-position exact and hit-testing one pass instead of one measurement per character.
-
 ### Added
 
 - **`widget.TextCaretPositioner`** — optional Canvas interface reporting the caret offset before every rune of a string, from the shaped form of the whole string. Implemented by the render `Canvas` and `SceneCanvas`; canvases that do not implement it keep the previous prefix-measurement behavior.
+
+### Changed
+
+- `llms.txt` now describes what the toolkit does and how to add it to a project, and links the getting-started guide, architecture and render-pipeline docs and the key examples.
+
+### Fixed
+
+- **fix(textfield): place the caret from the shaped glyph run** — `CursorX`, `CursorRect`, `SelectionRect`, `RuneIndexFromX` and horizontal scrolling measured the text before the caret as a string on its own. Kerning pairs spanning the caret were dropped and a prefix was summed from grid-fitted advances while the renderer positions glyphs from a shaping run, so the caret sat inside the character it should precede — up to 3.4px at 14px on the default font. Positions now come from the caret offsets of the whole shaped string, which also makes click-to-position exact and hit-testing one pass instead of one measurement per character.
 
 ## [0.1.54] — 2026-08-13
 
