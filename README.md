@@ -739,13 +739,11 @@ testApp.Window().Frame()  // processes layout + draw
 ## Installation
 
 ```bash
-# UI toolkit (library)
 go get github.com/gogpu/ui@latest
-
-# For runnable applications you also need gogpu (windowing) and gg (rendering):
-go get github.com/gogpu/gogpu@latest
-go get github.com/gogpu/gg@latest
+go mod tidy
 ```
+
+A runnable application also imports gogpu (windowing) and gg (rendering), as in the Quick Start above. `go mod tidy` adds them at the versions this `ui` release was built with. Upgrade them together with `ui`, not ahead of it: a newer gogpu or gg may not build with the other versions this `ui` release uses.
 
 ---
 

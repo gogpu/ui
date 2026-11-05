@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `llms.txt` now describes what the toolkit does and how to add it to a project, and links the getting-started guide, architecture and render-pipeline docs and the key examples.
+- README and the getting-started guide no longer advise `go get github.com/gogpu/gogpu@latest` and `go get github.com/gogpu/gg@latest` next to `ui`. Upgrading those ahead of `ui` can select versions that do not build together. The docs now say to add `ui` and run `go mod tidy`, which keeps gogpu and gg at the versions the `ui` release was built with.
 
 ### Fixed
 
