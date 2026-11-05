@@ -11,12 +11,13 @@ from installation to custom widgets.
 go get github.com/gogpu/ui@latest
 ```
 
-For windowed applications you also need the application framework and canvas:
+Windowed applications also import the application framework (`gogpu`) and the canvas (`gg`). After you add those imports, run:
 
 ```bash
-go get github.com/gogpu/gogpu@latest
-go get github.com/gogpu/gg@latest
+go mod tidy
 ```
+
+It adds them at the versions this `ui` release was built with. Upgrade them together with `ui`, not ahead of it: a newer gogpu or gg may not build with the other versions this `ui` release uses.
 
 **Requirements:** Go 1.25+, zero CGO (pure Go, works on all platforms).
 
