@@ -3,13 +3,13 @@ name: CI
 # CI Strategy:
 # - Tests run on Linux, macOS, and Windows (cross-platform GUI library)
 # - Go 1.25+ required (matches go.mod requirement)
-# - CGO_ENABLED=0: Pure Go library, no C compiler required
+# - CGO_ENABLED=0: Pure Go library, no C compiler required; only the race
+#   step turns cgo on, because the toolchain's race detector needs it
 #
 # Branch Strategy (GitHub Flow):
 # - main branch: Production-ready code
-# - feat/** branches: Feature development
-# - fix/** branches: Bug fixes
-# - Pull requests: Must pass all checks before merge
+# - Feature branches: Tested via pull_request trigger
+# - Pull requests: Must pass "Required checks" before merge
 
 env:
   CGO_ENABLED: "0"
@@ -21,6 +21,9 @@ on:
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: read
 
 jobs:
   # Build verification - Cross-platform
@@ -34,10 +37,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: ${{ matrix.go-version }}
         cache: true
@@ -48,36 +51,32 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
+    # The examples are part of the main module, so ./... builds them too.
     - name: Build all packages
       run: go build ./...
-
-    - name: Build examples
-      run: |
-        if [ -d "examples" ]; then
-          go build ./examples/...
-        else
-          echo "No examples directory yet"
-        fi
-      shell: bash
 
   # Unit tests - Cross-platform
   test:
     name: Test - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     permissions:
-      id-token: write
       contents: read
+      id-token: write  # Required for Codecov OIDC token
     strategy:
+      # A failure on one OS must not cancel the others: each OS's result is
+      # its own evidence (a race seen only on macOS hid the Linux and
+      # Windows runs when this was on).
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         go-version: ['1.25']
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: ${{ matrix.go-version }}
         cache: true
@@ -89,21 +88,28 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: go vet ./...
 
-    - name: Install race detector
-      run: go install github.com/kolkov/racedetector/cmd/racedetector@v0.8.5
-
-    - name: Run tests with race detector
+    # The build users ship: CGO_ENABLED=0, so goffi (through gogpu and wgpu)
+    # runs its fakecgo path.
+    - name: Run tests
       shell: bash
-      continue-on-error: true
-      run: racedetector test -v ./...
+      run: go test -v -count=1 -coverprofile=coverage.txt -covermode=atomic ./...
 
-    - name: Run tests with coverage
-      if: matrix.os == 'ubuntu-latest'
-      run: go test -coverprofile=coverage.txt -covermode=atomic ./...
+    # Race detection uses the toolchain's -race (ThreadSanitizer, needs cgo).
+    # A pure-Go detector in the runtime is proposed in golang/go#76786; an external
+    # source-level instrumenter can't see the runtime, the standard library or
+    # dependencies, so we don't use one in CI.
+    # With CGO_ENABLED=1 goffi links the real runtime/cgo instead of its fakecgo,
+    # so this step tests that path, not the one above. A non-std cgo package in
+    # the test binary would fail to link here on Linux (goffi#72).
+    - name: Run tests with the race detector
+      shell: bash
+      env:
+        CGO_ENABLED: "1"
+      run: go test -race -count=1 ./...
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest'
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
       with:
         use_oidc: true
         files: ./coverage.txt
@@ -117,31 +123,78 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: '1.25'
         cache: true
 
+    # The pinned golangci-lint (version and sha256 live in the action) comes
+    # from the Actions cache, so lint does not depend on GitHub Releases being
+    # reachable on every run; on 2026-11-08 the release download URL returned
+    # 504 for over an hour. Bump golangci-lint in gogpu/.github, then move this
+    # pin. Keep lint-targets on the same commit.
+    - name: Set up golangci-lint
+      uses: gogpu/.github/actions/setup-golangci-lint@cdb7bd4a5bd3852541a05f0fa1fa92b09d1ee732 # main 2026-11-08, golangci-lint v2.15.0
+
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v8
+      uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
       with:
-        version: latest
+        install-mode: none
         args: --timeout=5m
 
-  # Code formatting check
+  # Lint for the other desktop targets. golangci-lint type-checks only the
+  # files the target's build compiles. ui itself has no GOOS-specific files,
+  # but desktop/ and the examples compile against gogpu's per-OS API, which
+  # the Linux job above never sees. The code is pure Go (CGO_ENABLED=0), so
+  # GOOS/GOARCH on a Linux runner select exactly those files. A file that does
+  # not type-check makes golangci-lint exit non-zero, so a broken target cannot
+  # pass as "0 issues". One GOARCH per GOOS: no file is arch-specific.
+  lint-targets:
+    name: Lint - ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: windows, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+    - name: Set up Go
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      with:
+        go-version: '1.25'
+        cache: true
+
+    - name: Set up golangci-lint
+      uses: gogpu/.github/actions/setup-golangci-lint@cdb7bd4a5bd3852541a05f0fa1fa92b09d1ee732 # main 2026-11-08, golangci-lint v2.15.0
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      with:
+        install-mode: none
+        args: --timeout=5m
+
+  # Code formatting and module hygiene
   formatting:
     name: Formatting
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: '1.25'
         cache: true
@@ -156,3 +209,35 @@ jobs:
           exit 1
         fi
         echo "All files are properly formatted"
+
+    - name: Verify go.mod is tidy
+      run: |
+        go mod tidy
+        if ! git diff --exit-code go.mod go.sum; then
+          echo "::error::go.mod/go.sum are not tidy — run 'go mod tidy' and commit"
+          exit 1
+        fi
+
+  # The one check the main-protection ruleset requires. Every job that must
+  # pass goes into needs, so adding a job or a matrix entry never touches the
+  # ruleset. if: always() and the explicit result check are both needed: a job
+  # skipped because a job it needs failed or was cancelled counts as passed
+  # for a required check, so without them a red PR could go green.
+  required:
+    name: Required checks
+    if: always()
+    needs: [build, test, lint, lint-targets, formatting]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Every required job succeeded
+      env:
+        RESULTS: ${{ join(needs.*.result, ' ') }}
+      run: |
+        echo "results: $RESULTS"
+        for r in $RESULTS; do
+          if [ "$r" != success ]; then
+            echo "::error::a required job ended with: $r"
+            exit 1
+          fi
+        done
