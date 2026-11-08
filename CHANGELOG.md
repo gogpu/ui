@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **deps:** gg v0.52.3 → v0.52.6, gogpu v0.53.0 → v0.54.1, wgpu v0.31.4 → v0.34.9, gpucontext v0.28.0 → v0.31.3, gputypes v0.5.2 → v0.8.2, naga v0.18.0 → v0.21.4 (fixes the WGSL parser stack overflow GHSA-887q-cf99-367r), goffi v0.6.3 → v0.6.8, x/image v0.45.0, x/text v0.41.0. gg v0.52.6 is the first gg release that builds against wgpu v0.34, so `gogpu@latest` and `gg@latest` build together again ([#239](https://github.com/gogpu/ui/issues/239)).
-- The `desktop` software e2e tests use the wgpu v0.34 HAL API, and their texture readback pads rows to the 256-byte copy alignment WebGPU requires. Before, the copy failed validation and the readback tests skipped; all of them run now.
+- The `desktop` software e2e tests use the wgpu v0.34 HAL API, and their texture readback pads rows to the 256-byte copy alignment WebGPU requires. wgpu v0.34 rejects an unpadded copy, which the old helper would have turned into a skip of the readback tests; with the padding all of them run.
 
 - `llms.txt` now describes what the toolkit does and how to add it to a project, and links the getting-started guide, architecture and render-pipeline docs and the key examples.
 - README and the getting-started guide no longer advise `go get github.com/gogpu/gogpu@latest` and `go get github.com/gogpu/gg@latest` next to `ui`. Upgrading those ahead of `ui` can select versions that do not build together. The docs now say to add `ui` and run `go mod tidy`, which keeps gogpu and gg at the versions the `ui` release was built with.
