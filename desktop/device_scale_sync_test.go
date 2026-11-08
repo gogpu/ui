@@ -25,6 +25,10 @@ func (scaleSyncDeviceProvider) SurfaceFormat() gputypes.TextureFormat {
 }
 func (scaleSyncDeviceProvider) Adapter() gpucontext.Adapter         { return gpucontext.Adapter{} }
 func (scaleSyncDeviceProvider) AdapterInfo() gpucontext.AdapterInfo { return gpucontext.AdapterInfo{} }
+func (scaleSyncDeviceProvider) Features() gputypes.Features         { return 0 }
+func (scaleSyncDeviceProvider) DownlevelCapabilities() gputypes.DownlevelCapabilities {
+	return gputypes.DownlevelCapabilities{}
+}
 
 type scaleSyncBoundary struct {
 	widget.WidgetBase
