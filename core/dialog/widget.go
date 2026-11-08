@@ -175,9 +175,15 @@ func (w *Widget) Unmount() {
 	// Bindings are cleaned up automatically by WidgetBase.CleanupBindings().
 }
 
-// computeDialogBounds calculates the centered dialog surface bounds
-// within the given window size.
-func (w *Widget) computeDialogBounds(windowSize geometry.Size) geometry.Rect {
+// computeDialogBounds calculates the centered dialog surface bounds within the
+// given window size.
+//
+// It also lays the content widget out. The dialog is what gives the content a
+// size: the surface fills the window, so nothing else would lay it out, and a
+// container drawn without a layout draws nothing, because its children keep
+// empty bounds (#241). The measured content height is part of the dialog
+// height, so the content is not clipped to the padding alone.
+func (w *Widget) computeDialogBounds(ctx widget.Context, windowSize geometry.Size) geometry.Rect {
 	// Query LayoutMetrics from painter (type assert with default fallback).
 	lm := resolveDialogLayoutMetrics(w.painter)
 
@@ -197,8 +203,21 @@ func (w *Widget) computeDialogBounds(windowSize geometry.Size) geometry.Rect {
 		maxW = minDialogWidth
 	}
 
-	// Compute height based on content.
-	dialogH := titleAreaHeight + actionAreaHeight
+	// Lay the content out within the width the dialog will have, and take its
+	// height into the dialog height.
+	contentH := availH - titleAreaHeight - actionAreaHeight - contentPadding*2
+	if contentH < 0 {
+		contentH = 0
+	}
+	var contentSize geometry.Size
+	if w.cfg.content != nil {
+		contentSize = w.cfg.content.Layout(
+			ctx,
+			geometry.BoxConstraints(0, maxW-contentPadding*2, 0, contentH),
+		)
+	}
+
+	dialogH := titleAreaHeight + actionAreaHeight + contentSize.Height
 	if w.cfg.content != nil {
 		dialogH += contentPadding * 2 // content padding top + bottom
 	}
@@ -322,9 +341,9 @@ func (s *surfaceWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	backdropColor := defaultBackdropColor
 	canvas.DrawRect(s.Bounds(), backdropColor)
 
-	// Compute dialog bounds.
+	// Compute dialog bounds (and lay the content out).
 	windowSize := ctx.WindowSize()
-	dialogBounds := d.computeDialogBounds(windowSize)
+	dialogBounds := d.computeDialogBounds(ctx, windowSize)
 
 	// Pre-compute action button rects using MeasureText (ADR-034 Phase 4).
 	actionRects := computeActionRects(canvas, dialogBounds, d.cfg.actions)
@@ -431,7 +450,7 @@ func (s *surfaceWidget) handleMouseEvent(ctx widget.Context, e *event.MouseEvent
 
 	// Check if click is outside dialog surface.
 	windowSize := ctx.WindowSize()
-	dialogBounds := d.computeDialogBounds(windowSize)
+	dialogBounds := d.computeDialogBounds(ctx, windowSize)
 
 	if !dialogBounds.Contains(e.Position) {
 		// Click on backdrop.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dialog content is laid out** ([#241](https://github.com/gogpu/ui/issues/241)) — the dialog drew its content without laying it out, so a container such as `primitives.HBox` rendered nothing: its children kept empty bounds and `TextWidget.Draw` returned early on them. The content is measured now, and its height is part of the dialog height instead of the fixed padding allowance.
+
 ### Changed
 
 - **CI:** tests now block the merge on macOS and Windows as well as Linux; before, only the Linux job ran the plain tests, and the race step on every OS was allowed to fail. Race detection uses the toolchain's `go test -race` (cgo on for that step only) instead of an external instrumenter. golangci-lint also runs for windows/amd64 and darwin/arm64, from a pinned, checksum-verified copy. Every action is pinned by commit SHA and kept current by Dependabot, `go.mod` must be tidy, and a single `Required checks` job gates the merge.

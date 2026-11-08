@@ -6,6 +6,7 @@ import (
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -244,7 +245,7 @@ func TestComputeDialogBounds_Default(t *testing.T) {
 	w := New(Title("Test"))
 	windowSize := geometry.Sz(800, 600)
 
-	bounds := w.computeDialogBounds(windowSize)
+	bounds := w.computeDialogBounds(widget.NewContext(), windowSize)
 
 	if bounds.Width() <= 0 || bounds.Height() <= 0 {
 		t.Error("dialog bounds should have positive dimensions")
@@ -258,7 +259,7 @@ func TestComputeDialogBounds_CustomMaxWidth(t *testing.T) {
 	w := New(Title("Test"), MaxWidth(300))
 	windowSize := geometry.Sz(800, 600)
 
-	bounds := w.computeDialogBounds(windowSize)
+	bounds := w.computeDialogBounds(widget.NewContext(), windowSize)
 
 	if bounds.Width() > 300 {
 		t.Errorf("width %v exceeds custom maxWidth 300", bounds.Width())
@@ -269,7 +270,7 @@ func TestComputeDialogBounds_SmallWindow(t *testing.T) {
 	w := New(Title("Test"))
 	windowSize := geometry.Sz(200, 200)
 
-	bounds := w.computeDialogBounds(windowSize)
+	bounds := w.computeDialogBounds(widget.NewContext(), windowSize)
 
 	if bounds.Width() > windowSize.Width*windowMargin+1 {
 		t.Errorf("width %v exceeds available window space", bounds.Width())
@@ -280,7 +281,7 @@ func TestComputeDialogBounds_Centered(t *testing.T) {
 	w := New(Title("Test"))
 	windowSize := geometry.Sz(800, 600)
 
-	bounds := w.computeDialogBounds(windowSize)
+	bounds := w.computeDialogBounds(widget.NewContext(), windowSize)
 
 	centerX := (bounds.Min.X + bounds.Max.X) / 2
 	centerY := (bounds.Min.Y + bounds.Max.Y) / 2
@@ -360,6 +361,38 @@ func TestSurfaceWidget_Draw_WithContent(t *testing.T) {
 
 	if !content.drawn {
 		t.Error("content widget should have been drawn")
+	}
+}
+
+// The dialog must lay its content out itself: a container draws nothing when
+// its children never got bounds, because TextWidget.Draw returns early on
+// empty bounds (#241).
+func TestSurfaceWidget_Draw_LaysOutContainerContent(t *testing.T) {
+	box := primitives.HBox(
+		primitives.Text("first"),
+		primitives.Text("second"),
+	)
+	w := New(Title("Hello"), Content(box))
+	ctx := widget.NewContext()
+	ctx.SetWindowSize(geometry.Sz(800, 600))
+
+	s := newSurfaceWidget(w, ctx)
+	s.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	canvas := &internalRecordingCanvas{}
+
+	s.Draw(ctx, canvas)
+
+	for i, child := range box.Children() {
+		bounded, ok := child.(interface{ Bounds() geometry.Rect })
+		if !ok {
+			t.Fatalf("child %d does not expose Bounds()", i)
+		}
+		if bounded.Bounds().IsEmpty() {
+			t.Errorf("child %d of the box content has empty bounds: the dialog drew it without laying it out", i)
+		}
+	}
+	if len(canvas.drawTexts) < 2 {
+		t.Errorf("drew %d texts, want 2 for the two labels", len(canvas.drawTexts))
 	}
 }
 
@@ -605,7 +638,7 @@ func TestSurfaceWidget_ActionClick(t *testing.T) {
 	s := w.surface
 
 	// Calculate where the OK button should be in dialog bounds.
-	dialogBounds := w.computeDialogBounds(geometry.Sz(800, 600))
+	dialogBounds := w.computeDialogBounds(widget.NewContext(), geometry.Sz(800, 600))
 	btnX := dialogBounds.Max.X - dialogPadding - (float32(len("OK"))*actionCharWidth + actionPaddingX*2)
 	btnY := dialogBounds.Max.Y - dialogPadding - actionHeight
 
