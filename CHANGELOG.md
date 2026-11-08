@@ -9,14 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`WidgetBase.MoveChild`** ([#243](https://github.com/gogpu/ui/issues/243)) — reorders a child without detaching it, so a moved child keeps its state and its signal bindings.
 - **Dropdown items from a signal** ([#243](https://github.com/gogpu/ui/issues/243)) — `dropdown.ItemsSignal`, `ItemsReadonlySignal` and `ItemsFn` set the items at runtime, with the same priority as the other widgets (ReadonlySignal > Signal > Fn > Static). Changing the list clamps the selected index, an empty list clears the selection and shows the placeholder, and the trigger repaints; an open menu picks the new list up on the next open.
 
 ### Fixed
 
+- **`AddChild` sets the child's parent** ([#243](https://github.com/gogpu/ui/issues/243)) — the base mutators used to store the child without linking a parent.
 - **Dialog content is laid out** ([#241](https://github.com/gogpu/ui/issues/241)) — the dialog drew its content without laying it out, so a container such as `primitives.HBox` rendered nothing: its children kept empty bounds and `TextWidget.Draw` returned early on them. The content is measured now, and its height is part of the dialog height instead of the fixed padding allowance.
 
 ### Changed
 
+- **Children of a container change at runtime** ([#243](https://github.com/gogpu/ui/issues/243)) — `BoxWidget` and `overlay.Container` now use the single `WidgetBase` child list, so `AddChild`, `InsertChild`, `RemoveChild`, `RemoveChildAt` and `ClearChildren` change what is laid out and drawn. A removed child is unmounted (signal bindings released, cached scene dropped, parent cleared) and an added one is mounted with the window context; keyboard focus inside a removed subtree is released at once; the window drops pointer capture and hover held by a widget that left the tree. Layout and repaint follow the ordinary dirty path, so a mutation inside a repaint boundary does not dirty its ancestors.
+- **`WidgetBase.RemoveChild` keeps the order of the remaining children** ([#243](https://github.com/gogpu/ui/issues/243)) — it used to move the last child into the removed slot, so every later index could point at a different child. Code that relied on that shuffle should take the remaining children from `Children()` after the call, or use `RemoveChildAt` with an index it computed itself.
 - **CI:** tests now block the merge on macOS and Windows as well as Linux; before, only the Linux job ran the plain tests, and the race step on every OS was allowed to fail. Race detection uses the toolchain's `go test -race` (cgo on for that step only) instead of an external instrumenter. golangci-lint also runs for windows/amd64 and darwin/arm64, from a pinned, checksum-verified copy. Every action is pinned by commit SHA and kept current by Dependabot, `go.mod` must be tidy, and a single `Required checks` job gates the merge.
 
 ## [0.1.55] — 2026-11-08

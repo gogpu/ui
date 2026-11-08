@@ -35,6 +35,12 @@ func MountTree(w Widget, ctx Context) {
 		base.SetMounted(true)
 	}
 
+	// Store the mount context on widgets that support it so a container can
+	// mount children added at runtime (see WidgetBase.attachChild).
+	if c, ok := w.(interface{ setContext(Context) }); ok {
+		c.setContext(ctx)
+	}
+
 	// Call Mount if widget implements Lifecycle.
 	if lc, ok := w.(Lifecycle); ok {
 		lc.Mount(ctx)
@@ -92,5 +98,11 @@ func UnmountTree(w Widget) {
 	// Clear mounted state.
 	if base, ok := w.(interface{ SetMounted(bool) }); ok {
 		base.SetMounted(false)
+	}
+
+	// Clear the stored mount context so a later runtime add does not try to
+	// mount into a stale context.
+	if c, ok := w.(interface{ setContext(Context) }); ok {
+		c.setContext(nil)
 	}
 }
