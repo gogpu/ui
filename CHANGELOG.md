@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **CI:** tests now block the merge on macOS and Windows as well as Linux; before, only the Linux job ran the plain tests, and the race step on every OS was allowed to fail. Race detection uses the toolchain's `go test -race` (cgo on for that step only) instead of an external instrumenter. golangci-lint also runs for windows/amd64 and darwin/arm64, from a pinned, checksum-verified copy. Every action is pinned by commit SHA and kept current by Dependabot, `go.mod` must be tidy, and a single `Required checks` job gates the merge.
+
 ## [0.1.55] — 2026-11-08
 
 ### Added
