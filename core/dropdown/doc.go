@@ -59,6 +59,20 @@
 //	    dropdown.SelectedSignal(idx),
 //	)
 //
+// The items themselves can be bound to a signal too, which allows the list to
+// change after construction:
+//
+//	items := state.NewSignal([]string{"A", "B", "C"})
+//	dd := dropdown.New(
+//	    dropdown.ItemsSignal(items),
+//	    dropdown.SelectedSignal(idx),
+//	)
+//	items.Set([]string{"A", "B"}) // selected index is clamped, trigger repaints
+//
+// [ItemsFn] and [ItemsReadonlySignal] are the function and read-only signal
+// variants; they follow the same priority order as the other widgets:
+// read-only signal, then signal, then function, then the static items.
+//
 // # Focus
 //
 // Dropdowns implement [widget.Focusable] and participate in tab navigation.

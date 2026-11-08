@@ -100,10 +100,11 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 
+	items := w.resolvedItems()
 	text := w.cfg.placeholder
 	isPlaceholder := true
-	if w.selectedIndex >= 0 && w.selectedIndex < len(w.cfg.items) {
-		text = w.cfg.items[w.selectedIndex].DisplayText()
+	if w.selectedIndex >= 0 && w.selectedIndex < len(items) {
+		text = items[w.selectedIndex].DisplayText()
 		isPlaceholder = false
 	}
 	if text == "" && isPlaceholder {
@@ -143,23 +144,53 @@ func (w *Widget) Children() []widget.Widget {
 	return nil
 }
 
+// resolvedItems returns the current items and clamps the selected index so it
+// stays valid for them.
+//
+// Clamping is lazy, on read, rather than in the items signal callback: the
+// callback may run on another goroutine, while the widget's own state belongs
+// to the frame that reads it. The first read after a change (a draw, a query,
+// or the next Open) fixes the index and paints the matching label.
+func (w *Widget) resolvedItems() []ItemDef {
+	items := w.cfg.ResolvedItems()
+	w.clampSelectedIndex(len(items))
+	return items
+}
+
+// clampSelectedIndex keeps the selection inside [-1, count-1]. An empty list
+// has nothing to select, so the selection resets to -1, the package's "no
+// selection" value, and the trigger falls back to the placeholder.
+func (w *Widget) clampSelectedIndex(count int) {
+	if count == 0 {
+		w.selectedIndex = -1
+		return
+	}
+	if w.selectedIndex >= count {
+		w.selectedIndex = count - 1
+	}
+}
+
 // SelectedIndex returns the currently selected item index, or -1 if none.
+// The index is always valid for the current items: if a bound items signal
+// shrank the list, the index is clamped here first.
 func (w *Widget) SelectedIndex() int {
+	w.clampSelectedIndex(len(w.cfg.ResolvedItems()))
 	return w.selectedIndex
 }
 
 // SelectedValue returns the value of the currently selected item,
 // or an empty string if nothing is selected.
 func (w *Widget) SelectedValue() string {
-	if w.selectedIndex < 0 || w.selectedIndex >= len(w.cfg.items) {
+	items := w.resolvedItems()
+	if w.selectedIndex < 0 || w.selectedIndex >= len(items) {
 		return ""
 	}
-	return w.cfg.items[w.selectedIndex].Value
+	return items[w.selectedIndex].Value
 }
 
 // SetSelectedIndex programmatically sets the selected item.
 func (w *Widget) SetSelectedIndex(index int) {
-	if index < -1 || index >= len(w.cfg.items) {
+	if index < -1 || index >= len(w.resolvedItems()) {
 		return
 	}
 	w.selectedIndex = index
@@ -186,9 +217,10 @@ func (w *Widget) Open(ctx widget.Context) {
 
 	w.open = true
 
-	// Create the menu widget.
+	// Create the menu widget from the items resolved now. The menu keeps this
+	// snapshot; a later items-signal change shows up on the next Open.
 	w.menuWidget = newMenuWidget(
-		w.cfg.items,
+		w.resolvedItems(),
 		w.selectedIndex,
 		w.cfg.maxVisibleItems,
 		w.painter,
@@ -243,7 +275,8 @@ func (w *Widget) close(ctx widget.Context) {
 
 // selectItem is called when an item is selected from the menu.
 func (w *Widget) selectItem(ctx widget.Context, index int) {
-	if index < 0 || index >= len(w.cfg.items) {
+	items := w.cfg.ResolvedItems()
+	if index < 0 || index >= len(items) {
 		return
 	}
 
@@ -258,7 +291,7 @@ func (w *Widget) selectItem(ctx widget.Context, index int) {
 
 	// Fire callback.
 	if w.cfg.onChange != nil {
-		w.cfg.onChange(index, w.cfg.items[index].Value)
+		w.cfg.onChange(index, items[index].Value)
 	}
 
 	w.close(ctx)
@@ -366,6 +399,14 @@ func (w *Widget) Mount(ctx widget.Context) {
 	}
 	if w.cfg.signal != nil {
 		b := state.BindToScheduler(w.cfg.signal, w, sched)
+		w.AddBinding(b)
+	}
+	// Only one items source is live at a time: the resolved one wins.
+	if w.cfg.readonlyItemsSignal != nil {
+		b := state.BindToScheduler(w.cfg.readonlyItemsSignal, w, sched)
+		w.AddBinding(b)
+	} else if w.cfg.itemsSignal != nil {
+		b := state.BindToScheduler(w.cfg.itemsSignal, w, sched)
 		w.AddBinding(b)
 	}
 }
