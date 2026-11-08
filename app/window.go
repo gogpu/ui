@@ -429,6 +429,9 @@ func (w *Window) HandleEvent(e event.Event) {
 	// Update context time for event processing.
 	w.ctx.SetNow(time.Now())
 
+	// Drop stale capture/hover references to widgets removed from the tree.
+	w.clearStalePointerRefs()
+
 	w.trackMouseButtonOwnership(e)
 
 	// Overlays get priority.
@@ -1611,6 +1614,34 @@ func (w *Window) clearHover(buttons event.ButtonState, mods event.Modifiers) {
 // or nil if no widget is hovered.
 func (w *Window) HoveredWidget() widget.Widget {
 	return w.hoveredWidget
+}
+
+// isWidgetMounted reports whether w is currently in the mounted widget tree.
+// Widgets that do not expose IsMounted are treated as mounted, so a caller
+// only ever drops a widget it can positively prove was detached (for example
+// by a runtime RemoveChild/UnmountTree).
+func isWidgetMounted(w widget.Widget) bool {
+	if w == nil {
+		return false
+	}
+	if m, ok := w.(interface{ IsMounted() bool }); ok {
+		return m.IsMounted()
+	}
+	return true
+}
+
+// clearStalePointerRefs drops the window's references to a widget that has
+// captured the pointer (ADR-031) or last received hover when that widget has
+// since been removed from the tree. Without it a detached subtree stays pinned
+// in memory and keeps receiving events (mouse move/release) it can no longer
+// legitimately handle.
+func (w *Window) clearStalePointerRefs() {
+	if w.capturedWidget != nil && !isWidgetMounted(w.capturedWidget) {
+		w.capturedWidget = nil
+	}
+	if w.hoveredWidget != nil && !isWidgetMounted(w.hoveredWidget) {
+		w.hoveredWidget = nil
+	}
 }
 
 // overlayAwareHitTest performs hit-testing that respects the overlay stack.
