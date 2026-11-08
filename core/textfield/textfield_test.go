@@ -716,6 +716,56 @@ func TestMouse_TripleClickSelectsAll(t *testing.T) {
 	}
 }
 
+func TestMouse_DragSelectsText(t *testing.T) {
+	tf := textfield.New(textfield.InitialValue("hello world"))
+	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
+	tf.SetFocused(true)
+
+	recs := tf.GestureHitTest(geometry.Pt(0, 0))
+	if len(recs) == 0 {
+		t.Fatal("TextField should have a TapAndDragRecognizer")
+	}
+	arena := gesture.NewArena()
+	ts := 100 * time.Millisecond
+
+	pointer := func(et gesture.PointerEventType, pos geometry.Point, at time.Duration) *gesture.PointerEvent {
+		return &gesture.PointerEvent{
+			Base:           event.NewBase(event.TypeMouse, event.ModNone),
+			EventType:      et,
+			PointerID:      1,
+			PointerType:    gesture.PointerTypeMouse,
+			Position:       pos,
+			GlobalPosition: pos,
+			Button:         event.ButtonLeft,
+			Buttons:        event.ButtonStateLeft,
+			Timestamp:      ts + at,
+		}
+	}
+
+	// Press where the text starts: the cursor is placed before 'h'.
+	recs[0].AddPointer(pointer(gesture.PointerDown, geometry.Pt(6, 24), 0), arena)
+	arena.Close(1)
+
+	// The first move passes the drag slop and starts the drag.
+	recs[0].HandleEvent(pointer(gesture.PointerMove, geometry.Pt(60, 24), 50*time.Millisecond))
+
+	// Drag past the end of the text: the selection covers it whole.
+	recs[0].HandleEvent(pointer(gesture.PointerMove, geometry.Pt(290, 24), 100*time.Millisecond))
+
+	runeCount := len([]rune("hello world"))
+	if start, end := tf.Selection(); start != 0 || end != runeCount {
+		t.Errorf("selection during drag = (%d, %d), want (0, %d)", start, end, runeCount)
+	}
+
+	// Releasing ends the drag and keeps the selection.
+	recs[0].HandleEvent(pointer(gesture.PointerUp, geometry.Pt(290, 24), 150*time.Millisecond))
+	arena.Sweep(1)
+
+	if start, end := tf.Selection(); start != 0 || end != runeCount {
+		t.Errorf("selection after release = (%d, %d), want (0, %d)", start, end, runeCount)
+	}
+}
+
 func TestTextField_GestureAwareInterface(t *testing.T) {
 	tf := textfield.New()
 
