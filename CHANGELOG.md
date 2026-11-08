@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.55] — 2026-11-08
+
 ### Added
 
-- **`widget.TextCaretPositioner`** — optional Canvas interface reporting the caret offset before every rune of a string, from the shaped form of the whole string. Implemented by the render `Canvas` and `SceneCanvas`; canvases that do not implement it keep the previous prefix-measurement behavior.
+- **`widget.TextCaretPositioner`** ([#236](https://github.com/gogpu/ui/pull/236), by @samyfodil) — optional Canvas interface reporting the caret offset before every rune of a string, from the shaped form of the whole string. Implemented by the render `Canvas` and `SceneCanvas`; canvases that do not implement it keep the previous prefix-measurement behavior.
 
 ### Changed
+
+- **deps:** gg v0.52.3 → v0.52.6, gogpu v0.53.0 → v0.54.1, wgpu v0.31.4 → v0.34.9, gpucontext v0.28.0 → v0.31.3, gputypes v0.5.2 → v0.8.2, naga v0.18.0 → v0.21.4 (fixes the WGSL parser stack overflow GHSA-887q-cf99-367r), goffi v0.6.3 → v0.6.8, x/image v0.45.0, x/text v0.41.0. gg v0.52.6 is the first gg release that builds against wgpu v0.34, so `gogpu@latest` and `gg@latest` build together again ([#239](https://github.com/gogpu/ui/issues/239)).
+- The `desktop` software e2e tests use the wgpu v0.34 HAL API, and their texture readback pads rows to the 256-byte copy alignment WebGPU requires. Before, the copy failed validation and the readback tests skipped; all of them run now.
 
 - `llms.txt` now describes what the toolkit does and how to add it to a project, and links the getting-started guide, architecture and render-pipeline docs and the key examples.
 - README and the getting-started guide no longer advise `go get github.com/gogpu/gogpu@latest` and `go get github.com/gogpu/gg@latest` next to `ui`. Upgrading those ahead of `ui` can select versions that do not build together. The docs now say to add `ui` and run `go mod tidy`, which keeps gogpu and gg at the versions the `ui` release was built with.
@@ -20,8 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Examples build against released versions** ([#239](https://github.com/gogpu/ui/issues/239)) — `examples/gallery`, `examples/hello`, `examples/signals` and `examples/taskmanager` had their own `go.mod` with `replace github.com/gogpu/ui => ../..` and stale pins (ui v0.1.37), which hid build failures that users got with tagged versions. They are now part of the main module, like the other examples, so CI builds every example on each change and an example always uses the dependency versions of the `ui` release it ships in.
-
-- **fix(textfield): place the caret from the shaped glyph run** — `CursorX`, `CursorRect`, `SelectionRect`, `RuneIndexFromX` and horizontal scrolling measured the text before the caret as a string on its own. Kerning pairs spanning the caret were dropped and a prefix was summed from grid-fitted advances while the renderer positions glyphs from a shaping run, so the caret sat inside the character it should precede — up to 3.4px at 14px on the default font. Positions now come from the caret offsets of the whole shaped string, which also makes click-to-position exact and hit-testing one pass instead of one measurement per character.
+- **Focus changes repaint both fields** ([#234](https://github.com/gogpu/ui/pull/234), by @kivutar) — `RequestFocus` and `ReleaseFocus` now mark the widget that lost focus and the one that gained it as needing a redraw, outside the context lock. Before, `SetFocused` only flipped the flag, so inside a repaint boundary the old field kept its focus ring until something else repainted it.
+- **README package table** ([#242](https://github.com/gogpu/ui/pull/242), by @eulmdev) — a blank line inside the table ended it, so the rows after `internal/dirty` rendered as raw text.
+- **fix(textfield): place the caret from the shaped glyph run** ([#236](https://github.com/gogpu/ui/pull/236), by @samyfodil) — `CursorX`, `CursorRect`, `SelectionRect`, `RuneIndexFromX` and horizontal scrolling measured the text before the caret as a string on its own. Kerning pairs spanning the caret were dropped and a prefix was summed from grid-fitted advances while the renderer positions glyphs from a shaping run, so the caret sat inside the character it should precede — up to 3.4px at 14px on the default font. Positions now come from the caret offsets of the whole shaped string, which also makes click-to-position exact and hit-testing one pass instead of one measurement per character.
 
 ## [0.1.54] — 2026-08-13
 
