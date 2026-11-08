@@ -1,6 +1,7 @@
 package app
 
 import (
+	"sync/atomic"
 	"testing"
 
 	"github.com/gogpu/gpucontext"
@@ -47,7 +48,10 @@ func (m *mockWidget) Event(_ widget.Context, e event.Event) bool {
 type mockWindowProvider struct {
 	width, height int
 	scale         float64
-	redrawCount   int
+	// redrawCount is atomic because the window's animation pumper calls
+	// RequestRedraw from its own goroutine, which the real hosts allow
+	// (gogpu: "Safe to call from any goroutine").
+	redrawCount atomic.Int32
 }
 
 func (m *mockWindowProvider) Size() (int, int) {
@@ -59,7 +63,7 @@ func (m *mockWindowProvider) ScaleFactor() float64 {
 }
 
 func (m *mockWindowProvider) RequestRedraw() {
-	m.redrawCount++
+	m.redrawCount.Add(1)
 }
 
 // mockPlatformProvider implements gpucontext.PlatformProvider for testing.

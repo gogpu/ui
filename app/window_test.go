@@ -1511,7 +1511,7 @@ func TestWindow_AnimPumper_StartsOnInvalidation(t *testing.T) {
 	}
 
 	// Verify RequestRedraw was called (from the invalidation callback).
-	if wp.redrawCount == 0 {
+	if wp.redrawCount.Load() == 0 {
 		t.Error("WindowProvider.RequestRedraw should have been called")
 	}
 }
