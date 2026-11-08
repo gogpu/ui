@@ -19,8 +19,9 @@ func (w *Widget) A11yLabel() string {
 // A11yValue returns the currently displayed value for assistive technology.
 // If no item is selected, it returns the placeholder text.
 func (w *Widget) A11yValue() string {
-	if w.selectedIndex >= 0 && w.selectedIndex < len(w.cfg.items) {
-		return w.cfg.items[w.selectedIndex].DisplayText()
+	items := w.resolvedItems()
+	if w.selectedIndex >= 0 && w.selectedIndex < len(items) {
+		return items[w.selectedIndex].DisplayText()
 	}
 	if w.cfg.placeholder != "" {
 		return w.cfg.placeholder

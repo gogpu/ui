@@ -7,20 +7,36 @@ type Option func(*config)
 
 // config holds the dropdown's configuration, set at construction time via options.
 type config struct {
-	items           []ItemDef
-	selectedIndex   int
-	placeholder     string
-	onChange        func(index int, value string)
-	disabled        bool
-	disabledFn      func() bool
-	maxVisibleItems int
-	painter         Painter
-	signal          state.Signal[int]
-	a11yHint        string
+	items               []ItemDef
+	itemsFn             func() []string
+	itemsSignal         state.Signal[[]string]
+	readonlyItemsSignal state.ReadonlySignal[[]string]
+	selectedIndex       int
+	placeholder         string
+	onChange            func(index int, value string)
+	disabled            bool
+	disabledFn          func() bool
+	maxVisibleItems     int
+	painter             Painter
+	signal              state.Signal[int]
+	a11yHint            string
 }
 
 // defaultMaxVisible is the default number of visible items before scrolling.
 const defaultMaxVisible = 8
+
+// itemDefsFromStrings converts string items to ItemDefs. Each string becomes
+// both the value and the label, as documented on [Items].
+func itemDefsFromStrings(items []string) []ItemDef {
+	if items == nil {
+		return nil
+	}
+	defs := make([]ItemDef, len(items))
+	for i, s := range items {
+		defs[i] = ItemDef{Value: s}
+	}
+	return defs
+}
 
 // ResolvedDisabled returns the current disabled state, preferring the
 // dynamic function over the static bool.
@@ -31,15 +47,68 @@ func (c *config) ResolvedDisabled() bool {
 	return c.disabled
 }
 
+// ResolvedItems returns the current dropdown items.
+// Priority: ReadonlySignal > Signal > Fn > Static.
+//
+// The signal and function sources are converted to ItemDefs on every call,
+// so the returned slice is fresh and safe for the caller to keep (the menu
+// overlay captures it when it opens).
+func (c *config) ResolvedItems() []ItemDef {
+	if c.readonlyItemsSignal != nil {
+		return itemDefsFromStrings(c.readonlyItemsSignal.Get())
+	}
+	if c.itemsSignal != nil {
+		return itemDefsFromStrings(c.itemsSignal.Get())
+	}
+	if c.itemsFn != nil {
+		return itemDefsFromStrings(c.itemsFn())
+	}
+	return c.items
+}
+
 // Items sets the dropdown items from strings. Each string becomes both
 // the value and label.
 func Items(items ...string) Option {
 	return func(c *config) {
-		defs := make([]ItemDef, len(items))
-		for i, s := range items {
-			defs[i] = ItemDef{Value: s}
-		}
-		c.items = defs
+		c.items = itemDefsFromStrings(items)
+	}
+}
+
+// ItemsFn sets a dynamic function that supplies the dropdown items as strings.
+// The function is evaluated whenever the widget reads its items.
+// When set, it takes precedence over the static [Items] and [ItemDefs] but not
+// over [ItemsSignal].
+func ItemsFn(fn func() []string) Option {
+	return func(c *config) {
+		c.itemsFn = fn
+	}
+}
+
+// ItemsSignal binds the dropdown's items to a reactive signal. When the
+// signal is set, the trigger paints the new items and the selected index is
+// clamped to a valid item (the last one, or -1 for an empty list, so the
+// trigger falls back to the placeholder).
+//
+// A menu that is already open keeps the items it was built with; it picks up
+// the new list on the next [Widget.Open], which always rebuilds the menu.
+//
+// The clamp is widget state only: a signal passed to [SelectedSignal] is not
+// rewritten by it, and keeps the index the application last set. It is
+// updated again when the user picks an item or [Widget.SetSelectedIndex]
+// is called.
+func ItemsSignal(sig state.Signal[[]string]) Option {
+	return func(c *config) {
+		c.itemsSignal = sig
+	}
+}
+
+// ItemsReadonlySignal binds the dropdown's items to a read-only signal, for
+// example one created with [state.NewComputed]. It takes precedence over
+// [ItemsSignal], [ItemsFn] and the static items. The clamping and the
+// open-menu behavior are the same as for [ItemsSignal].
+func ItemsReadonlySignal(sig state.ReadonlySignal[[]string]) Option {
+	return func(c *config) {
+		c.readonlyItemsSignal = sig
 	}
 }
 

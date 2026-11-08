@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dropdown items from a signal** ([#243](https://github.com/gogpu/ui/issues/243)) — `dropdown.ItemsSignal`, `ItemsReadonlySignal` and `ItemsFn` set the items at runtime, with the same priority as the other widgets (ReadonlySignal > Signal > Fn > Static). Changing the list clamps the selected index, an empty list clears the selection and shows the placeholder, and the trigger repaints; an open menu picks the new list up on the next open.
+
 ### Fixed
 
 - **Dialog content is laid out** ([#241](https://github.com/gogpu/ui/issues/241)) — the dialog drew its content without laying it out, so a container such as `primitives.HBox` rendered nothing: its children kept empty bounds and `TextWidget.Draw` returned early on them. The content is measured now, and its height is part of the dialog height instead of the fixed padding allowance.
