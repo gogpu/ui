@@ -18,8 +18,7 @@ import (
 // preserves content, scissor clips draws, pixels are readable via Map.
 func createSoftwareDevice(t *testing.T) (*wgpu.Device, *wgpu.Queue, func()) {
 	t.Helper()
-	api := software.API{}
-	instance, err := api.CreateInstance(nil)
+	instance, err := software.NewBackend().CreateInstance(nil)
 	if err != nil {
 		t.Fatalf("software CreateInstance: %v", err)
 	}
@@ -47,11 +46,19 @@ func createSoftwareDevice(t *testing.T) (*wgpu.Device, *wgpu.Queue, func()) {
 	return device, queue, cleanup
 }
 
+// copyBytesPerRowAlignment is the WebGPU COPY_BYTES_PER_ROW_ALIGNMENT: a
+// texture-to-buffer copy must use a bytesPerRow that is a multiple of 256.
+const copyBytesPerRowAlignment = 256
+
 // readbackTexture copies an RGBA8 texture to a mappable buffer and returns
-// the raw pixel bytes. Returns nil when readback is unavailable.
+// the pixel bytes tightly packed (stride = w). The copy itself uses rows
+// padded to copyBytesPerRowAlignment, as WebGPU requires. Returns nil when
+// readback is unavailable.
 func readbackTexture(t *testing.T, device *wgpu.Device, queue *wgpu.Queue, tex *wgpu.Texture, w, h int) []byte {
 	t.Helper()
-	bufSize := uint64(w * h * 4)
+	rowBytes := w * 4
+	paddedRow := (rowBytes + copyBytesPerRowAlignment - 1) / copyBytesPerRowAlignment * copyBytesPerRowAlignment
+	bufSize := uint64(paddedRow * h)
 	buf, err := device.CreateBuffer(&wgpu.BufferDescriptor{
 		Label: "readback",
 		Size:  bufSize,
@@ -63,18 +70,24 @@ func readbackTexture(t *testing.T, device *wgpu.Device, queue *wgpu.Queue, tex *
 	}
 	defer buf.Release()
 
-	enc, _ := device.CreateCommandEncoder(nil)
+	enc, err := device.CreateCommandEncoder(nil)
+	if err != nil {
+		t.Fatalf("CreateCommandEncoder for readback: %v", err)
+	}
 	regions := []wgpu.BufferTextureCopy{{
 		TextureBase: wgpu.ImageCopyTexture{Texture: tex},
 		BufferLayout: wgpu.ImageDataLayout{
 			Offset:       0,
-			BytesPerRow:  uint32(w * 4),
+			BytesPerRow:  uint32(paddedRow),
 			RowsPerImage: uint32(h),
 		},
 		Size: wgpu.Extent3D{Width: uint32(w), Height: uint32(h), DepthOrArrayLayers: 1},
 	}}
 	enc.CopyTextureToBuffer(tex, buf, regions)
-	cmd, _ := enc.Finish()
+	cmd, err := enc.Finish()
+	if err != nil {
+		t.Fatalf("Finish readback encoder: %v", err)
+	}
 	queue.Submit(cmd)
 
 	if err := buf.Map(context.Background(), wgpu.MapModeRead, 0, bufSize); err != nil {
@@ -86,8 +99,11 @@ func readbackTexture(t *testing.T, device *wgpu.Device, queue *wgpu.Queue, tex *
 		t.Logf("MappedRange: %v", err)
 		return nil
 	}
-	result := make([]byte, len(mr.Bytes()))
-	copy(result, mr.Bytes())
+	padded := mr.Bytes()
+	result := make([]byte, rowBytes*h)
+	for y := range h {
+		copy(result[y*rowBytes:(y+1)*rowBytes], padded[y*paddedRow:y*paddedRow+rowBytes])
+	}
 	mr.Release()
 	buf.Unmap()
 	return result
@@ -357,8 +373,8 @@ func TestDamageAwareBlit_OnlySpinnerPixelsChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BeginRenderPass: %v", err)
 	}
-	rp.SetViewport(0, 0, surfW, surfH, 0, 1)
-	rp.SetScissorRect(spinnerX, spinnerY, spinnerW, spinnerH)
+	rp.SetViewport(gputypes.Viewport{Width: surfW, Height: surfH, MaxDepth: 1})
+	rp.SetScissorRect(gputypes.ScissorRect{X: spinnerX, Y: spinnerY, Width: spinnerW, Height: spinnerH})
 	rp.End()
 	cmd, err := enc.Finish()
 	if err != nil {
@@ -654,9 +670,9 @@ func TestDamageAwareBlit_ScissorRect_MatchesSpinnerBounds(t *testing.T) {
 			StoreOp: gputypes.StoreOpStore,
 		}},
 	})
-	pass2.SetViewport(0, 0, surfW, surfH, 0, 1)
-	pass2.SetScissorRect(spinnerX, spinnerY, spinnerW, spinnerH)
-	pass2.Draw(6, 1, 0, 0) // simulated spinner quad
+	pass2.SetViewport(gputypes.Viewport{Width: surfW, Height: surfH, MaxDepth: 1})
+	pass2.SetScissorRect(gputypes.ScissorRect{X: spinnerX, Y: spinnerY, Width: spinnerW, Height: spinnerH})
+	pass2.Draw(gputypes.DrawArgs{VertexCount: 6, InstanceCount: 1}) // simulated spinner quad
 	pass2.End()
 
 	stats2 := pass2.(*software.RenderPassEncoder).Stats()
@@ -827,8 +843,8 @@ func TestScissorRect_ExactBounds(t *testing.T) {
 					StoreOp: gputypes.StoreOpStore,
 				}},
 			})
-			pass.SetScissorRect(tt.x, tt.y, tt.w, tt.h)
-			pass.Draw(6, 1, 0, 0) // simulated boundary quad
+			pass.SetScissorRect(gputypes.ScissorRect{X: tt.x, Y: tt.y, Width: tt.w, Height: tt.h})
+			pass.Draw(gputypes.DrawArgs{VertexCount: 6, InstanceCount: 1}) // simulated boundary quad
 			pass.End()
 
 			stats := pass.(*software.RenderPassEncoder).Stats()
@@ -866,8 +882,7 @@ func TestScissorRect_ExactBounds(t *testing.T) {
 // API (CreateTexture, WriteTexture, readback), use createSoftwareDevice instead.
 func createSoftwareHALDevice(t *testing.T) (hal.Device, func()) {
 	t.Helper()
-	api := software.API{}
-	instance, err := api.CreateInstance(&hal.InstanceDescriptor{})
+	instance, err := software.NewBackend().CreateInstance(&hal.InstanceDescriptor{})
 	if err != nil {
 		t.Fatalf("software CreateInstance: %v", err)
 	}
