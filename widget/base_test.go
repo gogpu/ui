@@ -297,30 +297,84 @@ func TestWidgetBase_RemoveChild(t *testing.T) {
 	parent.AddChild(child2)
 	parent.AddChild(child3)
 
-	// Remove middle child
-	if !parent.RemoveChild(child2) {
+	// Remove the FIRST child. The old implementation swap-removed (moving the
+	// last element into the gap => [child3, child2]); order preservation is
+	// observable only when the removed element is not last.
+	if !parent.RemoveChild(child1) {
 		t.Error("RemoveChild should return true for existing child")
 	}
 	if parent.ChildCount() != 2 {
 		t.Error("expected 2 children after removal")
 	}
 
-	// Verify remaining children (order may change due to swap-remove)
 	remaining := parent.Children()
-	hasChild1 := remaining[0] == child1 || remaining[1] == child1
-	hasChild3 := remaining[0] == child3 || remaining[1] == child3
-	if !hasChild1 || !hasChild3 {
-		t.Error("wrong children remaining after removal")
+	if len(remaining) != 2 {
+		t.Fatalf("Children() len = %d, want 2", len(remaining))
+	}
+	if remaining[0] != child2 || remaining[1] != child3 {
+		t.Errorf("RemoveChild must preserve order: got [%p %p], want [child2 child3]",
+			remaining[0], remaining[1])
 	}
 
 	// Remove non-existent child
-	if parent.RemoveChild(child2) {
+	if parent.RemoveChild(child1) {
 		t.Error("RemoveChild should return false for non-existent child")
 	}
 
 	// Remove nil
 	if parent.RemoveChild(nil) {
 		t.Error("RemoveChild(nil) should return false")
+	}
+}
+
+// fakeUnbinder counts Unbind calls from the binding lifecycle test.
+type fakeUnbinder struct{ calls int }
+
+func (f *fakeUnbinder) Unbind() { f.calls++ }
+
+// bindingWidget mounts a signal-like binding in Mount so RemoveChild can be
+// observed to release it via WidgetBase.CleanupBindings inside UnmountTree.
+type bindingWidget struct {
+	WidgetBase
+	unbinder *fakeUnbinder
+}
+
+func (b *bindingWidget) Layout(_ Context, c geometry.Constraints) geometry.Size {
+	return c.Smallest()
+}
+
+func (b *bindingWidget) Draw(_ Context, _ Canvas) {}
+
+func (b *bindingWidget) Event(_ Context, _ event.Event) bool { return false }
+
+func (b *bindingWidget) Mount(_ Context) { b.AddBinding(b.unbinder) }
+
+func (b *bindingWidget) Unmount() {}
+
+func TestWidgetBase_RemoveChildUnmountsBindings(t *testing.T) {
+	parent := NewWidgetBase()
+	ctx := NewContext()
+	child := &bindingWidget{unbinder: &fakeUnbinder{}}
+
+	// Mount the child so it holds a live binding.
+	MountTree(child, ctx)
+	if !child.IsMounted() {
+		t.Fatal("precondition: child should be mounted")
+	}
+
+	// WidgetBase on its own has no SetSelf container, so AddChild stores the
+	// child without re-mounting it; the child stays mounted from the call above.
+	parent.AddChild(child)
+
+	if !parent.RemoveChild(child) {
+		t.Fatal("RemoveChild should return true for an existing child")
+	}
+	if child.unbinder.calls != 1 {
+		t.Errorf("Unbind calls = %d, want 1 (bindings must be released on removal)",
+			child.unbinder.calls)
+	}
+	if child.IsMounted() {
+		t.Error("removed child should be unmounted")
 	}
 }
 

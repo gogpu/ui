@@ -66,6 +66,8 @@ type WidgetBase struct {
 	bindings          []Unbinder     // Signal bindings (cleaned up on unmount)
 	effects           []Stopper      // Effects (stopped on unmount)
 	mounted           bool           // Whether widget is currently mounted
+	self              Widget         // Concrete container owning this base (see SetSelf)
+	ctx               Context        // Mount context, stored by MountTree (see SetContext)
 
 	// --- RepaintBoundary property (ADR-024) ---
 	// When isRepaintBoundary is true, this widget owns a SceneCache that
@@ -264,94 +266,229 @@ func (w *WidgetBase) ChildAt(index int) Widget {
 
 // AddChild adds a child widget.
 //
-// If the child has a WidgetBase that can be accessed, its parent is set
-// to this widget.
+// The child's parent is set to the concrete container (see [WidgetBase.SetSelf])
+// and, when the container is mounted, the child's subtree is mounted with the
+// container's context so signal bindings become active. The parent's layout is
+// then marked dirty so the new child participates in the next layout pass.
 func (w *WidgetBase) AddChild(child Widget) {
 	if child == nil {
 		return
 	}
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	w.children = append(w.children, child)
-	// Try to set parent if child supports it
-	if setter, ok := child.(interface{ SetParent(Widget) }); ok {
-		// Note: We can't pass w here because we only have *WidgetBase, not the containing widget
-		// The parent should be set by the containing widget type if needed
-		_ = setter // Avoid unused variable
-	}
+	w.mu.Unlock()
+	w.attachChild(child)
+	w.afterChildMutation()
 }
 
-// RemoveChild removes a child widget.
+// RemoveChild removes a child widget, preserving the order of the remaining
+// children.
 //
-// Returns true if the child was found and removed.
+// Returns true if the child was found and removed. The removed child's subtree
+// is unmounted (bindings released, parent cleared) so it can be re-added later.
 func (w *WidgetBase) RemoveChild(child Widget) bool {
 	if child == nil {
 		return false
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.mu.RLock()
+	idx := -1
 	for i, c := range w.children {
-		if c != child {
-			continue
+		if c == child {
+			idx = i
+			break
 		}
-		// Remove by replacing with last element and truncating
-		lastIdx := len(w.children) - 1
-		w.children[i] = w.children[lastIdx]
-		w.children[lastIdx] = nil // Clear reference for GC
-		w.children = w.children[:lastIdx]
-		return true
 	}
-	return false
+	w.mu.RUnlock()
+	if idx < 0 {
+		return false
+	}
+	w.detachChildAt(idx)
+	w.afterChildMutation()
+	return true
 }
 
-// RemoveChildAt removes the child at the given index.
+// RemoveChildAt removes the child at the given index, preserving order.
 //
-// Returns the removed child, or nil if the index is out of range.
+// Returns the removed child, or nil if the index is out of range. The removed
+// child's subtree is unmounted (bindings released, parent cleared).
 func (w *WidgetBase) RemoveChildAt(index int) Widget {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if index < 0 || index >= len(w.children) {
+	child := w.detachChildAt(index)
+	if child == nil {
 		return nil
 	}
-	child := w.children[index]
-	// Remove while preserving order
-	copy(w.children[index:], w.children[index+1:])
-	w.children[len(w.children)-1] = nil // Clear reference for GC
-	w.children = w.children[:len(w.children)-1]
+	w.afterChildMutation()
 	return child
 }
 
 // ClearChildren removes all child widgets.
+//
+// Every child subtree is unmounted (bindings released, parent cleared) before
+// the list is emptied.
 func (w *WidgetBase) ClearChildren() {
 	w.mu.Lock()
-	defer w.mu.Unlock()
-	// Clear references for GC
-	for i := range w.children {
-		w.children[i] = nil
+	children := w.children
+	if len(children) == 0 {
+		w.mu.Unlock()
+		return
 	}
-	w.children = w.children[:0]
+	w.children = nil
+	ctx := w.ctx
+	w.mu.Unlock()
+
+	for _, child := range children {
+		if child == nil {
+			continue
+		}
+		releaseFocusInSubtree(ctx, child)
+		UnmountTree(child)
+	}
+	w.afterChildMutation()
 }
 
-// InsertChild inserts a child widget at the given index.
+// InsertChild inserts a child widget at the given index, preserving order.
 //
-// If index is out of range, the child is appended.
+// If index is out of range, the child is appended. The child's parent is set
+// and the parent's layout is marked dirty exactly as for [WidgetBase.AddChild].
 func (w *WidgetBase) InsertChild(index int, child Widget) {
 	if child == nil {
 		return
 	}
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	if index < 0 {
 		index = 0
 	}
 	if index >= len(w.children) {
 		w.children = append(w.children, child)
+	} else {
+		w.children = append(w.children, nil)
+		copy(w.children[index+1:], w.children[index:])
+		w.children[index] = child
+	}
+	w.mu.Unlock()
+	w.attachChild(child)
+	w.afterChildMutation()
+}
+
+// MoveChild moves the child at index from to index to, preserving the order of
+// the other children. It relinks the list without detaching, so the child keeps
+// its identity, state and signal bindings — this is the reorder operation the
+// enterprise references expose as a first-class call (Flutter render
+// move(), Qt insertWidget of an existing item, GTK gtk_box_reorder_child_after).
+//
+// Returns false when either index is out of range. Moving a child to its
+// current index is a valid no-op and returns true.
+func (w *WidgetBase) MoveChild(from, to int) bool {
+	w.mu.Lock()
+	n := len(w.children)
+	if from < 0 || from >= n || to < 0 || to >= n {
+		w.mu.Unlock()
+		return false
+	}
+	if from == to {
+		w.mu.Unlock()
+		return true
+	}
+	child := w.children[from]
+	// Remove at from.
+	copy(w.children[from:], w.children[from+1:])
+	w.children[n-1] = nil
+	w.children = w.children[:n-1]
+	// Insert at to.
+	if to >= len(w.children) {
+		w.children = append(w.children, child)
+	} else {
+		w.children = append(w.children, nil)
+		copy(w.children[to+1:], w.children[to:])
+		w.children[to] = child
+	}
+	w.mu.Unlock()
+	w.afterChildMutation()
+	return true
+}
+
+// attachChild links a freshly stored child to this container. It sets the real
+// parent from the container registered via [WidgetBase.SetSelf] and mounts the
+// child's subtree when the container is already mounted and has a context.
+func (w *WidgetBase) attachChild(child Widget) {
+	if child == nil {
 		return
 	}
-	// Insert at index
-	w.children = append(w.children, nil)
-	copy(w.children[index+1:], w.children[index:])
-	w.children[index] = child
+	w.mu.RLock()
+	self := w.self
+	mounted := w.mounted
+	ctx := w.ctx
+	w.mu.RUnlock()
+
+	if self == nil {
+		// No concrete container registered; see SetSelf. Leave the child
+		// stored but unattached rather than set a wrong or nil parent.
+		return
+	}
+	if setter, ok := child.(interface{ SetParent(Widget) }); ok {
+		setter.SetParent(self)
+	}
+	if mounted && ctx != nil {
+		MountTree(child, ctx)
+	}
+}
+
+// detachChildAt removes and returns the child at index (nil if out of range),
+// releasing keyboard focus held inside the removed subtree and unmounting it
+// bottom-up (bindings released, cached scene cleared, parent cleared).
+func (w *WidgetBase) detachChildAt(index int) Widget {
+	w.mu.Lock()
+	if index < 0 || index >= len(w.children) {
+		w.mu.Unlock()
+		return nil
+	}
+	child := w.children[index]
+	ctx := w.ctx
+	copy(w.children[index:], w.children[index+1:])
+	w.children[len(w.children)-1] = nil // Clear reference for GC
+	w.children = w.children[:len(w.children)-1]
+	w.mu.Unlock()
+
+	if child != nil {
+		releaseFocusInSubtree(ctx, child)
+		UnmountTree(child)
+	}
+	return child
+}
+
+// afterChildMutation performs the single dirty step for any child list change.
+// It marks this widget's layout dirty only (ADR-028/ADR-032): the invalidation
+// climbs to the root (scheduling a layout pass) while paint stays scoped to the
+// nearest RepaintBoundary on the next LayoutChild cache miss. It deliberately
+// does not call ctx.Invalidate() (removed by ADR-028) and does not run a
+// synchronous relayout — Qt and GTK coalesce mutations the same way.
+func (w *WidgetBase) afterChildMutation() {
+	w.MarkNeedsLayout()
+}
+
+// releaseFocusInSubtree releases keyboard focus if the currently focused widget
+// lies within the subtree rooted at root. It happens synchronously at detach,
+// matching Flutter's FocusAttachment.detach and GTK's gtk_widget_unparent, so
+// FocusedWidget never reports a widget that is no longer in the tree between
+// the detach and the next frame.
+func releaseFocusInSubtree(ctx Context, root Widget) {
+	if ctx == nil || root == nil {
+		return
+	}
+	focused := ctx.FocusedWidget()
+	if focused == nil {
+		return
+	}
+	for cur := focused; cur != nil; {
+		if cur == root {
+			ctx.ReleaseFocus(focused)
+			return
+		}
+		pg, ok := cur.(interface{ Parent() Widget })
+		if !ok {
+			return
+		}
+		cur = pg.Parent()
+	}
 }
 
 // HasChildren returns true if the widget has any children.
@@ -499,6 +636,42 @@ func (w *WidgetBase) SetMounted(m bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.mounted = m
+}
+
+// SetSelf registers the concrete container widget that owns this base.
+//
+// WidgetBase cannot know its enclosing type: a container embeds it, so a
+// method promoted from the base only has the *WidgetBase. Containers that own
+// a plain membership child list ([primitives.Box], [overlay.Container]) must
+// therefore call SetSelf once in their constructor so the mutators can set the
+// correct parent on attached children.
+//
+// When self is nil (SetSelf was never called), the mutators still update the
+// child list but return from the attach step without setting a parent or
+// mounting — attaching to a nil parent would be wrong, and there is no concrete
+// widget to pass. This mirrors Qt/GTK asserting a valid parent at insert; we
+// degrade quietly instead of panicking so a bare WidgetBase remains usable.
+//
+// Framework plumbing, not application API: it is exported only because a
+// container in another package (primitives, overlay) embeds WidgetBase and must
+// register itself from its own constructor. An application never calls it.
+func (w *WidgetBase) SetSelf(self Widget) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.self = self
+}
+
+// setContext stores the mount context for this widget.
+//
+// MountTree calls it when the subtree is mounted, so a container can mount a
+// child added at runtime (see attachChild); UnmountTree clears it. It stays
+// unexported: only this package calls it, through a type assertion, and an
+// embedding widget in another package gets the promoted method as part of its
+// method set.
+func (w *WidgetBase) setContext(ctx Context) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.ctx = ctx
 }
 
 // NeedsRedraw reports whether the widget needs re-rendering.
