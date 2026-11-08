@@ -370,13 +370,13 @@ All releases must follow this cascade. Breaking changes in lower layers require 
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| gogpu/gg | v0.52.2 | 2D rendering + unified draw queue (ADR-051/052) |
-| gogpu/gogpu | v0.52.1 | Windowing, input (examples) |
-| gogpu/gpucontext | v0.27.0 | Shared interfaces (opaque struct tokens) |
+| gogpu/gg | v0.52.6 | 2D rendering + unified draw queue (ADR-051/052) |
+| gogpu/gogpu | v0.54.1 | Windowing, input (`desktop/` and examples) |
+| gogpu/gpucontext | v0.31.3 | Shared interfaces (opaque struct tokens) |
+| gogpu/wgpu, gogpu/gputypes | v0.34.9, v0.8.2 | Software device in `desktop/` tests only |
 | coregx/signals | v0.1.1 | Reactive state management |
-| golang.org/x/image | v0.44.0 | Inter font (standard) |
 
-**Indirect:** gogpu/wgpu v0.31.2, gogpu/naga v0.18.0, gogpu/gputypes v0.5.2, go-text/typesetting v0.3.4
+**Indirect:** gogpu/naga v0.21.4, golang.org/x/image v0.45.0, golang.org/x/text v0.41.0. `go.mod` is the source of truth.
 
 ---
 

@@ -1536,13 +1536,13 @@ The `registry/` package provides a global registry for widget factories:
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| `github.com/gogpu/gg` | 2D graphics + vector icons + unified draw queue | v0.52.2 |
-| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.27.0 |
-| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (examples only) | v0.52.1 |
+| `github.com/gogpu/gg` | 2D graphics + vector icons + unified draw queue | v0.52.6 |
+| `github.com/gogpu/gpucontext` | Shared GPU interfaces (opaque struct tokens) | v0.31.3 |
+| `github.com/gogpu/gogpu` | Application framework, windowing, Browser/WASM (`desktop/` and examples) | v0.54.1 |
+| `github.com/gogpu/wgpu`, `github.com/gogpu/gputypes` | Software device for `desktop/` tests only | v0.34.9, v0.8.2 |
 | `github.com/coregx/signals` | Reactive state management | v0.1.1 |
-| `golang.org/x/image` | Font rendering infrastructure | v0.44.0 |
 
-**Indirect:** gogpu/wgpu v0.31.2, gogpu/naga v0.18.0, gogpu/gputypes v0.5.2, go-text/typesetting v0.3.4, golang.org/x/text v0.40.0
+**Indirect:** gogpu/naga v0.21.4, golang.org/x/image v0.45.0, golang.org/x/text v0.41.0. `go.mod` is the source of truth.
 
 Go version: **1.25.0**
 
@@ -1626,4 +1626,4 @@ All types in `geometry/` are small structs passed by value. Operations return ne
 
 ---
 
-*This document reflects the actual codebase as of August 13, 2026 (v0.1.54 — 27 interactive widgets, 4 design systems with 70 painters, gesture recognition ADR-049, Layer Tree compositor, damage-aware blit, unified draw queue ADR-051/052, OS clipboard).*
+*This document reflects the actual codebase as of November 8, 2026 (v0.1.55 — 27 interactive widgets, 4 design systems with 70 painters, gesture recognition ADR-049, Layer Tree compositor, damage-aware blit, unified draw queue ADR-051/052, OS clipboard).*
