@@ -17,7 +17,6 @@ const scrimAlpha = 0.32
 type Container struct {
 	widget.WidgetBase
 
-	content    widget.Widget
 	onDismiss  func()
 	modal      bool
 	windowSize geometry.Size
@@ -46,14 +45,15 @@ func WithModal(modal bool) ContainerOption {
 // The windowSize is used to size the backdrop to fill the entire window.
 func NewContainer(content widget.Widget, windowSize geometry.Size, opts ...ContainerOption) *Container {
 	c := &Container{
-		content:    content,
 		windowSize: windowSize,
 	}
+	// Register the concrete container so AddChild sets the content's parent.
+	c.SetSelf(c)
 	c.SetVisible(true)
 	c.SetEnabled(true)
-	// Register content as child so tree walkers (dirty collector, hit test,
-	// Layer Tree builder) can discover it. Without this, Container.Children()
-	// returns nil and overlay content is invisible to dirty tracking.
+	// The content widget is the container's single child. It lives in the
+	// shared WidgetBase list so tree walkers (dirty collector, hit test, Layer
+	// Tree builder) discover it; AddChild also links its parent.
 	if content != nil {
 		c.AddChild(content)
 	}
@@ -68,9 +68,9 @@ func (c *Container) Layout(ctx widget.Context, constraints geometry.Constraints)
 	size := constraints.Constrain(c.windowSize)
 	c.SetBounds(geometry.NewRect(0, 0, size.Width, size.Height))
 
-	if c.content != nil {
-		// Content is laid out with loose constraints so it can take its natural size.
-		widget.LayoutChild(c.content, ctx, geometry.Loose(size))
+	// Content is laid out with loose constraints so it can take its natural size.
+	if content := c.Content(); content != nil {
+		widget.LayoutChild(content, ctx, geometry.Loose(size))
 	}
 	return size
 }
@@ -84,8 +84,8 @@ func (c *Container) Draw(ctx widget.Context, canvas widget.Canvas) {
 		scrim := widget.RGBA(0, 0, 0, scrimAlpha)
 		canvas.DrawRect(c.Bounds(), scrim)
 	}
-	if c.content != nil {
-		c.content.Draw(ctx, canvas)
+	if content := c.Content(); content != nil {
+		content.Draw(ctx, canvas)
 	}
 }
 
@@ -94,7 +94,7 @@ func (c *Container) Draw(ctx widget.Context, canvas widget.Canvas) {
 // dismissal. Modal containers consume all remaining events.
 func (c *Container) Event(ctx widget.Context, e event.Event) bool {
 	// Give content first chance at the event.
-	if c.content != nil && c.content.Event(ctx, e) {
+	if content := c.Content(); content != nil && content.Event(ctx, e) {
 		return true
 	}
 
@@ -123,12 +123,13 @@ func (c *Container) handleMouseDismiss(e event.Event) bool {
 		return false
 	}
 
-	if c.content == nil {
+	content := c.Content()
+	if content == nil {
 		c.Dismiss()
 		return true
 	}
 
-	boundsGetter, ok := c.content.(interface{ Bounds() geometry.Rect })
+	boundsGetter, ok := content.(interface{ Bounds() geometry.Rect })
 	if !ok {
 		return false
 	}
@@ -152,17 +153,9 @@ func (c *Container) Modal() bool {
 	return c.modal
 }
 
-// Children returns the content widget as the sole child.
-func (c *Container) Children() []widget.Widget {
-	if c.content == nil {
-		return nil
-	}
-	return []widget.Widget{c.content}
-}
-
-// Content returns the wrapped content widget.
+// Content returns the wrapped content widget, or nil if there is none.
 func (c *Container) Content() widget.Widget {
-	return c.content
+	return c.ChildAt(0)
 }
 
 // SetWindowSize updates the backdrop size. Call this when the window is resized.

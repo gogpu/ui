@@ -63,7 +63,6 @@ type BoxWidget struct {
 	direction          Direction
 	directionSignal    state.ReadonlySignal[Direction]
 	crossAlign         CrossAxisAlignment
-	children           []widget.Widget
 	accessibilityLabel string
 }
 
@@ -78,18 +77,17 @@ type BoxWidget struct {
 //	    primitives.Text("Body"),
 //	).Padding(16).Background(widget.Hex(0xFFFFFF))
 func Box(children ...widget.Widget) *BoxWidget {
-	b := &BoxWidget{
-		children: children,
-	}
+	b := &BoxWidget{}
+	// Register the concrete container so AddChild can set the real parent on
+	// each child (WidgetBase alone cannot know its enclosing type).
+	b.SetSelf(b)
 	b.SetVisible(true)
 	b.SetEnabled(true)
-	// Establish parent chain for upward dirty propagation (ADR-028).
-	// Flutter: RenderObject.adoptChild sets parent on each child.
+	// Children live in the single WidgetBase store. AddChild establishes the
+	// parent chain for upward dirty propagation (Flutter adoptChild) and mounts
+	// any child added to an already-mounted box.
 	for _, child := range children {
-		type parentSetter interface{ SetParent(widget.Widget) }
-		if ps, ok := child.(parentSetter); ok {
-			ps.SetParent(b)
-		}
+		b.AddChild(child)
 	}
 	return b
 }
@@ -315,16 +313,19 @@ func (b *BoxWidget) layoutVertical(ctx widget.Context, constraints geometry.Cons
 		childConstraints.MaxHeight = 0
 	}
 
-	childCount := len(b.children)
+	// Snapshot the child list once per pass. A child removed from inside its
+	// own Layout must not shift the slice under us (GTK save-next / Flutter
+	// toList equivalent).
+	children := b.Children()
 
 	// Count expanded children to decide between single-pass and two-pass.
-	expandedCount := b.countExpanded()
+	expandedCount := countExpanded(children)
 
 	if expandedCount == 0 {
-		return b.layoutVerticalSimple(ctx, constraints, pad, childConstraints, childCount)
+		return b.layoutVerticalSimple(ctx, constraints, pad, childConstraints, children)
 	}
 
-	return b.layoutVerticalTwoPass(ctx, constraints, pad, childConstraints, childCount, expandedCount)
+	return b.layoutVerticalTwoPass(ctx, constraints, pad, childConstraints, children, expandedCount)
 }
 
 // layoutVerticalSimple is the original single-pass vertical layout (no Expanded children).
@@ -333,12 +334,13 @@ func (b *BoxWidget) layoutVerticalSimple(
 	constraints geometry.Constraints,
 	pad geometry.Insets,
 	childConstraints geometry.Constraints,
-	childCount int,
+	children []widget.Widget,
 ) geometry.Size {
+	childCount := len(children)
 	var totalHeight float32
 	var maxChildWidth float32
 
-	for i, child := range b.children {
+	for i, child := range children {
 		remaining := childConstraints
 		if childConstraints.HasBoundedHeight() {
 			remaining.MaxHeight = childConstraints.MaxHeight - totalHeight
@@ -379,7 +381,7 @@ func (b *BoxWidget) layoutVerticalSimple(
 	// Second pass: apply cross-axis alignment now that we know total width.
 	if b.crossAlign == CrossAxisCenter || b.crossAlign == CrossAxisEnd {
 		availWidth := resultSize.Width - pad.Horizontal()
-		for _, child := range b.children {
+		for _, child := range children {
 			cb := child.(interface{ Bounds() geometry.Rect }).Bounds()
 			cw := cb.Width()
 			ch := cb.Height()
@@ -405,15 +407,17 @@ func (b *BoxWidget) layoutVerticalTwoPass(
 	constraints geometry.Constraints,
 	pad geometry.Insets,
 	childConstraints geometry.Constraints,
-	childCount int,
+	children []widget.Widget,
 	expandedCount int,
 ) geometry.Size {
+	childCount := len(children)
+
 	// Pass 1: measure fixed (non-expanded) children.
 	fixedSizes := make([]geometry.Size, childCount)
 	var fixedHeight float32
 	var maxChildWidth float32
 
-	for i, child := range b.children {
+	for i, child := range children {
 		if isExpanded(child) {
 			continue
 		}
@@ -439,7 +443,7 @@ func (b *BoxWidget) layoutVerticalTwoPass(
 
 	// Pass 2: layout expanded children and position all.
 	var totalHeight float32
-	for i, child := range b.children {
+	for i, child := range children {
 		var size geometry.Size
 		if isExpanded(child) {
 			ec := geometry.Constraints{
@@ -494,16 +498,17 @@ func (b *BoxWidget) layoutHorizontal(ctx widget.Context, constraints geometry.Co
 		childConstraints.MaxHeight = 0
 	}
 
-	childCount := len(b.children)
+	// Snapshot the child list once per pass (see layoutVertical).
+	children := b.Children()
 
 	// Count expanded children to decide between single-pass and two-pass.
-	expandedCount := b.countExpanded()
+	expandedCount := countExpanded(children)
 
 	if expandedCount == 0 {
-		return b.layoutHorizontalSimple(ctx, constraints, pad, childConstraints, childCount)
+		return b.layoutHorizontalSimple(ctx, constraints, pad, childConstraints, children)
 	}
 
-	return b.layoutHorizontalTwoPass(ctx, constraints, pad, childConstraints, childCount, expandedCount)
+	return b.layoutHorizontalTwoPass(ctx, constraints, pad, childConstraints, children, expandedCount)
 }
 
 // layoutHorizontalSimple is the original single-pass horizontal layout (no Expanded children).
@@ -512,12 +517,13 @@ func (b *BoxWidget) layoutHorizontalSimple(
 	constraints geometry.Constraints,
 	pad geometry.Insets,
 	childConstraints geometry.Constraints,
-	childCount int,
+	children []widget.Widget,
 ) geometry.Size {
+	childCount := len(children)
 	var totalWidth float32
 	var maxChildHeight float32
 
-	for i, child := range b.children {
+	for i, child := range children {
 		remaining := childConstraints
 		if childConstraints.HasBoundedWidth() {
 			remaining.MaxWidth = childConstraints.MaxWidth - totalWidth
@@ -559,15 +565,17 @@ func (b *BoxWidget) layoutHorizontalTwoPass(
 	constraints geometry.Constraints,
 	pad geometry.Insets,
 	childConstraints geometry.Constraints,
-	childCount int,
+	children []widget.Widget,
 	expandedCount int,
 ) geometry.Size {
+	childCount := len(children)
+
 	// Pass 1: measure fixed (non-expanded) children.
 	fixedSizes := make([]geometry.Size, childCount)
 	var fixedWidth float32
 	var maxChildHeight float32
 
-	for i, child := range b.children {
+	for i, child := range children {
 		if isExpanded(child) {
 			continue
 		}
@@ -593,7 +601,7 @@ func (b *BoxWidget) layoutHorizontalTwoPass(
 
 	// Pass 2: layout expanded children and position all.
 	var totalWidth float32
-	for i, child := range b.children {
+	for i, child := range children {
 		var size geometry.Size
 		if isExpanded(child) {
 			ec := geometry.Constraints{
@@ -672,7 +680,9 @@ func (b *BoxWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	// Flutter: PaintingContext.paintChild always calls paint on all children;
 	// visibility culling is in the compositor (addRetained vs addToScene).
 	canvas.PushTransform(bounds.Min)
-	for _, child := range b.children {
+	// Iterate a snapshot so a child removed from inside Draw does not shift the
+	// slice or skip a sibling.
+	for _, child := range b.Children() {
 		widget.StampScreenOrigin(child, canvas)
 		widget.DrawChild(child, ctx, canvas)
 	}
@@ -728,9 +738,11 @@ func (b *BoxWidget) Event(ctx widget.Context, e event.Event) bool {
 		return b.dispatchWheelEvent(ctx, we)
 	}
 
-	// Non-mouse events (keyboard, focus) broadcast to all children.
-	for i := len(b.children) - 1; i >= 0; i-- {
-		if b.children[i].Event(ctx, e) {
+	// Non-mouse events (keyboard, focus) broadcast to all children. Snapshot
+	// the list once so a child removed during dispatch does not shift it.
+	children := b.Children()
+	for i := len(children) - 1; i >= 0; i-- {
+		if children[i].Event(ctx, e) {
 			return true
 		}
 	}
@@ -744,8 +756,9 @@ func (b *BoxWidget) dispatchMouseEvent(ctx widget.Context, e *event.MouseEvent) 
 	local := *e
 	local.Position = e.Position.Sub(b.Bounds().Min)
 
-	for i := len(b.children) - 1; i >= 0; i-- {
-		child := b.children[i]
+	children := b.Children()
+	for i := len(children) - 1; i >= 0; i-- {
+		child := children[i]
 		if bw, ok := child.(interface{ Bounds() geometry.Rect }); ok {
 			if !bw.Bounds().Contains(local.Position) {
 				continue
@@ -764,8 +777,9 @@ func (b *BoxWidget) dispatchWheelEvent(ctx widget.Context, e *event.WheelEvent) 
 	local := *e
 	local.Position = e.Position.Sub(b.Bounds().Min)
 
-	for i := len(b.children) - 1; i >= 0; i-- {
-		child := b.children[i]
+	children := b.Children()
+	for i := len(children) - 1; i >= 0; i-- {
+		child := children[i]
 		if bw, ok := child.(interface{ Bounds() geometry.Rect }); ok {
 			if !bw.Bounds().Contains(local.Position) {
 				continue
@@ -776,16 +790,6 @@ func (b *BoxWidget) dispatchWheelEvent(ctx widget.Context, e *event.WheelEvent) 
 		}
 	}
 	return false
-}
-
-// Children returns the box's child widgets.
-func (b *BoxWidget) Children() []widget.Widget {
-	if len(b.children) == 0 {
-		return nil
-	}
-	result := make([]widget.Widget, len(b.children))
-	copy(result, b.children)
-	return result
 }
 
 // --- a11y.Accessible interface ---
@@ -824,9 +828,9 @@ func (b *BoxWidget) AccessibilityActions() []a11y.Action {
 }
 
 // countExpanded returns the number of children that are wrapped in [Expanded].
-func (b *BoxWidget) countExpanded() int {
+func countExpanded(children []widget.Widget) int {
 	var count int
-	for _, child := range b.children {
+	for _, child := range children {
 		if isExpanded(child) {
 			count++
 		}
