@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`WidgetBase.MoveChild`** ([#243](https://github.com/gogpu/ui/issues/243)) — reorders a child without detaching it, so a moved child keeps its state and its signal bindings.
+- **`widget.IsDetached`** — reports whether a widget was removed from a tree (`UnmountTree` ran on it: `RemoveChild`, a replaced root, a closed overlay) and has not been attached again. It is not "not mounted": a live widget a container added without a mount pass is not detached. Code that keeps references to widgets across frames, as the window does for pointer capture and hover, uses it to drop references to removed ones.
 - **Dropdown items from a signal** ([#243](https://github.com/gogpu/ui/issues/243)) — `dropdown.ItemsSignal`, `ItemsReadonlySignal` and `ItemsFn` set the items at runtime, with the same priority as the other widgets (ReadonlySignal > Signal > Fn > Static). Changing the list clamps the selected index, an empty list clears the selection and shows the placeholder, and the trigger repaints; an open menu picks the new list up on the next open.
 
 ### Fixed
 
+- **Pointer capture and hover stay on live widgets added at runtime** — the window dropped the capture and hover of any widget that was not mounted, taking "not mounted" to mean "removed". Content added without a mount pass, such as a panel docked with `docking.Host.Dock` after `SetRoot`, lost its capture on the next event, so a slider or scrollbar drag inside it stuck, and its hover restarted on every move. The window now drops only widgets that were actually removed from the tree; the new `widget.IsDetached` reports that state.
 - **`AddChild` sets the child's parent** ([#243](https://github.com/gogpu/ui/issues/243)) — the base mutators used to store the child without linking a parent.
 - **Dialog content is laid out** ([#241](https://github.com/gogpu/ui/issues/241)) — the dialog drew its content without laying it out, so a container such as `primitives.HBox` rendered nothing: its children kept empty bounds and `TextWidget.Draw` returned early on them. The content is measured now, and its height is part of the dialog height instead of the fixed padding allowance.
 
