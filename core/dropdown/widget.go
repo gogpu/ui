@@ -218,14 +218,16 @@ func (w *Widget) Open(ctx widget.Context) {
 	w.open = true
 
 	// Create the menu widget from the items resolved now. The menu keeps this
-	// snapshot; a later items-signal change shows up on the next Open.
+	// snapshot; a later items-signal change shows up on the next Open, and a
+	// pick is matched back to the current list (pickFromMenu).
+	shown := w.resolvedItems()
 	w.menuWidget = newMenuWidget(
-		w.resolvedItems(),
+		shown,
 		w.selectedIndex,
 		w.cfg.maxVisibleItems,
 		w.painter,
-		func(index int) {
-			w.selectItem(ctx, index)
+		func(row int) {
+			w.pickFromMenu(ctx, shown, row)
 		},
 	)
 
@@ -273,7 +275,48 @@ func (w *Widget) close(ctx widget.Context) {
 	w.SetNeedsRedraw(true)
 }
 
-// selectItem is called when an item is selected from the menu.
+// pickFromMenu handles a click on row of the open menu, which shows the
+// snapshot taken at Open. A bound items list may have changed since, so the
+// clicked item is looked up in the current list instead of taking the row as
+// an index into it: the selection and onChange then name the item the user
+// actually saw. An item that has left the list, or is now disabled, cannot be
+// selected; the pick changes nothing and the menu closes.
+func (w *Widget) pickFromMenu(ctx widget.Context, shown []ItemDef, row int) {
+	if row < 0 || row >= len(shown) {
+		return
+	}
+	index := indexOfItem(w.cfg.ResolvedItems(), shown[row], row)
+	if index < 0 {
+		w.close(ctx)
+		return
+	}
+	w.selectItem(ctx, index)
+}
+
+// indexOfItem returns the index of the item with want's Value and Label in
+// items, preferring hint when that position still holds it (the common case of
+// an unchanged list, and the right one among duplicates), or -1 when the item
+// is gone or disabled.
+func indexOfItem(items []ItemDef, want ItemDef, hint int) int {
+	same := func(it ItemDef) bool { return it.Value == want.Value && it.Label == want.Label }
+	found := -1
+	if hint >= 0 && hint < len(items) && same(items[hint]) {
+		found = hint
+	} else {
+		for i, it := range items {
+			if same(it) {
+				found = i
+				break
+			}
+		}
+	}
+	if found < 0 || items[found].Disabled {
+		return -1
+	}
+	return found
+}
+
+// selectItem selects the item at index of the current list.
 func (w *Widget) selectItem(ctx widget.Context, index int) {
 	items := w.cfg.ResolvedItems()
 	if index < 0 || index >= len(items) {
