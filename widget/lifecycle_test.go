@@ -144,3 +144,46 @@ func (m *mockUnbinder) Unbind() {
 		m.fn()
 	}
 }
+
+// TestIsDetached follows the detached mark through every transition: a fresh
+// widget and a never-mounted live one are not detached, removal marks the whole
+// subtree, and both a re-add to an unmounted container and a remount clear it.
+func TestIsDetached(t *testing.T) {
+	ctx := NewContext()
+
+	parent := newContainerWidget()
+	parent.SetSelf(parent)
+	child := newContainerWidget()
+	child.SetSelf(child)
+	grandchild := newTestWidget()
+	child.AddChild(grandchild)
+	parent.AddChild(child)
+
+	if IsDetached(parent) || IsDetached(child) || IsDetached(grandchild) {
+		t.Fatal("a fresh, never-mounted widget must not be detached")
+	}
+	if IsDetached(nil) {
+		t.Error("IsDetached(nil) = true, want false")
+	}
+
+	// Remove from an unmounted container, then add back: live again.
+	parent.RemoveChild(child)
+	if !IsDetached(child) || !IsDetached(grandchild) {
+		t.Fatal("RemoveChild must mark the removed subtree detached")
+	}
+	parent.AddChild(child)
+	if IsDetached(child) || IsDetached(grandchild) {
+		t.Error("re-adding to an unmounted container must clear the detached mark on the subtree")
+	}
+
+	// Mounted container: removal marks, MountTree clears.
+	MountTree(parent, ctx)
+	parent.RemoveChild(child)
+	if !IsDetached(child) || !IsDetached(grandchild) {
+		t.Fatal("RemoveChild from a mounted container must mark the subtree detached")
+	}
+	MountTree(child, ctx)
+	if IsDetached(child) || IsDetached(grandchild) {
+		t.Error("MountTree must clear the detached mark")
+	}
+}

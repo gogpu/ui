@@ -34,6 +34,9 @@ func MountTree(w Widget, ctx Context) {
 	if base, ok := w.(interface{ SetMounted(bool) }); ok {
 		base.SetMounted(true)
 	}
+	if d, ok := w.(detachMarker); ok {
+		d.setDetached(false)
+	}
 
 	// Store the mount context on widgets that support it so a container can
 	// mount children added at runtime (see WidgetBase.attachChild).
@@ -95,14 +98,62 @@ func UnmountTree(w Widget) {
 		sc.ClearCachedScene()
 	}
 
-	// Clear mounted state.
+	// Clear mounted state and mark the widget as removed from the tree.
 	if base, ok := w.(interface{ SetMounted(bool) }); ok {
 		base.SetMounted(false)
+	}
+	if d, ok := w.(detachMarker); ok {
+		d.setDetached(true)
 	}
 
 	// Clear the stored mount context so a later runtime add does not try to
 	// mount into a stale context.
 	if c, ok := w.(interface{ setContext(Context) }); ok {
 		c.setContext(nil)
+	}
+}
+
+// detachMarker is implemented by [WidgetBase] (and every widget embedding it):
+// UnmountTree sets the mark, MountTree and a re-attach clear it.
+type detachMarker interface {
+	setDetached(bool)
+	isDetached() bool
+}
+
+// IsDetached reports whether w was removed from a widget tree and has not been
+// put back since: [UnmountTree] ran on it (a container's RemoveChild, a
+// replaced root, a closed overlay) and neither [MountTree] nor a container's
+// AddChild/InsertChild has attached it again.
+//
+// It is not the same as "not mounted". A live widget can be in the tree without
+// ever being mounted, when a container adds it at runtime without running
+// MountTree (docking.Host.Dock, transition.Slide.SetChild). The window uses
+// IsDetached to drop pointer capture and hover held by a removed widget, so it
+// must never drop them for such a live one.
+//
+// A widget that does not embed [WidgetBase] is never reported as detached.
+func IsDetached(w Widget) bool {
+	if w == nil {
+		return false
+	}
+	if d, ok := w.(detachMarker); ok {
+		return d.isDetached()
+	}
+	return false
+}
+
+// clearDetachedTree clears the detached mark on every widget of the subtree
+// rooted at w. attachChild calls it when a removed child is added back to a
+// container that is not mounted, so the subtree is live again although
+// MountTree does not run on it.
+func clearDetachedTree(w Widget) {
+	if w == nil {
+		return
+	}
+	if d, ok := w.(detachMarker); ok {
+		d.setDetached(false)
+	}
+	for _, child := range w.Children() {
+		clearDetachedTree(child)
 	}
 }

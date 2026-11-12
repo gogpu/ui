@@ -66,6 +66,7 @@ type WidgetBase struct {
 	bindings          []Unbinder     // Signal bindings (cleaned up on unmount)
 	effects           []Stopper      // Effects (stopped on unmount)
 	mounted           bool           // Whether widget is currently mounted
+	detached          bool           // Removed by UnmountTree and not attached again (see IsDetached)
 	self              Widget         // Concrete container owning this base (see SetSelf)
 	ctx               Context        // Mount context, stored by MountTree (see SetContext)
 
@@ -429,7 +430,11 @@ func (w *WidgetBase) attachChild(child Widget) {
 	}
 	if mounted && ctx != nil {
 		MountTree(child, ctx)
+		return
 	}
+	// Not mounted here: the child is live again all the same, so a detached
+	// mark left by an earlier removal must go (see IsDetached).
+	clearDetachedTree(child)
 }
 
 // detachChildAt removes and returns the child at index (nil if out of range),
@@ -636,6 +641,20 @@ func (w *WidgetBase) SetMounted(m bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.mounted = m
+}
+
+// setDetached and isDetached implement detachMarker (see IsDetached). They
+// stay unexported: only the lifecycle walks in this package set the mark.
+func (w *WidgetBase) setDetached(d bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.detached = d
+}
+
+func (w *WidgetBase) isDetached() bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.detached
 }
 
 // SetSelf registers the concrete container widget that owns this base.
