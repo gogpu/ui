@@ -90,8 +90,13 @@ jobs:
 
     # The build users ship: CGO_ENABLED=0, so goffi (through gogpu and wgpu)
     # runs its fakecgo path.
+    # UI_REQUIRE=readback turns the software-device readback skips into
+    # failures: the pure Go backend provides readback on every runner, so a
+    # skip here would hide a real defect (P2-TEST-001).
     - name: Run tests
       shell: bash
+      env:
+        UI_REQUIRE: readback
       run: go test -v -count=1 -coverprofile=coverage.txt -covermode=atomic ./...
 
     # Race detection uses the toolchain's -race (ThreadSanitizer, needs cgo).
@@ -105,6 +110,7 @@ jobs:
       shell: bash
       env:
         CGO_ENABLED: "1"
+        UI_REQUIRE: readback
       run: go test -race -count=1 ./...
 
     - name: Upload coverage to Codecov
