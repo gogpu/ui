@@ -33,6 +33,13 @@ const (
 
 	// TypeResize represents window/widget resize events.
 	TypeResize
+
+	// TypeIME represents input-method composition events.
+	//
+	// IME events are delivered to the focused widget and carry preedit,
+	// commit, cancellation, and surrounding-text requests without
+	// overloading keyboard events.
+	TypeIME
 )
 
 // Event type string constants.
@@ -45,6 +52,7 @@ const (
 	typeTextStr   = "Text"
 	typeDropStr   = "Drop"
 	typeResizeStr = "Resize"
+	typeIMEStr    = "IME"
 )
 
 // String returns a human-readable name for the event type.
@@ -66,6 +74,8 @@ func (t Type) String() string {
 		return typeDropStr
 	case TypeResize:
 		return typeResizeStr
+	case TypeIME:
+		return typeIMEStr
 	default:
 		return unknownStr
 	}

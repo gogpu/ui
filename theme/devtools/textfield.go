@@ -130,6 +130,7 @@ func dtPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors tex
 	}
 
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, dtTFTextAlignLeft)
+	textfield.PaintComposition(canvas, st, colors)
 }
 
 // dtPaintTFCursorFromState draws the cursor using pre-computed CursorRect.
