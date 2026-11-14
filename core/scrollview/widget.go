@@ -287,6 +287,14 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 	// Handle scrollbar interactions FIRST so the thumb drag always works,
 	// even when content would consume the same mouse event (e.g., item click).
 	if me, ok := e.(*event.MouseEvent); ok {
+		// MouseEnter/MouseLeave come from the window's hover tracker and are
+		// meant for this widget only; content widgets get their own. The
+		// content is not bounds-checked below, so forwarding them would mark
+		// it hovered while the pointer is on the scrollbar or below short
+		// content, with no Leave ever following.
+		if me.MouseType == event.MouseEnter || me.MouseType == event.MouseLeave {
+			return handleEvent(w, ctx, e)
+		}
 		if w.dragging != dragNone || w.isOnScrollbar(me.Position) {
 			return handleEvent(w, ctx, e)
 		}

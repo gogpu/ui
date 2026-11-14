@@ -468,20 +468,8 @@ func (w *Window) HandleEvent(e event.Event) {
 		}
 	}
 
-	// Track widget-level hover for MouseEnter/MouseLeave dispatch.
-	// Skip hover updates during drag (button pressed) to prevent cursor
-	// from resetting when dragging over other widgets (e.g., SplitView divider).
 	if me, ok := e.(*event.MouseEvent); ok {
-		switch me.MouseType {
-		case event.MouseMove:
-			if me.Buttons == 0 {
-				w.updateHover(me.Position, me.Buttons, me.Modifiers())
-			}
-		case event.MouseLeave:
-			// Mouse left the window entirely — clear hover state.
-			// The window-level leave event still propagates to the root below.
-			w.clearHover(me.Buttons, me.Modifiers())
-		}
+		w.trackHover(me)
 	}
 
 	// Dispatch event to root widget.
@@ -1539,6 +1527,25 @@ func (m *windowOverlayManager) unmountOverlaysAbove(target overlay.Overlay) {
 
 // Compile-time check.
 var _ widget.OverlayManager = (*windowOverlayManager)(nil)
+
+// trackHover keeps widget-level hover (MouseEnter/MouseLeave) in step with
+// the pointer. Hover is not updated while a button is held, so dragging over
+// other widgets (e.g., a SplitView divider) does not reset the cursor.
+func (w *Window) trackHover(me *event.MouseEvent) {
+	switch me.MouseType {
+	case event.MouseMove, event.MouseEnter:
+		// MouseEnter means the pointer entered the window: hover the widget
+		// under it now rather than on the first move. Containers do not
+		// forward enter/leave, so this is how that widget gets its Enter.
+		if me.Buttons == 0 {
+			w.updateHover(me.Position, me.Buttons, me.Modifiers())
+		}
+	case event.MouseLeave:
+		// Mouse left the window entirely — clear hover state.
+		// The window-level leave event still propagates to the root.
+		w.clearHover(me.Buttons, me.Modifiers())
+	}
+}
 
 // updateHover performs hit-testing to find the widget under the mouse and
 // sends MouseEnter/MouseLeave events to individual widgets as the mouse

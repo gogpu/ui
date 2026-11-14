@@ -752,7 +752,19 @@ func (b *BoxWidget) Event(ctx widget.Context, e event.Event) bool {
 // dispatchMouseEvent translates mouse coordinates to Box-local space
 // and dispatches only to children whose bounds contain the position.
 // This mirrors PushTransform(bounds.Min) used in Draw.
+//
+// MouseEnter and MouseLeave are not forwarded. The window's hover tracker
+// delivers them directly to the widget under the pointer, in window
+// coordinates. When the Box itself is that widget (the pointer is over its
+// padding or a gap between children), forwarding would treat window
+// coordinates as Box-local ones and could hand an Enter to a child the
+// pointer is not over. The tracker never sends that child a Leave, so it
+// would stay hovered.
 func (b *BoxWidget) dispatchMouseEvent(ctx widget.Context, e *event.MouseEvent) bool {
+	if e.MouseType == event.MouseEnter || e.MouseType == event.MouseLeave {
+		return false
+	}
+
 	local := *e
 	local.Position = e.Position.Sub(b.Bounds().Min)
 
