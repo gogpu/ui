@@ -74,7 +74,7 @@ func (p ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState
 	fontSize := flButtonFontSize(state.Size)
 	canvas.DrawText(state.Text, state.Bounds, fontSize, fg, false, flTextAlignCenter)
 
-	// Focus indicator: inner ring (Fluent style).
+	// Focus indicator: ring outside the bounds.
 	if state.Focused && !disabled {
 		flDrawFocusRing(canvas, state.Bounds, radius, colors.FocusRing)
 	}
@@ -148,14 +148,14 @@ func flButtonFontSize(s button.Size) float32 {
 	}
 }
 
-// flDrawFocusRing draws a Fluent-style inner focus ring.
+// flDrawFocusRing draws a Fluent-style focus ring offset outside the given
+// bounds. An inner ring would sit on top of filled surfaces (the accent
+// background of a primary button, the checked box of a checkbox), which use
+// the same accent color as the ring, and disappear.
 func flDrawFocusRing(canvas widget.Canvas, bounds geometry.Rect, radius float32, color widget.Color) {
-	innerBounds := bounds.Expand(-flFocusRingInset)
-	innerRadius := radius - flFocusRingInset
-	if innerRadius < 0 {
-		innerRadius = 0
-	}
-	canvas.StrokeRoundRect(innerBounds, color, innerRadius, flFocusRingStrokeWidth)
+	ringBounds := bounds.Expand(flFocusRingOffset)
+	ringRadius := radius + flFocusRingOffset
+	canvas.StrokeRoundRect(ringBounds, color, ringRadius, flFocusRingStrokeWidth)
 }
 
 // flApplyState adjusts a color based on Fluent interaction state.
@@ -188,7 +188,7 @@ const (
 	flButtonRadius         float32 = 4
 	flButtonBorderWidth    float32 = 1
 	flTextAlignCenter              = widget.TextAlignCenter
-	flFocusRingInset       float32 = 2
+	flFocusRingOffset      float32 = 2
 	flFocusRingStrokeWidth float32 = 2
 	flHoverLightenFactor   float32 = 0.08
 	flPressedDarkenFactor  float32 = 0.12
