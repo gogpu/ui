@@ -56,7 +56,7 @@ func (d *itemDecorator) Draw(ctx widget.Context, canvas widget.Canvas) {
 		Bounds:   bounds,
 		Index:    d.index,
 		Selected: d.index == selectedIdx,
-		Focused:  d.index == selectedIdx && d.list.IsFocused(),
+		Focused:  d.index == selectedIdx && d.list.IsFocusVisible(),
 		Hovered:  d.index == d.list.hoveredIndex,
 		Disabled: d.list.cfg.ResolvedDisabled(),
 	}

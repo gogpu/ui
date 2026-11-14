@@ -171,7 +171,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		Tabs:        w.tabStates,
 		SelectedIdx: selectedIdx,
 		Position:    w.cfg.position,
-		Focused:     w.IsFocused(),
+		Focused:     w.IsFocusVisible(),
 	})
 
 	// Draw only the selected tab's content.

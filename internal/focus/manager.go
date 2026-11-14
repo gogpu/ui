@@ -17,6 +17,14 @@ type Manager struct {
 	root      widget.Widget
 	focused   widget.Focusable
 	shortcuts []shortcutEntry
+
+	// focusVisible is the input modality for future focus grants, the
+	// analog of the browser :focus-visible heuristic: focus granted while
+	// the user drives with the keyboard (true) shows the focus indicator,
+	// focus granted by a pointer press (false) hides it. The window keeps
+	// this in sync with the most recent input event. Defaults to true so
+	// Tab navigation (inherently keyboard) shows indicators.
+	focusVisible bool
 }
 
 // New creates a new focus Manager for the given widget tree root.
@@ -26,7 +34,28 @@ type Manager struct {
 // manager operates as a no-op until SetRoot is called.
 func New(root widget.Widget) *Manager {
 	return &Manager{
-		root: root,
+		root:         root,
+		focusVisible: true,
+	}
+}
+
+// SetFocusVisible records the input modality for subsequent focus grants,
+// mirroring the browser :focus-visible heuristic. The window calls this
+// before dispatching each input event: keyboard events set visible=true,
+// a mouse press sets visible=false. Widgets focused by [Manager.Focus]
+// afterwards show or hide their focus indicator accordingly.
+//
+// It only affects NEW focus grants; an indicator already shown on the
+// focused widget stays until focus moves.
+func (m *Manager) SetFocusVisible(visible bool) {
+	m.focusVisible = visible
+}
+
+// setFocusIndicator propagates focus-indicator visibility to a widget if
+// it supports the :focus-visible distinction (WidgetBase does).
+func setFocusIndicator(w widget.Focusable, visible bool) {
+	if vs, ok := w.(interface{ SetFocusVisible(bool) }); ok {
+		vs.SetFocusVisible(visible)
 	}
 }
 
@@ -42,6 +71,7 @@ func (m *Manager) SetRoot(root widget.Widget) {
 		focusable := collectFocusable(m.root)
 		if indexOf(focusable, m.focused) < 0 {
 			m.focused.SetFocused(false)
+			setFocusIndicator(m.focused, false)
 			m.focused = nil
 		}
 	}
@@ -58,18 +88,33 @@ func (m *Manager) Focus(w widget.Focusable) {
 	}
 
 	if m.focused == w {
+		// Re-granting focus to the same widget (Tab wrapping around a
+		// single focusable) still re-evaluates the indicator against the
+		// current input modality, like browsers do for :focus-visible.
+		// Focus does not move, so nothing else repaints the widget: mark it
+		// here or a ring shown by Tab would stay off screen.
+		if fv, ok := w.(interface{ IsFocusVisible() bool }); ok && fv.IsFocusVisible() != m.focusVisible {
+			setFocusIndicator(w, m.focusVisible)
+			if r, ok := w.(interface{ SetNeedsRedraw(bool) }); ok {
+				r.SetNeedsRedraw(true)
+			}
+		}
 		return
 	}
 
 	// Blur current.
 	if m.focused != nil {
 		m.focused.SetFocused(false)
+		setFocusIndicator(m.focused, false)
 	}
 
 	m.focused = w
 
 	if m.focused != nil {
 		m.focused.SetFocused(true)
+		// :focus-visible — show the indicator only when the current input
+		// modality is the keyboard (Tab traversal runs with visible=true).
+		setFocusIndicator(m.focused, m.focusVisible)
 	}
 }
 
@@ -79,6 +124,7 @@ func (m *Manager) Focus(w widget.Focusable) {
 func (m *Manager) Blur() {
 	if m.focused != nil {
 		m.focused.SetFocused(false)
+		setFocusIndicator(m.focused, false)
 		m.focused = nil
 	}
 }

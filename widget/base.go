@@ -57,6 +57,7 @@ type WidgetBase struct {
 	screenOrigin      geometry.Point // Window-space origin, set during Draw pass
 	screenOriginValid bool           // true after first StampScreenOrigin call
 	focused           bool           // Whether widget has focus
+	focusVisible      bool           // Whether focus arrived via keyboard and should show its indicator
 	visible           bool           // Whether widget is visible
 	enabled           bool           // Whether widget accepts input
 	needsRedraw       bool           // Whether widget needs re-rendering (retained mode)
@@ -158,12 +159,48 @@ func (w *WidgetBase) IsFocused() bool {
 
 // SetFocused sets the widget's focus state.
 //
+// A widget that gains focus here shows its focus indicator by default
+// ([WidgetBase.IsFocusVisible]); the context and the focus manager then
+// apply the input modality with [WidgetBase.SetFocusVisible]. Code that
+// focuses a widget directly therefore keeps the ring it always had.
+//
 // Note: To properly manage focus in the UI, use Context.RequestFocus()
 // and Context.ReleaseFocus() instead of calling this directly.
 func (w *WidgetBase) SetFocused(focused bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if focused && !w.focused {
+		w.focusVisible = true
+	}
 	w.focused = focused
+}
+
+// IsFocusVisible reports whether the widget should currently display its
+// focus indicator (focus ring), mirroring the browser :focus-visible
+// pseudo-class: true only while the widget has focus AND that focus was
+// granted via keyboard interaction (Tab, arrow-key navigation) rather
+// than a pointer press.
+//
+// Widgets whose focus indicator is noise during mouse use — buttons,
+// checkboxes, radio buttons, tabs — should paint their indicator from
+// this method instead of IsFocused. Widgets that always need a visible
+// focus state while focused, such as text fields (caret, text selection),
+// keep painting from IsFocused.
+func (w *WidgetBase) IsFocusVisible() bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.focused && w.focusVisible
+}
+
+// SetFocusVisible sets whether the widget's focus indicator should be
+// shown while it is focused. The window, focus manager and context call
+// this whenever focus is granted, passing whether the current input
+// modality is the keyboard; the value is only meaningful while focused
+// (IsFocusVisible ANDs it with the focus state).
+func (w *WidgetBase) SetFocusVisible(visible bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.focusVisible = visible
 }
 
 // IsVisible returns true if the widget is visible.

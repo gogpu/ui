@@ -866,7 +866,7 @@ func (w *Widget) drawVisibleRows(ctx widget.Context, canvas widget.Canvas) {
 			Bounds:   rowBounds,
 			RowIndex: row,
 			Selected: isSelected,
-			Focused:  isSelected && w.IsFocused(),
+			Focused:  isSelected && w.IsFocusVisible(),
 			Hovered:  row == w.hoveredRow,
 			Disabled: w.cfg.ResolvedDisabled(),
 		}

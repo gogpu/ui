@@ -65,6 +65,17 @@ func (m *Manager) Focused() widget.Focusable {
 	return m.impl.Focused()
 }
 
+// SetFocusVisible records the input modality for subsequent focus grants,
+// mirroring the browser :focus-visible heuristic: keyboard events set
+// visible=true, a mouse press sets visible=false. Widgets focused
+// afterwards show or hide their focus indicator accordingly.
+//
+// It only affects NEW focus grants; an indicator already shown on the
+// focused widget stays until focus moves, exactly like :focus-visible.
+func (m *Manager) SetFocusVisible(visible bool) {
+	m.impl.SetFocusVisible(visible)
+}
+
 // Next moves focus to the next focusable widget in tab order.
 //
 // Tab order is determined by depth-first traversal of the widget tree.
@@ -128,7 +139,7 @@ func (m *Manager) UnregisterShortcut(s Shortcut) {
 //
 // Example:
 //
-//	if w.IsFocused() {
+//	if w.IsFocusVisible() {
 //	    focus.DrawFocusRing(canvas, w.Bounds(), widget.ColorBlue, 4.0)
 //	}
 func DrawFocusRing(canvas widget.Canvas, bounds geometry.Rect, color widget.Color, radius float32) {
