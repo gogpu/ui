@@ -393,7 +393,7 @@ func (t *TextWidget) Mount(ctx widget.Context) {
 		return
 	}
 	if t.contentSignal != nil {
-		b := state.BindToScheduler(t.contentSignal, t, sched)
+		b := state.BindToSchedulerLayout(t.contentSignal, t, sched)
 		t.AddBinding(b)
 	}
 }
