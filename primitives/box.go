@@ -283,6 +283,38 @@ func (b *BoxWidget) Style() BoxStyle {
 	return b.style
 }
 
+// alignCrossAxis positions children on the cross axis for CrossAxisCenter
+// and CrossAxisEnd once the box size is known. The layout passes place every
+// child at the cross-axis start, which is already right for CrossAxisStart
+// and CrossAxisStretch.
+func (b *BoxWidget) alignCrossAxis(children []widget.Widget, size geometry.Size, pad geometry.Insets, horizontal bool) {
+	if b.crossAlign != CrossAxisCenter && b.crossAlign != CrossAxisEnd {
+		return
+	}
+	avail, start := size.Width-pad.Horizontal(), pad.Left
+	if horizontal {
+		avail, start = size.Height-pad.Vertical(), pad.Top
+	}
+	for _, child := range children {
+		cb := child.(interface{ Bounds() geometry.Rect }).Bounds()
+		extent := cb.Width()
+		if horizontal {
+			extent = cb.Height()
+		}
+		offset := avail - extent
+		if b.crossAlign == CrossAxisCenter {
+			offset /= 2
+		}
+		pos := cb.Min
+		if horizontal {
+			pos.Y = start + offset
+		} else {
+			pos.X = start + offset
+		}
+		child.(interface{ SetBounds(geometry.Rect) }).SetBounds(geometry.FromPointSize(pos, cb.Size()))
+	}
+}
+
 // --- widget.Widget interface ---
 
 // Layout calculates the box size by laying out children in the resolved
@@ -377,25 +409,7 @@ func (b *BoxWidget) layoutVerticalSimple(
 	contentHeight := totalHeight + pad.Vertical()
 
 	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
-
-	// Second pass: apply cross-axis alignment now that we know total width.
-	if b.crossAlign == CrossAxisCenter || b.crossAlign == CrossAxisEnd {
-		availWidth := resultSize.Width - pad.Horizontal()
-		for _, child := range children {
-			cb := child.(interface{ Bounds() geometry.Rect }).Bounds()
-			cw := cb.Width()
-			ch := cb.Height()
-			var newX float32
-			if b.crossAlign == CrossAxisCenter {
-				newX = pad.Left + (availWidth-cw)/2
-			} else {
-				newX = pad.Left + availWidth - cw
-			}
-			child.(interface{ SetBounds(geometry.Rect) }).SetBounds(
-				geometry.NewRect(newX, cb.Min.Y, cw, ch),
-			)
-		}
-	}
+	b.alignCrossAxis(children, resultSize, pad, false)
 	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
 	return resultSize
 }
@@ -476,6 +490,7 @@ func (b *BoxWidget) layoutVerticalTwoPass(
 	contentHeight := totalHeight + pad.Vertical()
 
 	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
+	b.alignCrossAxis(children, resultSize, pad, false)
 	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
 	return resultSize
 }
@@ -554,6 +569,7 @@ func (b *BoxWidget) layoutHorizontalSimple(
 	contentHeight := maxChildHeight + pad.Vertical()
 
 	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
+	b.alignCrossAxis(children, resultSize, pad, true)
 	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
 	return resultSize
 }
@@ -634,6 +650,7 @@ func (b *BoxWidget) layoutHorizontalTwoPass(
 	contentHeight := maxChildHeight + pad.Vertical()
 
 	resultSize := constraints.Constrain(geometry.Sz(contentWidth, contentHeight))
+	b.alignCrossAxis(children, resultSize, pad, true)
 	b.SetBounds(geometry.FromPointSize(b.Position(), resultSize))
 	return resultSize
 }
