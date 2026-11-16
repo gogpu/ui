@@ -16,6 +16,7 @@ type config struct {
 	disabledFn  func() bool
 	a11yLabel   string
 	painter     Painter
+	caretBlink  *CaretBlink
 }
 
 // ResolvedDisabled returns the current disabled state, preferring the

@@ -15,6 +15,10 @@ import (
 // spatial metrics (13px font, 8/6px padding, 1px cursor) used by the widget
 // to compute pre-computed PaintState fields.
 //
+// The caret is the IntelliJ text field caret: a thin square-ended bar in the
+// field's text color (TextField.caretForeground), not the accent, blinking
+// sharply every 500 ms, the IDE's default caret blink.
+//
 // If Theme is nil, TextFieldPainter falls back to the default DevTools dark palette.
 type TextFieldPainter struct {
 	Theme *Theme // nil uses default DevTools dark fallback
@@ -34,6 +38,10 @@ func (TextFieldPainter) TextFieldCursorWidth() float32 { return dtTFCursorWidth 
 // TextFieldCornerRadius returns the DevTools corner radius.
 func (TextFieldPainter) TextFieldCornerRadius() float32 { return dtTFCornerRadius }
 
+// TextFieldCaretBlink returns the IntelliJ default caret blink: visible and
+// hidden for 500 ms each, switching sharply.
+func (TextFieldPainter) TextFieldCaretBlink() textfield.CaretBlink { return dtTFCaretBlink }
+
 // resolveColors returns the TextFieldColorScheme derived from the painter's Theme.
 func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
 	if p.Theme == nil {
@@ -47,7 +55,7 @@ func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
 		ErrorBorder: cs.Error,
 		TextColor:   cs.OnSurface,
 		Placeholder: cs.OnSurfaceSecondary,
-		CursorColor: cs.Primary,
+		CursorColor: cs.OnSurface,
 		DisabledBg:  cs.ControlFill,
 		DisabledFg:  cs.OnSurfaceDisabled,
 		SelectionBg: cs.Selection,
@@ -132,15 +140,9 @@ func dtPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors tex
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, dtTFTextAlignLeft)
 }
 
-// dtPaintTFCursorFromState draws the cursor using pre-computed CursorRect.
+// dtPaintTFCursorFromState draws the caret using pre-computed CursorRect.
 func dtPaintTFCursorFromState(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	if !st.ShowCursor {
-		return
-	}
-
-	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
-	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
-	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
+	textfield.PaintCursor(canvas, st, colors.CursorColor, 0)
 }
 
 // dtPaintTFError draws the error message below the text field.
@@ -164,7 +166,7 @@ var dtDefaultTextFieldColors = textfield.TextFieldColorScheme{
 	ErrorBorder: widget.Hex(0xDB5C5C), // Red7
 	TextColor:   widget.Hex(0xDFE1E5), // Gray12
 	Placeholder: widget.Hex(0x9DA0A8), // Gray9
-	CursorColor: DefaultAccentColor,
+	CursorColor: widget.Hex(0xDFE1E5), // text color (TextField.caretForeground)
 	DisabledBg:  widget.Hex(0x393B40), // Gray3
 	DisabledFg:  widget.Hex(0x6F737A), // Gray7
 	SelectionBg: widget.Hex(0x2E436E), // Blue2
@@ -187,8 +189,13 @@ const (
 	dtTFErrorBottomPad   float32 = 2
 )
 
+// dtTFCaretBlink is the IntelliJ default caret blink: 500 ms visible,
+// 500 ms hidden.
+var dtTFCaretBlink = textfield.HardCaretBlink(textfield.DefaultCaretBlinkInterval)
+
 // Compile-time checks.
 var (
 	_ textfield.Painter       = TextFieldPainter{}
 	_ textfield.LayoutMetrics = TextFieldPainter{}
+	_ textfield.CaretBlinker  = TextFieldPainter{}
 )

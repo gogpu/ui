@@ -1,6 +1,8 @@
 package fluent
 
 import (
+	"time"
+
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
@@ -11,8 +13,13 @@ import (
 // and clean rectangular shape with small corner radius.
 //
 // TextFieldPainter implements [textfield.LayoutMetrics] to provide Fluent
-// spatial metrics (14px font, 12/8px padding, 1.5px cursor) used by the
+// spatial metrics (14px font, 12/8px padding, 1px cursor) used by the
 // widget to compute pre-computed PaintState fields.
+//
+// The caret follows the Windows text caret rather than the accent: a 1 px
+// bar (the default SPI_GETCARETWIDTH) in the text color, as WinUI's
+// TextControlCaretBrush is, blinking sharply every 530 ms (the default
+// GetCaretBlinkTime).
 //
 // If Theme is nil, TextFieldPainter falls back to the default Fluent Blue palette.
 type TextFieldPainter struct {
@@ -33,6 +40,10 @@ func (TextFieldPainter) TextFieldCursorWidth() float32 { return flTFCursorWidth 
 // TextFieldCornerRadius returns the Fluent corner radius.
 func (TextFieldPainter) TextFieldCornerRadius() float32 { return flTFCornerRadius }
 
+// TextFieldCaretBlink returns the Windows default caret blink: visible and
+// hidden for 530 ms each, switching sharply.
+func (TextFieldPainter) TextFieldCaretBlink() textfield.CaretBlink { return flTFCaretBlink }
+
 // resolveColors returns the TextFieldColorScheme derived from the painter's Theme.
 func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
 	if p.Theme == nil {
@@ -46,7 +57,7 @@ func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
 		ErrorBorder: cs.Error,
 		TextColor:   cs.OnSurface,
 		Placeholder: cs.OnSurfaceSecond,
-		CursorColor: cs.Accent,
+		CursorColor: cs.OnSurface,
 		DisabledBg:  cs.FillDisable,
 		DisabledFg:  cs.OnSurfaceSecond.WithAlpha(flDisabledAlpha),
 		SelectionBg: cs.Accent.WithAlpha(0.2),
@@ -131,15 +142,9 @@ func flPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors tex
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, flTFTextAlignLeft)
 }
 
-// flPaintTFCursorFromState draws the cursor using pre-computed CursorRect.
+// flPaintTFCursorFromState draws the caret using pre-computed CursorRect.
 func flPaintTFCursorFromState(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	if !st.ShowCursor {
-		return
-	}
-
-	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
-	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
-	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
+	textfield.PaintCursor(canvas, st, colors.CursorColor, 0)
 }
 
 // flPaintTFError draws the error message below the text field.
@@ -163,7 +168,7 @@ var flDefaultTextFieldColors = textfield.TextFieldColorScheme{
 	ErrorBorder: widget.Hex(0xC42B1C),
 	TextColor:   widget.Hex(0x1A1A1A),
 	Placeholder: widget.Hex(0x616161),
-	CursorColor: DefaultAccentColor,
+	CursorColor: widget.Hex(0x1A1A1A), // text color, like TextControlCaretBrush
 	DisabledBg:  widget.RGBA(0, 0, 0, 0.04),
 	DisabledFg:  widget.RGBA(0.38, 0.38, 0.38, 0.38),
 	SelectionBg: DefaultAccentColor.WithAlpha(0.2),
@@ -179,14 +184,22 @@ const (
 	flTFContentPaddingV  float32 = 8
 	flTFFontSize         float32 = 14
 	flTFTextAlignLeft            = widget.TextAlignLeft
-	flTFCursorWidth      float32 = 1.5
+	flTFCursorWidth      float32 = 1
 	flTFErrorFontSize    float32 = 12
 	flTFErrorTopGap      float32 = 4
 	flTFErrorBottomPad   float32 = 4
 )
 
+// flTFCaretBlinkInterval is the Windows default caret blink time, which
+// GetCaretBlinkTime reports when the user has not changed it.
+const flTFCaretBlinkInterval = 530 * time.Millisecond
+
+// flTFCaretBlink is the Windows default caret blink.
+var flTFCaretBlink = textfield.HardCaretBlink(flTFCaretBlinkInterval)
+
 // Compile-time checks.
 var (
 	_ textfield.Painter       = TextFieldPainter{}
 	_ textfield.LayoutMetrics = TextFieldPainter{}
+	_ textfield.CaretBlinker  = TextFieldPainter{}
 )

@@ -2,6 +2,7 @@ package primitives_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -344,7 +345,59 @@ func TestThemeScopeContextDelegatesScale(t *testing.T) {
 	}
 }
 
+// TestThemeScopeContextForwardsRedrawSchedulingAndWindowFocus checks that a
+// widget inside a scope, such as a text field blinking its caret, reaches the
+// window's redraw scheduler and window focus through the scoped context.
+func TestThemeScopeContextForwardsRedrawSchedulingAndWindowFocus(t *testing.T) {
+	probe := &contextProbeWidget{}
+	ts := primitives.ThemeScope(&darkThemeMock{}, probe)
+
+	ctx := widget.NewContext()
+	var scheduled time.Duration
+	var canceled widget.Widget
+	ctx.SetOnScheduleRedraw(
+		func(_ widget.Widget, d time.Duration) { scheduled = d },
+		func(w widget.Widget) { canceled = w },
+	)
+	ctx.SetWindowFocused(false)
+	_ = ts.Layout(ctx, geometry.Loose(geometry.Sz(300, 300)))
+
+	rs, ok := probe.ctx.(widget.RedrawScheduler)
+	if !ok {
+		t.Fatal("scoped context does not implement widget.RedrawScheduler")
+	}
+	if !rs.ScheduleRedraw(probe, 250*time.Millisecond) || scheduled != 250*time.Millisecond {
+		t.Errorf("ScheduleRedraw did not reach the parent context (scheduled %v)", scheduled)
+	}
+	rs.CancelRedraw(probe)
+	if canceled != widget.Widget(probe) {
+		t.Error("CancelRedraw did not reach the parent context")
+	}
+
+	fr, ok := probe.ctx.(widget.WindowFocusReporter)
+	if !ok {
+		t.Fatal("scoped context does not implement widget.WindowFocusReporter")
+	}
+	if fr.IsWindowFocused() {
+		t.Error("IsWindowFocused = true, want the parent's false")
+	}
+}
+
 // --- Test helpers ---
+
+// contextProbeWidget keeps the context it was laid out with.
+type contextProbeWidget struct {
+	widget.WidgetBase
+	ctx widget.Context
+}
+
+func (w *contextProbeWidget) Layout(ctx widget.Context, c geometry.Constraints) geometry.Size {
+	w.ctx = ctx
+	return c.Constrain(geometry.Sz(10, 10))
+}
+func (w *contextProbeWidget) Draw(widget.Context, widget.Canvas)     {}
+func (w *contextProbeWidget) Event(widget.Context, event.Event) bool { return false }
+func (w *contextProbeWidget) Children() []widget.Widget              { return nil }
 
 // darkThemeMock implements widget.ThemeProvider with IsDark() = true.
 type darkThemeMock struct{}

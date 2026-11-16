@@ -13,6 +13,11 @@ import (
 // metrics (16px font, 16/12px padding, 2px cursor) used by the widget to
 // compute pre-computed PaintState fields.
 //
+// The caret is a square-ended 2 dp bar in the primary color, or the error
+// color while the field shows an error (the M3 caret.color and
+// error.focus.caret.color tokens). It blinks sharply, visible and hidden for
+// 500 ms each, as in Flutter and Jetpack Compose.
+//
 // If Theme is nil, TextFieldPainter falls back to the default M3 purple palette.
 type TextFieldPainter struct {
 	Theme *Theme // nil uses default M3 purple fallback
@@ -31,6 +36,10 @@ func (TextFieldPainter) TextFieldCursorWidth() float32 { return m3TFCursorWidth 
 
 // TextFieldCornerRadius returns the M3 corner radius.
 func (TextFieldPainter) TextFieldCornerRadius() float32 { return m3TFCornerRadius }
+
+// TextFieldCaretBlink returns the M3 caret blink: visible and hidden for
+// 500 ms each, switching sharply.
+func (TextFieldPainter) TextFieldCaretBlink() textfield.CaretBlink { return m3TFCaretBlink }
 
 // resolveColors returns the TextFieldColorScheme derived from the painter's Theme.
 // If Theme is nil, it returns the default M3 text field color scheme.
@@ -131,15 +140,15 @@ func m3PaintTextFieldContent(canvas widget.Canvas, st *textfield.PaintState, col
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, m3TFTextAlignLeft)
 }
 
-// m3PaintTextFieldCursorFromState draws the cursor using pre-computed CursorRect.
+// m3PaintTextFieldCursorFromState draws the caret using pre-computed CursorRect.
+// The error.focus.caret.color token switches it to the error color, the
+// same md.sys.color.error the error outline uses.
 func m3PaintTextFieldCursorFromState(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	if !st.ShowCursor {
-		return
+	color := colors.CursorColor
+	if st.HasError {
+		color = colors.ErrorBorder
 	}
-
-	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
-	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
-	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
+	textfield.PaintCursor(canvas, st, color, 0)
 }
 
 // m3PaintTextFieldError draws the error message below the text field.
@@ -185,8 +194,13 @@ const (
 	m3TFErrorBottomPadding float32 = 4
 )
 
+// m3TFCaretBlink is the blink of Flutter's Material TextField and of Jetpack
+// Compose: 500 ms visible, 500 ms hidden.
+var m3TFCaretBlink = textfield.HardCaretBlink(textfield.DefaultCaretBlinkInterval)
+
 // Compile-time checks.
 var (
 	_ textfield.Painter       = TextFieldPainter{}
 	_ textfield.LayoutMetrics = TextFieldPainter{}
+	_ textfield.CaretBlinker  = TextFieldPainter{}
 )

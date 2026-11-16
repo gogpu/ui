@@ -479,6 +479,15 @@ type ContextImpl struct {
 	// onReleasePointer is called when a widget releases pointer capture.
 	// The Window wires this callback to clear capturedWidget.
 	onReleasePointer func(w Widget)
+
+	// onScheduleRedraw and onCancelRedraw back the RedrawScheduler methods.
+	// The Window wires them to its redraw timers.
+	onScheduleRedraw func(w Widget, d time.Duration)
+	onCancelRedraw   func(w Widget)
+
+	// windowUnfocused is true while the window lacks OS keyboard focus. It
+	// is inverted so the zero value reports a focused window.
+	windowUnfocused bool
 }
 
 // NewContext creates a new ContextImpl with default settings.
