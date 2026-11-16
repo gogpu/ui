@@ -617,9 +617,18 @@ func (w *Widget) GetRowCount() int {
 	return w.cfg.ResolvedRowCount()
 }
 
-// InvalidateData signals that the underlying data has changed.
+// InvalidateData signals that the underlying data has changed: rows were
+// reordered, filtered, or their values edited behind [CellValue]. The table
+// holds no data of its own, so it requests a layout pass and a repaint — the
+// row count may have changed too, for example through [RowCountFn], which has
+// no signal to bind.
+//
+// With RowCountSignal or RowCountFn bound to a signal, a count change already
+// invalidates the table through the scheduler; InvalidateData is the path for
+// value-only changes and for apps that own their data outside signals.
 func (w *Widget) InvalidateData() {
-	// Nothing cached; just invalidate to trigger redraw.
+	w.MarkNeedsLayout()
+	w.SetNeedsRedraw(true)
 }
 
 // ScrollToRow scrolls to make the given row visible.
