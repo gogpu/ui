@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 )
 
@@ -36,12 +37,15 @@ import (
 type Context interface {
 	// RequestFocus requests focus for the given widget.
 	//
-	// If another widget currently has focus, it will receive a focus lost event.
+	// If another widget currently has focus, it receives an
+	// [event.FocusEvent] with [event.FocusLost] (blur), then w receives one
+	// with [event.FocusGained].
 	// The widget parameter should implement the Widget interface.
 	RequestFocus(w Widget)
 
 	// ReleaseFocus releases focus from the given widget.
 	//
+	// The widget receives an [event.FocusEvent] with [event.FocusLost].
 	// If the widget doesn't have focus, this is a no-op.
 	// After calling this, FocusedWidget() will return nil.
 	ReleaseFocus(w Widget)
@@ -528,6 +532,7 @@ func (c *ContextImpl) RequestFocus(w Widget) {
 	// lock because repaint-boundary callbacks may access the context.
 	invalidateFocusAppearance(previous)
 	invalidateFocusAppearance(w)
+	c.dispatchFocusChange(previous, w)
 }
 
 // ReleaseFocus releases focus from the given widget.
@@ -545,6 +550,22 @@ func (c *ContextImpl) ReleaseFocus(w Widget) {
 	c.focusedWidget = nil
 	c.mu.Unlock()
 	invalidateFocusAppearance(w)
+	c.dispatchFocusChange(w, nil)
+}
+
+// dispatchFocusChange delivers the widget-level focus events, the equivalent
+// of the browser's blur and focus: FocusLost to the widget that lost focus,
+// then FocusGained to the one that received it. Each event goes only to its
+// target, like blur and focus, which do not bubble. Called outside the
+// context lock so handlers may move focus again; a FocusGained whose widget
+// no longer has focus by then is not sent.
+func (c *ContextImpl) dispatchFocusChange(lost, gained Widget) {
+	if lost != nil {
+		lost.Event(c, event.NewFocusEvent(event.FocusLost))
+	}
+	if gained != nil && c.IsFocused(gained) {
+		gained.Event(c, event.NewFocusEvent(event.FocusGained))
+	}
 }
 
 func invalidateFocusAppearance(w Widget) {

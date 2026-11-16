@@ -39,6 +39,16 @@ func (t FocusEventType) String() string {
 //
 // Focus events are sent when a widget gains or loses keyboard focus.
 // Only one widget can have focus at a time within a window.
+//
+// Widget focus events go directly to the widget whose focus changed, like
+// the browser's focus and blur events: FocusLost to the widget losing focus,
+// then FocusGained to the one receiving it. A widget loses focus when another
+// widget takes it, when it releases focus, or when the user presses the
+// pointer outside it on something that does not take focus.
+//
+// The window also sends a FocusEvent to the root widget when the window
+// itself gains or loses OS focus; that one does not change which widget
+// has focus.
 type FocusEvent struct {
 	Base
 

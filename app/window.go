@@ -484,6 +484,8 @@ func (w *Window) HandleEvent(e event.Event) {
 		}
 	}
 
+	focusedBefore := w.ctx.FocusedWidget()
+
 	// Dispatch event to root widget.
 	_ = w.root.Event(w.ctx, e)
 
@@ -497,8 +499,41 @@ func (w *Window) HandleEvent(e event.Event) {
 	// ctx.RequestFocus. Sync that to the focus manager so subsequent
 	// Tab navigation starts from the correct position.
 	if me, ok := e.(*event.MouseEvent); ok && me.MouseType == event.MousePress {
+		w.blurOnOutsidePress(me.Position, focusedBefore)
 		w.syncContextFocusToManager()
 	}
+}
+
+// blurOnOutsidePress clears focus when a press lands outside the focused
+// widget and nothing took focus while handling it, as browsers and native
+// toolkits do for a click on empty space or a non-focusable widget.
+//
+// A press on the focused widget or any of its descendants keeps focus, so
+// clicking inside a focused text field or scroll view does not blur it.
+func (w *Window) blurOnOutsidePress(pos geometry.Point, focusedBefore widget.Widget) {
+	focused := w.ctx.FocusedWidget()
+	if focused == nil || focused != focusedBefore {
+		return
+	}
+	for target := hitTest(w.root, pos); target != nil; target = parentOf(target) {
+		if target == focused {
+			return
+		}
+	}
+	w.ctx.ReleaseFocus(focused)
+	w.needsRedraw = true
+	if w.wp != nil {
+		w.wp.RequestRedraw()
+	}
+}
+
+// parentOf returns the widget's parent, or nil when it has none or does not
+// track one.
+func parentOf(w widget.Widget) widget.Widget {
+	if p, ok := w.(interface{ Parent() widget.Widget }); ok {
+		return p.Parent()
+	}
+	return nil
 }
 
 // trackMouseButtonOwnership records button state before any dispatch path can
