@@ -1,7 +1,7 @@
 // Package cupertino provides an Apple Human Interface Guidelines (HIG) theme.
 //
 // The Cupertino theme follows Apple's design language with system blue accent
-// colors, rounded pill-shaped buttons, iOS-style toggle switches for checkboxes,
+// colors, rounded pill-shaped buttons, macOS-style checkboxes,
 // thin auto-hiding scrollbars, sheet-style dialogs, and segmented control tab bars.
 //
 // # Creating a Theme
@@ -30,7 +30,7 @@
 // defined in core packages and can be injected into widgets:
 //
 //   - [ButtonPainter] implements [button.Painter] for rounded pill buttons
-//   - [CheckboxPainter] implements [checkbox.Painter] for iOS toggle switches
+//   - [CheckboxPainter] implements [checkbox.Painter] for macOS checkboxes
 //   - [RadioPainter] implements [radio.Painter] for radio items
 //   - [TextFieldPainter] implements [textfield.Painter] for rounded text fields
 //   - [DropdownPainter] implements [dropdown.Painter] for dropdown menus

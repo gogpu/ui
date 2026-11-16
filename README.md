@@ -202,7 +202,7 @@ func main() {
 | `theme/material3` | 24 component painters (all widgets covered) | 97%+ |
 | `theme/devtools` | **JetBrains DevTools**: 24 painters, Int UI gray scale, dark/light, IDE-style | 96%+ |
 | `theme/fluent` | Microsoft Fluent Design: 11 painters, accent colors, inner focus ring, light/dark | 96%+ |
-| `theme/cupertino` | Apple HIG: 11 painters, iOS toggle switch, segmented control, pill buttons | 96%+ |
+| `theme/cupertino` | Apple HIG: 11 painters, macOS checkbox, segmented control, pill buttons | 96%+ |
 | `theme/font` | Font Registry: CSS weight matching (W3C spec), Weight 100-900, Style, Family/Face | 97.7% |
 | `icon` | SVG icons (JetBrains expui), 2-level cache, DPI-aware rasterization, gg/svg renderer | 97%+ |
 | `i18n` | Internationalization: Locale, Bundle, Translator, CLDR plural rules, RTL, LocaleSignal | 97.9% |
