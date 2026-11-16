@@ -1002,9 +1002,30 @@ func TestScrollToRow(t *testing.T) {
 	dt.ScrollToRow(200)
 }
 
-func TestInvalidateData(t *testing.T) {
+func TestInvalidateData_RequestsRedraw(t *testing.T) {
 	dt := New(RowCount(5))
-	dt.InvalidateData() // should not panic
+	if dt.NeedsRedraw() {
+		t.Fatal("fresh table is already marked dirty")
+	}
+
+	dt.InvalidateData()
+
+	if !dt.NeedsRedraw() {
+		t.Error("InvalidateData left the table clean; a window with no other event would render stale data")
+	}
+}
+
+func TestInvalidateData_AfterLayout_RequestsRedraw(t *testing.T) {
+	dt := New(Columns(testColumns()), RowCount(5))
+	ctx := widget.NewContext()
+	dt.Layout(ctx, geometry.Tight(geometry.Sz(600, 400)))
+	dt.SetNeedsRedraw(false)
+
+	dt.InvalidateData()
+
+	if !dt.NeedsRedraw() {
+		t.Error("InvalidateData after a layout pass did not request a redraw")
+	}
 }
 
 // --- Children Tests ---
