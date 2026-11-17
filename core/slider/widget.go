@@ -155,7 +155,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		Progress:    progress,
 		Hovered:     w.interaction == stateHover,
 		Dragging:    w.interaction == stateDragging,
-		Focused:     w.IsFocused(),
+		Focused:     w.IsFocusVisible(),
 		Disabled:    w.cfg.ResolvedDisabled(),
 		Bounds:      w.Bounds(),
 		Orientation: w.cfg.orientation,

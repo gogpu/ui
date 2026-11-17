@@ -158,3 +158,102 @@ func TestTabReachesAKeyGrabber(t *testing.T) {
 		t.Error("manager stopped handling Tab for traversal")
 	}
 }
+
+// --- :focus-visible (input modality) tests ---
+
+// Tab traversal is inherently keyboard-driven, so focus it grants must show
+// the indicator even while the stored modality says pointer.
+func TestTabNavigation_GrantsVisibleFocus(t *testing.T) {
+	root := newMockWidget("root", false)
+	a := newMockWidget("a", true)
+	b := newMockWidget("b", true)
+	root.addChild(a)
+	root.addChild(b)
+
+	m := New(root)
+	m.SetFocusVisible(false) // user was driving with the mouse
+
+	tab := &event.KeyEvent{Key: event.KeyTab, KeyType: event.KeyPress}
+	if !m.HandleKeyEvent(tab) {
+		t.Fatal("manager should consume Tab")
+	}
+	if m.Focused() != a {
+		t.Fatalf("focused = %v, want a", m.Focused())
+	}
+	if !a.IsFocused() {
+		t.Error("a should be focused after Tab")
+	}
+
+	// The window updates the modality to keyboard before handing the key to
+	// the manager; with that in place the grant is visible.
+	m.SetFocusVisible(true)
+	if !m.HandleKeyEvent(tab) {
+		t.Fatal("manager should consume Tab")
+	}
+	if m.Focused() != b {
+		t.Fatalf("focused = %v, want b", m.Focused())
+	}
+	if !b.IsFocusVisible() {
+		t.Error("focus granted under keyboard modality should be visible")
+	}
+	if a.IsFocusVisible() {
+		t.Error("a should lose the indicator when focus moves to b")
+	}
+}
+
+func TestManagerFocus_FocusVisibleModality(t *testing.T) {
+	root := newMockWidget("root", false)
+	a := newMockWidget("a", true)
+	root.addChild(a)
+
+	m := New(root)
+
+	// Default modality is keyboard-like: programmatic focus is visible.
+	m.Focus(a)
+	if !a.IsFocusVisible() {
+		t.Error("default-modality focus should be visible")
+	}
+
+	// Pointer modality (window saw a mouse event): focus moves, indicator
+	// does not follow.
+	b := newMockWidget("b", true)
+	root.addChild(b)
+	m.SetFocusVisible(false)
+	m.Focus(b)
+	if !b.IsFocused() {
+		t.Error("b should be focused")
+	}
+	if b.IsFocusVisible() {
+		t.Error("pointer-modality focus should hide the indicator")
+	}
+	if a.IsFocusVisible() {
+		t.Error("a should lose the indicator when it loses focus")
+	}
+
+	// Blur clears the indicator along with focus.
+	m.Blur()
+	if b.IsFocused() || b.IsFocusVisible() {
+		t.Error("Blur should clear both focus and the indicator")
+	}
+}
+
+func TestManagerSetRoot_RemovalClearsIndicator(t *testing.T) {
+	root := newMockWidget("root", false)
+	a := newMockWidget("a", true)
+	root.addChild(a)
+
+	m := New(root)
+	m.Focus(a)
+	if !a.IsFocusVisible() {
+		t.Fatal("setup: focus should be visible")
+	}
+
+	// New tree without a: the manager must clear a's indicator too.
+	m.SetRoot(newMockWidget("fresh", false))
+	if a.IsFocused() {
+		t.Error("a should lose focus when removed from the tree")
+	}
+	if a.IsFocusVisible() {
+		t.Error("a should lose the indicator when removed from the tree")
+	}
+}

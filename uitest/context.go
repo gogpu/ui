@@ -27,6 +27,11 @@ type MockContext struct {
 	// FocusedVal is the widget that currently has focus.
 	FocusedVal widget.Widget
 
+	// FocusVisibleVal is the input modality applied to subsequent
+	// RequestFocus calls, mirroring the browser :focus-visible heuristic.
+	// Defaults to true (keyboard), like the real context before any input.
+	FocusVisibleVal bool
+
 	// TimeVal is returned by Now(). Defaults to a fixed time.
 	TimeVal time.Time
 
@@ -70,10 +75,11 @@ type MockContext struct {
 //   - Time: 2025-01-01 00:00:00 UTC (deterministic for tests)
 func NewMockContext() *MockContext {
 	return &MockContext{
-		TimeVal:       time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-		DeltaVal:      defaultDelta,
-		ScaleVal:      1.0,
-		WindowSizeVal: geometry.Sz(800, 600),
+		TimeVal:         time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		DeltaVal:        defaultDelta,
+		ScaleVal:        1.0,
+		WindowSizeVal:   geometry.Sz(800, 600),
+		FocusVisibleVal: true,
 	}
 }
 
@@ -84,11 +90,17 @@ func (c *MockContext) RequestFocus(w widget.Widget) {
 		if setter, ok := c.FocusedVal.(interface{ SetFocused(bool) }); ok {
 			setter.SetFocused(false)
 		}
+		if vs, ok := c.FocusedVal.(interface{ SetFocusVisible(bool) }); ok {
+			vs.SetFocusVisible(false)
+		}
 	}
 	c.FocusedVal = w
 	if w != nil {
 		if setter, ok := w.(interface{ SetFocused(bool) }); ok {
 			setter.SetFocused(true)
+		}
+		if vs, ok := w.(interface{ SetFocusVisible(bool) }); ok {
+			vs.SetFocusVisible(c.FocusVisibleVal)
 		}
 	}
 }
@@ -100,6 +112,9 @@ func (c *MockContext) ReleaseFocus(w widget.Widget) {
 	}
 	if setter, ok := c.FocusedVal.(interface{ SetFocused(bool) }); ok {
 		setter.SetFocused(false)
+	}
+	if vs, ok := c.FocusedVal.(interface{ SetFocusVisible(bool) }); ok {
+		vs.SetFocusVisible(false)
 	}
 	c.FocusedVal = nil
 }

@@ -403,6 +403,14 @@ type ContextImpl struct {
 	// Focus state
 	focusedWidget Widget
 
+	// focusVisible is the input modality for future focus grants, the
+	// analog of the browser :focus-visible heuristic: focus granted while
+	// the user drives with the keyboard (true) shows the focus indicator,
+	// focus granted by a pointer press (false) hides it. The window keeps
+	// this in sync with the most recent input event. Defaults to true so
+	// programmatic focus before any input behaves like keyboard focus.
+	focusVisible bool
+
 	// Time tracking
 	now       time.Time
 	lastFrame time.Time
@@ -491,11 +499,26 @@ type ContextImpl struct {
 func NewContext() *ContextImpl {
 	now := time.Now()
 	return &ContextImpl{
-		now:       now,
-		lastFrame: now,
-		scale:     1.0,
-		cursor:    CursorDefault,
+		now:          now,
+		lastFrame:    now,
+		scale:        1.0,
+		cursor:       CursorDefault,
+		focusVisible: true,
 	}
+}
+
+// SetFocusVisible records the input modality for subsequent focus grants,
+// mirroring the browser :focus-visible heuristic. The window calls this
+// before dispatching each input event: keyboard events set visible=true,
+// a mouse press sets visible=false. Widgets focused afterwards show or
+// hide their focus indicator accordingly (see WidgetBase.IsFocusVisible).
+//
+// This only affects NEW focus grants; an indicator already shown on the
+// focused widget stays until focus moves, exactly like :focus-visible.
+func (c *ContextImpl) SetFocusVisible(visible bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.focusVisible = visible
 }
 
 // RequestFocus requests focus for the given widget.
@@ -503,8 +526,15 @@ func (c *ContextImpl) RequestFocus(w Widget) {
 	c.mu.Lock()
 
 	if c.focusedWidget == w {
+		// Already focused. Re-evaluate the focus indicator against the
+		// current input modality so clicking a keyboard-focused widget
+		// hides its ring, as browsers do for :focus-visible.
+		changed := applyFocusVisible(w, c.focusVisible)
 		c.mu.Unlock()
-		return // Already focused
+		if changed {
+			invalidateFocusAppearance(w)
+		}
+		return
 	}
 	previous := c.focusedWidget
 
@@ -513,6 +543,9 @@ func (c *ContextImpl) RequestFocus(w Widget) {
 		if setter, ok := c.focusedWidget.(interface{ SetFocused(bool) }); ok {
 			setter.SetFocused(false)
 		}
+		if vs, ok := c.focusedWidget.(interface{ SetFocusVisible(bool) }); ok {
+			vs.SetFocusVisible(false)
+		}
 	}
 
 	// Set focus to new widget
@@ -520,6 +553,9 @@ func (c *ContextImpl) RequestFocus(w Widget) {
 	if w != nil {
 		if setter, ok := w.(interface{ SetFocused(bool) }); ok {
 			setter.SetFocused(true)
+		}
+		if vs, ok := w.(interface{ SetFocusVisible(bool) }); ok {
+			vs.SetFocusVisible(c.focusVisible)
 		}
 	}
 	c.mu.Unlock()
@@ -542,9 +578,27 @@ func (c *ContextImpl) ReleaseFocus(w Widget) {
 	if setter, ok := c.focusedWidget.(interface{ SetFocused(bool) }); ok {
 		setter.SetFocused(false)
 	}
+	if vs, ok := c.focusedWidget.(interface{ SetFocusVisible(bool) }); ok {
+		vs.SetFocusVisible(false)
+	}
 	c.focusedWidget = nil
 	c.mu.Unlock()
 	invalidateFocusAppearance(w)
+}
+
+// applyFocusVisible sets the focus indicator of an already focused widget
+// and reports whether it changed.
+func applyFocusVisible(w Widget, visible bool) bool {
+	vs, ok := w.(interface {
+		SetFocusVisible(bool)
+		IsFocusVisible() bool
+	})
+	if !ok {
+		return false
+	}
+	was := vs.IsFocusVisible()
+	vs.SetFocusVisible(visible)
+	return was != visible
 }
 
 func invalidateFocusAppearance(w Widget) {

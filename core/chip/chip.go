@@ -176,7 +176,7 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		Selected:    w.cfg.ResolvedSelected(),
 		Hovered:     w.state == stateHover,
 		Pressed:     w.state == statePressed,
-		Focused:     w.IsFocused(),
+		Focused:     w.IsFocusVisible(),
 		Disabled:    w.cfg.ResolvedDisabled(),
 		ColorScheme: w.cfg.colorScheme,
 	})

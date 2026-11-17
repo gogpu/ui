@@ -258,7 +258,7 @@ func (w *Widget) paintScrollbars(canvas widget.Canvas) {
 	ps := PaintState{
 		Bounds:    w.Bounds(),
 		Direction: w.cfg.direction,
-		Focused:   w.IsFocused(),
+		Focused:   w.IsFocusVisible(),
 		Hovered:   w.hovered,
 		Dragging:  w.dragging != dragNone,
 

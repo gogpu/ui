@@ -882,3 +882,111 @@ func BenchmarkContextImpl_Invalidate(b *testing.B) {
 		ctx.Invalidate()
 	}
 }
+
+// --- :focus-visible (input modality) tests ---
+
+func TestNewContext_FocusVisibleDefault(t *testing.T) {
+	ctx := NewContext()
+	w := newMockWidget()
+
+	// Before any input, programmatic focus behaves like keyboard focus.
+	ctx.RequestFocus(w)
+	if !w.IsFocusVisible() {
+		t.Error("focus granted under the default modality should be visible")
+	}
+}
+
+func TestContextImpl_RequestFocus_FocusVisibleModality(t *testing.T) {
+	ctx := NewContext()
+	keyboard := newMockWidget()
+	pointer := newMockWidget()
+
+	ctx.SetFocusVisible(true) // keyboard event in flight
+	ctx.RequestFocus(keyboard)
+	if !keyboard.IsFocused() || !keyboard.IsFocusVisible() {
+		t.Error("keyboard-modality focus should be focused and visible")
+	}
+
+	// Modality only affects new grants; switching to pointer alone must not
+	// retroactively hide the indicator already shown on the focused widget.
+	ctx.SetFocusVisible(false)
+	if !keyboard.IsFocusVisible() {
+		t.Error("pointer modality without a focus change must keep the indicator")
+	}
+
+	ctx.RequestFocus(pointer)
+	if !pointer.IsFocused() {
+		t.Error("pointer-modality focus should still be focused")
+	}
+	if pointer.IsFocusVisible() {
+		t.Error("pointer-modality focus should hide the indicator (:focus-visible)")
+	}
+	if keyboard.IsFocusVisible() {
+		t.Error("previous widget should lose the indicator when focus moves")
+	}
+}
+
+func TestContextImpl_RequestFocus_SameWidgetReevaluatesIndicator(t *testing.T) {
+	ctx := NewContext()
+	w := newMockWidget()
+
+	// Tab to the widget, then click it: browsers hide :focus-visible.
+	ctx.SetFocusVisible(true)
+	ctx.RequestFocus(w)
+	if !w.IsFocusVisible() {
+		t.Fatal("setup: keyboard focus should be visible")
+	}
+
+	ctx.SetFocusVisible(false)
+	ctx.RequestFocus(w) // already focused — re-evaluate, don't no-op
+	if !w.IsFocused() {
+		t.Fatal("widget should remain focused")
+	}
+	if w.IsFocusVisible() {
+		t.Error("clicking a keyboard-focused widget should hide the indicator")
+	}
+
+	// And the reverse: keyboard interaction on a pointer-focused widget
+	// reveals the indicator again.
+	ctx.SetFocusVisible(true)
+	ctx.RequestFocus(w)
+	if !w.IsFocusVisible() {
+		t.Error("keyboard interaction should restore the indicator")
+	}
+}
+
+func TestContextImpl_ReleaseFocus_ClearsIndicator(t *testing.T) {
+	ctx := NewContext()
+	w := newMockWidget()
+
+	ctx.RequestFocus(w)
+	if !w.IsFocusVisible() {
+		t.Fatal("setup: focus should be visible")
+	}
+
+	ctx.ReleaseFocus(w)
+	if w.IsFocused() {
+		t.Error("widget should not be focused after release")
+	}
+	if w.IsFocusVisible() {
+		t.Error("released widget should not report focus visible")
+	}
+}
+
+func TestWidgetBase_SetFocusedShowsIndicatorByDefault(t *testing.T) {
+	w := newMockWidget()
+
+	// Code that focuses a widget without the context keeps the ring it
+	// had before focus visibility existed.
+	w.SetFocused(true)
+	if !w.IsFocusVisible() {
+		t.Error("a widget focused directly should show its focus indicator")
+	}
+
+	// Re-asserting focus does not override a modality applied since.
+	w.SetFocusVisible(false)
+	w.SetFocused(true)
+	if w.IsFocusVisible() {
+		t.Error("SetFocused(true) on a focused widget must keep the applied visibility")
+	}
+}

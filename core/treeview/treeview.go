@@ -160,7 +160,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	startIdx, endIdx := w.visibleRange()
 
 	selectedID := w.cfg.ResolvedSelectedNodeID()
-	isFocused := w.IsFocused()
+	isFocused := w.IsFocusVisible()
 	isDisabled := w.cfg.ResolvedDisabled()
 
 	for i := startIdx; i < endIdx; i++ {

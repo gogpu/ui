@@ -231,7 +231,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		Expanded:      w.cfg.ResolvedExpanded(),
 		Hovered:       w.istate == stateHover,
 		Pressed:       w.istate == statePressed,
-		Focused:       w.IsFocused(),
+		Focused:       w.IsFocusVisible(),
 		Bounds:        headerBounds,
 		ArrowProgress: w.progress,
 		HeaderColor:   w.cfg.headerColor,

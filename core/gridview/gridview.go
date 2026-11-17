@@ -1181,7 +1181,7 @@ func (w *Widget) drawVisibleCells(ctx widget.Context, canvas widget.Canvas) {
 			Row:      row,
 			Col:      col,
 			Selected: idx == selectedIdx,
-			Focused:  idx == selectedIdx && w.IsFocused(),
+			Focused:  idx == selectedIdx && w.IsFocusVisible(),
 			Hovered:  idx == w.hoveredIndex,
 			Disabled: w.cfg.ResolvedDisabled(),
 		}
