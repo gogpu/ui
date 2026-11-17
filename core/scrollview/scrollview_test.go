@@ -7,6 +7,7 @@ import (
 	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -296,6 +297,63 @@ func TestWheelEvent_OutsideBounds(t *testing.T) {
 
 	if sv.Event(ctx, wheel) {
 		t.Error("wheel event outside bounds should not be consumed")
+	}
+}
+
+// TestWheelEvent_ChainsToOuterAtEdge checks scroll chaining: the scroll view
+// under the cursor takes the wheel while it can still scroll that way, and an
+// enclosing scroll view scrolls once the inner one reaches its edge.
+func TestWheelEvent_ChainsToOuterAtEdge(t *testing.T) {
+	const innerMax = 600 // inner content 800 - inner viewport 200
+
+	tests := []struct {
+		name           string
+		innerStart     float32
+		outerStart     float32
+		deltaY         float32
+		wantConsumed   bool
+		wantInner      float32
+		wantOuterMoved bool
+	}{
+		{"inner can scroll down", 0, 0, 1, true, 40, false},
+		{"inner at bottom chains down to outer", innerMax, 0, 1, true, innerMax, true},
+		{"inner at top chains up to outer", 0, 100, -1, true, 0, true},
+		{"neither can scroll up", 0, 0, -1, false, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := widget.NewContext()
+			inner := scrollview.New(newStub(200, 800), scrollview.ScrollY(tt.innerStart))
+			outer := scrollview.New(
+				primitives.Box(
+					primitives.Box(inner).Height(200),
+					newStub(200, 1000),
+				),
+				scrollview.ScrollY(tt.outerStart),
+			)
+			outer.SetBounds(geometry.NewRect(0, 0, 200, 400))
+			outer.Layout(ctx, geometry.Tight(geometry.Sz(200, 400)))
+
+			// Point at the inner scroll view, which sits at the top of the
+			// outer content. With the outer scrolled by 100 it is still
+			// under y=50 (content y=150).
+			pos := geometry.Pt(100, 50)
+			consumed := outer.Event(ctx, event.NewWheelEvent(
+				geometry.Pt(0, tt.deltaY), pos, pos, event.ModNone,
+			))
+
+			if consumed != tt.wantConsumed {
+				t.Errorf("consumed = %v, want %v", consumed, tt.wantConsumed)
+			}
+			if _, got := inner.ScrollOffset(); got != tt.wantInner {
+				t.Errorf("inner scrollY = %v, want %v", got, tt.wantInner)
+			}
+			if _, got := outer.ScrollOffset(); (got != tt.outerStart) != tt.wantOuterMoved {
+				t.Errorf("outer scrollY = %v (started at %v), want moved = %v",
+					got, tt.outerStart, tt.wantOuterMoved)
+			}
+		})
 	}
 }
 

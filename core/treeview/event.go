@@ -234,12 +234,19 @@ func handleWheelEvent(w *Widget, ctx widget.Context, e *event.WheelEvent) bool {
 	}
 
 	// Apply scroll delta (DeltaY() is a method on WheelEvent).
+	previous := w.scrollY
 	w.scrollY -= e.DeltaY() * wheelScrollMultiplier
 	if w.scrollY < 0 {
 		w.scrollY = 0
 	}
 	if w.scrollY > maxScroll {
 		w.scrollY = maxScroll
+	}
+
+	// Scroll chaining: at the edge in the wheel's direction leave the event
+	// unconsumed so an enclosing scroll container scrolls instead.
+	if w.scrollY == previous {
+		return false
 	}
 
 	w.SetNeedsRedraw(true)

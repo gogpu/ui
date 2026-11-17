@@ -66,8 +66,10 @@ func handleWheelEvent(w *Widget, ctx widget.Context, e *event.WheelEvent) bool {
 	scrollX := w.cfg.ResolvedScrollX() + dx
 	scrollY := w.cfg.ResolvedScrollY() + dy
 
-	setScroll(w, ctx, scrollX, scrollY)
-	return true
+	// Scroll chaining: at the edge in the wheel's direction the offset does
+	// not move, so leave the event unconsumed and let an enclosing scroll
+	// container scroll instead, as browsers and native toolkits do.
+	return setScroll(w, ctx, scrollX, scrollY)
 }
 
 // handleMouseEvent processes mouse events for scrollbar thumb dragging.
@@ -299,8 +301,9 @@ func handleKeyEvent(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 	}
 }
 
-// setScroll updates the scroll position, clamping to valid bounds.
-func setScroll(w *Widget, ctx widget.Context, rawX, rawY float32) {
+// setScroll updates the scroll position, clamping to valid bounds, and
+// reports whether the position changed.
+func setScroll(w *Widget, ctx widget.Context, rawX, rawY float32) bool {
 	newX := clampScroll(rawX, w.contentSize.Width, w.viewportSize.Width)
 	newY := clampScroll(rawY, w.contentSize.Height, w.viewportSize.Height)
 
@@ -308,7 +311,7 @@ func setScroll(w *Widget, ctx widget.Context, rawX, rawY float32) {
 	currentY := w.cfg.ResolvedScrollY()
 
 	if newX == currentX && newY == currentY {
-		return
+		return false
 	}
 
 	// TWO-WAY: write back to signals if bound.
@@ -330,6 +333,7 @@ func setScroll(w *Widget, ctx widget.Context, rawX, rawY float32) {
 
 	w.SetNeedsRedraw(true)
 	ctx.InvalidateRect(w.Bounds())
+	return true
 }
 
 // Gesture-based scroll helpers removed: ScrollView does not implement
