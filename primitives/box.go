@@ -889,7 +889,7 @@ func (b *BoxWidget) Mount(ctx widget.Context) {
 		return
 	}
 	if b.directionSignal != nil {
-		binding := state.BindToScheduler(b.directionSignal, b, sched)
+		binding := state.BindToSchedulerLayout(b.directionSignal, b, sched)
 		b.AddBinding(binding)
 	}
 }
