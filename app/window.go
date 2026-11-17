@@ -1805,7 +1805,11 @@ func (w *Window) overlayAwareHitTest(pos geometry.Point) widget.Widget {
 }
 
 // hitTest walks the widget tree depth-first and returns the deepest
-// visible widget whose ScreenBounds contains the given position.
+// visible widget whose screen rect contains the given position.
+//
+// After a draw, that rect is ScreenBounds. A headless frame never draws,
+// so the screen origin stays unset and ScreenBounds sits at (0,0); the
+// widget's Bounds are the positions event dispatch uses then.
 //
 // Children are checked in reverse order (top-most first in z-order)
 // so that overlapping widgets receive events correctly.
@@ -1824,12 +1828,8 @@ func hitTestRecursive(w widget.Widget, pos geometry.Point) widget.Widget {
 		return nil
 	}
 
-	// Check if this widget's ScreenBounds contains the position.
-	if sb, ok := w.(interface{ ScreenBounds() geometry.Rect }); ok {
-		bounds := sb.ScreenBounds()
-		if !bounds.Contains(pos) {
-			return nil
-		}
+	if !hitTestContains(w, pos) {
+		return nil
 	}
 
 	// Check children in reverse order (topmost first).
@@ -1843,6 +1843,26 @@ func hitTestRecursive(w widget.Widget, pos geometry.Point) widget.Widget {
 
 	// No child hit — this widget itself is the target.
 	return w
+}
+
+// hitTestContains reports whether pos lies in the widget's hit rect.
+// A stamped screen origin wins. Until the first draw, Bounds does.
+func hitTestContains(w widget.Widget, pos geometry.Point) bool {
+	type placed interface {
+		ScreenBounds() geometry.Rect
+		IsScreenOriginValid() bool
+		Bounds() geometry.Rect
+	}
+	if p, ok := w.(placed); ok {
+		if p.IsScreenOriginValid() {
+			return p.ScreenBounds().Contains(pos)
+		}
+		return p.Bounds().Contains(pos)
+	}
+	if sb, ok := w.(interface{ ScreenBounds() geometry.Rect }); ok {
+		return sb.ScreenBounds().Contains(pos)
+	}
+	return true
 }
 
 // widgetCursorToPlatform converts a widget.CursorType to gpucontext.CursorShape.

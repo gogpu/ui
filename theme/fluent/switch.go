@@ -132,8 +132,11 @@ func (p SwitchPainter) PaintSwitch(canvas widget.Canvas, state toggleswitch.Pain
 	}
 
 	if state.Focused && !state.Disabled {
-		ring := flSwitchFocusRingOutset + flFocusRingInset
-		flDrawFocusRing(canvas, track.Expand(ring), flSwitchTrackRadius+ring, colors.focus)
+		// flDrawFocusRing adds flFocusRingOffset outside the rect it is
+		// given. Pull the track back by that offset so the ring lands
+		// flSwitchFocusRingOutset outside the track.
+		back := flSwitchFocusRingOutset - flFocusRingOffset
+		flDrawFocusRing(canvas, track.Expand(back), flSwitchTrackRadius+back, colors.focus)
 	}
 }
 
