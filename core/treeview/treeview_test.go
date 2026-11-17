@@ -953,6 +953,15 @@ func TestWheelEvent_ClampsToMax(t *testing.T) {
 	if w.scrollY != maxScroll {
 		t.Errorf("scrollY = %v, expected %v", w.scrollY, maxScroll)
 	}
+
+	// At the bottom edge a further scroll down cannot move, so it stays
+	// unconsumed and chains to an enclosing scroll container.
+	if w.Event(ctx, e) {
+		t.Error("wheel at the bottom edge should not be consumed")
+	}
+	if w.scrollY != maxScroll {
+		t.Errorf("scrollY = %v after scrolling at the edge, expected %v", w.scrollY, maxScroll)
+	}
 }
 
 func TestWheelEvent_OutsideBounds(t *testing.T) {
