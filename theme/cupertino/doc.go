@@ -38,6 +38,7 @@
 //   - [DialogPainter] implements [dialog.Painter] for sheet-style dialogs
 //   - [ScrollbarPainter] implements [scrollview.Painter] for thin scrollbars
 //   - [TabViewPainter] implements [tabview.Painter] for segmented controls
+//   - [SwitchPainter] implements [toggleswitch.Painter] for iOS switches
 //
 // Example:
 //

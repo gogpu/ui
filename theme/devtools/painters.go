@@ -21,6 +21,7 @@ type Painters struct {
 	TextField   TextFieldPainter
 	Dropdown    DropdownPainter
 	Slider      SliderPainter
+	Switch      SwitchPainter
 	Dialog      DialogPainter
 	Scrollbar   ScrollbarPainter
 	TabView     TabViewPainter
@@ -39,7 +40,7 @@ type Painters struct {
 	Stripe      StripePainter
 }
 
-// NewPainters returns all 24 DevTools painters initialized with the given theme.
+// NewPainters returns all 25 DevTools painters initialized with the given theme.
 //
 // This is a convenience function that avoids repetitive Theme field assignment.
 // All painters share the same *Theme pointer, so updating the theme via pointer
@@ -54,6 +55,7 @@ func NewPainters(t *Theme) Painters {
 		TextField:   TextFieldPainter{Theme: t},
 		Dropdown:    DropdownPainter{Theme: t},
 		Slider:      SliderPainter{Theme: t},
+		Switch:      SwitchPainter{Theme: t},
 		Dialog:      DialogPainter{Theme: t},
 		Scrollbar:   ScrollbarPainter{Theme: t},
 		TabView:     TabViewPainter{Theme: t},

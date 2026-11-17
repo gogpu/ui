@@ -1313,6 +1313,9 @@ func TestNewPaintersAllFieldsNonZero(t *testing.T) {
 	if p.ListView.Theme != dt {
 		t.Error("ListView.Theme should be set")
 	}
+	if p.Switch.Theme != dt {
+		t.Error("Switch.Theme should be set")
+	}
 }
 
 func TestNewPaintersLightTheme(t *testing.T) {

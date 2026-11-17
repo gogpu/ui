@@ -175,7 +175,7 @@ Essential widgets for production applications.
 |--------|-------------|------------|----------|
 | **RichText** | Styled text with bold/italic/links, inline formatting | Medium | Content display, help text |
 | **NumberField** | Numeric input: spinner buttons, range, step | Low | Forms, settings |
-| **ToggleSwitch** | iOS/Material on/off switch with animation | Low | Settings, preferences |
+| ~~**ToggleSwitch**~~ | ~~iOS/Material on/off switch with animation~~ | — | ✅ Done |
 | ~~**Badge**~~ | ~~Notification badge~~ | — | ✅ Done (v0.1.35) |
 | ~~**Chip**~~ | ~~Filter/action chips~~ | — | ✅ Done (v0.1.35) |
 | **SegmentedControl** | Toggle button group (iOS/Fluent style) | Medium | View switching |

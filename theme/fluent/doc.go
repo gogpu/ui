@@ -38,6 +38,7 @@
 //   - [DialogPainter] implements [dialog.Painter]
 //   - [ScrollbarPainter] implements [scrollview.Painter]
 //   - [TabViewPainter] implements [tabview.Painter]
+//   - [SwitchPainter] implements [toggleswitch.Painter]
 //
 // Example:
 //

@@ -46,6 +46,7 @@ import (
 	"github.com/gogpu/ui/core/splitview"
 	"github.com/gogpu/ui/core/tabview"
 	"github.com/gogpu/ui/core/textfield"
+	"github.com/gogpu/ui/core/toggleswitch"
 	"github.com/gogpu/ui/core/toolbar"
 	"github.com/gogpu/ui/core/treeview"
 	"github.com/gogpu/ui/desktop"
@@ -65,6 +66,7 @@ import (
 type painterSet struct {
 	button      button.Painter
 	checkbox    checkbox.Painter
+	toggle      toggleswitch.Painter
 	radio       radio.Painter
 	textfield   textfield.Painter
 	dropdown    dropdown.Painter
@@ -91,6 +93,7 @@ func m3Painters(m3 *material3.Theme) painterSet {
 	return painterSet{
 		button:      material3.ButtonPainter{Theme: m3},
 		checkbox:    material3.CheckboxPainter{Theme: m3},
+		toggle:      material3.SwitchPainter{Theme: m3},
 		radio:       material3.RadioPainter{Theme: m3},
 		textfield:   material3.TextFieldPainter{Theme: m3},
 		dropdown:    material3.DropdownPainter{Theme: m3},
@@ -121,6 +124,7 @@ func dtPainters(dt *devtools.Theme) painterSet {
 	return painterSet{
 		button:      p.Button,
 		checkbox:    p.Checkbox,
+		toggle:      p.Switch,
 		radio:       p.Radio,
 		textfield:   p.TextField,
 		dropdown:    p.Dropdown,
@@ -151,6 +155,7 @@ func flPainters(fl *fluent.Theme) painterSet {
 	return painterSet{
 		button:    fluent.ButtonPainter{Theme: fl},
 		checkbox:  fluent.CheckboxPainter{Theme: fl},
+		toggle:    fluent.SwitchPainter{Theme: fl},
 		radio:     fluent.RadioPainter{Theme: fl},
 		textfield: fluent.TextFieldPainter{Theme: fl},
 		dropdown:  fluent.DropdownPainter{Theme: fl},
@@ -168,6 +173,7 @@ func cupPainters(cup *cupertino.Theme) painterSet {
 	return painterSet{
 		button:    cupertino.ButtonPainter{Theme: cup},
 		checkbox:  cupertino.CheckboxPainter{Theme: cup},
+		toggle:    cupertino.SwitchPainter{Theme: cup},
 		radio:     cupertino.RadioPainter{Theme: cup},
 		textfield: cupertino.TextFieldPainter{Theme: cup},
 		dropdown:  cupertino.DropdownPainter{Theme: cup},
@@ -492,6 +498,31 @@ func buildInputsSection(ps painterSet) *collapsible.Widget {
 		),
 	).Gap(6)
 
+	// Switches.
+	swRow := primitives.VBox(
+		toggleswitch.New(
+			toggleswitch.Label("Wi-Fi"),
+			toggleswitch.Checked(true),
+			toggleswitch.PainterOpt(ps.toggle),
+			toggleswitch.OnToggle(func(on bool) { fmt.Println("switch:", on) }),
+		),
+		toggleswitch.New(
+			toggleswitch.Label("Bluetooth"),
+			toggleswitch.PainterOpt(ps.toggle),
+		),
+		toggleswitch.New(
+			toggleswitch.Label("Disabled on"),
+			toggleswitch.Checked(true),
+			toggleswitch.Disabled(true),
+			toggleswitch.PainterOpt(ps.toggle),
+		),
+		toggleswitch.New(
+			toggleswitch.Label("Disabled off"),
+			toggleswitch.Disabled(true),
+			toggleswitch.PainterOpt(ps.toggle),
+		),
+	).Gap(6)
+
 	// Radio group.
 	rg := radio.NewGroup(
 		radio.Items(
@@ -543,6 +574,8 @@ func buildInputsSection(ps painterSet) *collapsible.Widget {
 		dd,
 		sectionLabel("Checkbox", ps),
 		cbRow,
+		sectionLabel("Switch", ps),
+		swRow,
 		sectionLabel("Radio (Vertical)", ps),
 		rg,
 		sectionLabel("Radio (Horizontal)", ps),

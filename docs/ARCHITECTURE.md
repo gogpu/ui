@@ -14,11 +14,11 @@
 +==============================================================+
 |            Layer 3b: Design Systems (styling)                |
 | theme/material3/  |  theme/devtools/  |  theme/fluent/        |
-| 24 Painters       |  24 Painters      |  11 Painters          |
+| 25 Painters       |  25 Painters      |  12 Painters          |
 | (M3 HCT colors)   |  (JetBrains UI)  |  (Acrylic/Mica)       |
 +-------------------+-------------------+-----------------------+
 | theme/cupertino/  |                   |                       |
-| 11 Painters       |  70 painters total across 4 systems      |
+| 12 Painters       |  74 painters total across 4 systems      |
 | (Apple HIG)        |                                          |
 +-------------------+-------------------+-----------------------+
 |         Layer 3a: Generic Widgets (behavior)                 |
@@ -28,13 +28,14 @@
 | core/dialog/      |  core/scrollview/ |  ThemeScope,         |
 | core/tabview/     |  core/listview/   |  RepaintBoundary     |
 | core/gridview/    |  core/linechart/  |                      |
-| core/progressbar/ |  core/progress/   |  26 interactive      |
+| core/progressbar/ |  core/progress/   |  27 interactive      |
 | core/collapsible/ |  core/popover/    |  widgets in core/    |
 | core/splitview/   |  core/treeview/   |                      |
 | core/datatable/   |  core/toolbar/    |                      |
 | core/menu/        |  core/docking/    |                      |
 | core/badge/       |  core/chip/       |                      |
 | core/stripe/      |  core/titlebar/   |                      |
+| core/toggleswitch/|                   |                      |
 +-------------------+-------------------+----------------------+
 |         Layer 2: Component Development Kit                   |
 | cdk/              |                                          |
@@ -140,16 +141,17 @@
 | `core/chip/` | Compact interactive chip (tag/filter) | `Widget`, `Painter`, label, dismiss, signal binding |
 | `core/stripe/` | Vertical sidebar strip (tool window buttons) | `Widget`, `Painter`, top/bottom items, icon buttons |
 | `core/titlebar/` | Window title bar (CSD, drag, min/max/close) | `Widget`, `Painter`, `WindowChrome`, hit-test regions |
+| `core/toggleswitch/` | On/off switch (animated, draggable thumb) | `Widget`, `Painter`, `PaintState`, `LayoutMetrics`, `MotionProvider`, `Motion`, `DefaultPainter` |
 | `primitives/` | Display-only widgets + RepaintBoundary | `BoxWidget` (HBox/VBox), `TextWidget`, `ImageWidget`, `ThemeScope`, `RepaintBoundary` |
 
 ### Layer 3b: Design Systems
 
 | Package | Purpose | Key Types |
 |---------|---------|-----------|
-| `theme/material3/` | M3 design tokens + 24 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `GridViewPainter`, `LineChartPainter`, `ProgressBarPainter`, `ProgressPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
-| `theme/devtools/` | JetBrains DevTools (Int UI) + 24 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `LineChartPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `StripePainter`, `TitleBarPainter`, `ProgressPainter` |
-| `theme/fluent/` | Microsoft Fluent Design + 11 painters | `Theme`, accent color system, inner focus ring, 4px radii, light/dark |
-| `theme/cupertino/` | Apple HIG + 11 painters | `Theme`, macOS checkbox, segmented control, pill buttons |
+| `theme/material3/` | M3 design tokens + 25 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `GridViewPainter`, `LineChartPainter`, `ProgressBarPainter`, `ProgressPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `SwitchPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
+| `theme/devtools/` | JetBrains DevTools (Int UI) + 25 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `LineChartPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `StripePainter`, `TitleBarPainter`, `ProgressPainter`, `SwitchPainter` |
+| `theme/fluent/` | Microsoft Fluent Design + 12 painters | `Theme`, accent color system, inner focus ring, 4px radii, light/dark |
+| `theme/cupertino/` | Apple HIG + 12 painters | `Theme`, macOS checkbox, iOS switch, segmented control, pill buttons |
 
 ### Infrastructure
 
@@ -673,6 +675,41 @@ cb := checkbox.New(
 
 ---
 
+## Toggle Switch Widget
+
+The `core/toggleswitch/` package implements an on/off switch for a setting that applies at once. The widget owns the behavior (value, input, animation); each design system supplies a `Painter` that draws it.
+
+### Construction
+
+```go
+sw := toggleswitch.New(
+    toggleswitch.Label("Wi-Fi"),
+    toggleswitch.CheckedSignal(wifi),
+    toggleswitch.OnToggle(func(on bool) { /* ... */ }),
+)
+```
+
+### Interaction
+
+- Mouse click (left button) toggles the switch when released inside it
+- Dragging the thumb sideways moves it with the pointer; on release the switch takes the nearer side
+- Space toggles a focused switch on release
+- Disabled switches ignore input and cannot take focus
+- Implements `widget.Focusable` for Tab navigation and `a11y.Accessible` with `a11y.RoleSwitch`
+
+### Animation
+
+On every draw the widget advances the thumb position and the hover and press amounts from the frame clock (`widget.Context.Now`) and hands them to the painter in `PaintState`, so painters stay draw-only. A painter implements `MotionProvider` to set the durations and easing of its design system, and `LayoutMetrics` to size the switch. Without a frame clock (headless rendering) every change is instant.
+
+| Painter | Track | Motion |
+|---------|-------|--------|
+| `material3.SwitchPainter` | 52×32 | Thumb 16 → 24 dp (28 dp pressed), overshoot easing, 300 ms; state layer on hover/press |
+| `fluent.SwitchPainter` | 40×20 | Knob grows on hover and stretches while pressed; fast-out curve, 167 ms |
+| `cupertino.SwitchPainter` | 51×31 | White knob stretches while pressed; ease curve, 200 ms |
+| `devtools.SwitchPainter` | 26×16 | Ring slides across and fills into a dot; 100 ms |
+
+---
+
 ## Radio Group Widget
 
 The `core/radio/` package implements a mutually exclusive radio group with configurable layout direction (vertical or horizontal) and arrow key navigation.
@@ -812,7 +849,7 @@ The framework manages lifecycle automatically:
 - `UnmountTree` walks bottom-up, calling `CleanupBindings()` then `Unmount()` on each widget
 - Widgets without signals need not implement `Lifecycle` — they are unaffected
 
-All widget types with signal bindings implement `Lifecycle`: button, checkbox, radio, textfield, dropdown, slider, dialog, scrollview, tabview, listview, gridview, linechart, progressbar, collapsible, popover, splitview, treeview, datatable, toolbar, menu, docking, primitives/text, primitives/box.
+All widget types with signal bindings implement `Lifecycle`: button, checkbox, toggleswitch, radio, textfield, dropdown, slider, dialog, scrollview, tabview, listview, gridview, linechart, progressbar, collapsible, popover, splitview, treeview, datatable, toolbar, menu, docking, primitives/text, primitives/box.
 
 ### Retained-Mode Rendering
 
@@ -1180,6 +1217,11 @@ cb := checkbox.New(
 | `checkbox` | `LabelReadonlySignal` | `ReadonlySignal[string]` | one-way |
 | `checkbox` | `DisabledSignal` | `Signal[bool]` | one-way |
 | `checkbox` | `DisabledReadonlySignal` | `ReadonlySignal[bool]` | one-way |
+| `toggleswitch` | `CheckedSignal` | `Signal[bool]` | two-way |
+| `toggleswitch` | `LabelSignal` | `Signal[string]` | one-way |
+| `toggleswitch` | `LabelReadonlySignal` | `ReadonlySignal[string]` | one-way |
+| `toggleswitch` | `DisabledSignal` | `Signal[bool]` | one-way |
+| `toggleswitch` | `DisabledReadonlySignal` | `ReadonlySignal[bool]` | one-way |
 | `radio` | `SelectedSignal` | `Signal[string]` | two-way |
 | `radio` | `GroupDisabledSignal` | `Signal[bool]` | one-way |
 | `radio` | `GroupDisabledReadonlySignal` | `ReadonlySignal[bool]` | one-way |
