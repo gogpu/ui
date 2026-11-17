@@ -194,6 +194,31 @@ func (c *themeScopeContext) OverlayManager() widget.OverlayManager {
 func (c *themeScopeContext) WindowSize() geometry.Size      { return c.parent.WindowSize() }
 func (c *themeScopeContext) Scheduler() widget.SchedulerRef { return c.parent.Scheduler() }
 
+// ScheduleRedraw forwards to the parent's [widget.RedrawScheduler], so a
+// widget inside the scope can still schedule its redraws.
+func (c *themeScopeContext) ScheduleRedraw(w widget.Widget, d time.Duration) bool {
+	if rs, ok := c.parent.(widget.RedrawScheduler); ok {
+		return rs.ScheduleRedraw(w, d)
+	}
+	return false
+}
+
+// CancelRedraw forwards to the parent's [widget.RedrawScheduler].
+func (c *themeScopeContext) CancelRedraw(w widget.Widget) {
+	if rs, ok := c.parent.(widget.RedrawScheduler); ok {
+		rs.CancelRedraw(w)
+	}
+}
+
+// IsWindowFocused forwards to the parent's [widget.WindowFocusReporter],
+// reporting a focused window when the parent does not know.
+func (c *themeScopeContext) IsWindowFocused() bool {
+	if r, ok := c.parent.(widget.WindowFocusReporter); ok {
+		return r.IsWindowFocused()
+	}
+	return true
+}
+
 // ThemeProvider returns the overridden theme instead of the parent's theme.
 func (c *themeScopeContext) ThemeProvider() widget.ThemeProvider {
 	return c.theme
@@ -201,6 +226,8 @@ func (c *themeScopeContext) ThemeProvider() widget.ThemeProvider {
 
 // Compile-time interface checks.
 var (
-	_ widget.Widget  = (*ThemeScopeWidget)(nil)
-	_ widget.Context = (*themeScopeContext)(nil)
+	_ widget.Widget              = (*ThemeScopeWidget)(nil)
+	_ widget.Context             = (*themeScopeContext)(nil)
+	_ widget.RedrawScheduler     = (*themeScopeContext)(nil)
+	_ widget.WindowFocusReporter = (*themeScopeContext)(nil)
 )

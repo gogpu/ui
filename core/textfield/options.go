@@ -97,6 +97,15 @@ func A11yLabel(label string) Option {
 	}
 }
 
+// CaretBlinkOpt sets how the caret blinks, overriding the painter's design
+// system. Pass the zero [CaretBlink] for a caret that does not blink, as when
+// the platform's blink rate is set to none.
+func CaretBlinkOpt(b CaretBlink) Option {
+	return func(c *config) {
+		c.caretBlink = &b
+	}
+}
+
 // PainterOpt sets the painter used to render the text field.
 // Each design system provides its own painter. If not set,
 // [DefaultPainter] is used.

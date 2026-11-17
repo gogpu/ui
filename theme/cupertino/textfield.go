@@ -1,6 +1,8 @@
 package cupertino
 
 import (
+	"time"
+
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
@@ -13,6 +15,10 @@ import (
 // TextFieldPainter implements [textfield.LayoutMetrics] to provide Cupertino
 // spatial metrics (15px font, 12/10px padding, 2px cursor) used by the widget
 // to compute pre-computed PaintState fields.
+//
+// The caret is the UIKit insertion point: a 2 pt bar with ends rounded at a
+// 2 pt radius, in the accent (tint) color. It fades rather than blinks,
+// following the UIKit keyframes Flutter's CupertinoTextField reproduces.
 //
 // If Theme is nil, TextFieldPainter falls back to the default system blue palette.
 type TextFieldPainter struct {
@@ -32,6 +38,10 @@ func (TextFieldPainter) TextFieldCursorWidth() float32 { return cupTFCursorWidth
 
 // TextFieldCornerRadius returns the Cupertino corner radius.
 func (TextFieldPainter) TextFieldCornerRadius() float32 { return cupTFCornerRadius }
+
+// TextFieldCaretBlink returns the UIKit caret blink: half a second visible,
+// then a fade out and back in over the rest of a one-second cycle.
+func (TextFieldPainter) TextFieldCaretBlink() textfield.CaretBlink { return cupTFCaretBlink }
 
 // resolveColors returns the TextFieldColorScheme derived from the painter's Theme.
 func (p TextFieldPainter) resolveColors() textfield.TextFieldColorScheme {
@@ -130,15 +140,9 @@ func cupPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors te
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, cupTFTextAlignLeft)
 }
 
-// cupPaintTFCursorFromState draws the cursor using pre-computed CursorRect.
+// cupPaintTFCursorFromState draws the caret using pre-computed CursorRect.
 func cupPaintTFCursorFromState(canvas widget.Canvas, st *textfield.PaintState, colors textfield.TextFieldColorScheme) {
-	if !st.ShowCursor {
-		return
-	}
-
-	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
-	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
-	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
+	textfield.PaintCursor(canvas, st, colors.CursorColor, cupTFCursorRadius)
 }
 
 // cupPaintTFError draws the error message below the text field.
@@ -179,14 +183,36 @@ const (
 	cupTFFontSize         float32 = 15
 	cupTFTextAlignLeft            = widget.TextAlignLeft
 	cupTFCursorWidth      float32 = 2
+	cupTFCursorRadius     float32 = 2 // CupertinoTextField cursorRadius
 	cupTFErrorFontSize    float32 = 12
 	cupTFErrorTopGap      float32 = 4
 	cupTFErrorBottomPad   float32 = 4
 	cupTFSelectionAlpha   float32 = 0.2
 )
 
+// cupTFCaretBlink is the UIKit caret blink as Flutter measured it from
+// iOS 15.4 (_KeyFrame.iOSBlinkingCaretKeyFrames): one-second cycle, visible
+// for 500 ms, fading out in four steps over 150 ms, hidden for 200 ms, and
+// fading back in over the last 150 ms.
+var cupTFCaretBlink = textfield.CaretBlink{
+	Cycle: time.Second,
+	Keyframes: []textfield.CaretKeyframe{
+		{At: 0, Opacity: 1},
+		{At: 500 * time.Millisecond, Opacity: 1},
+		{At: 537500 * time.Microsecond, Opacity: 0.75},
+		{At: 575 * time.Millisecond, Opacity: 0.5},
+		{At: 612500 * time.Microsecond, Opacity: 0.25},
+		{At: 650 * time.Millisecond, Opacity: 0},
+		{At: 850 * time.Millisecond, Opacity: 0},
+		{At: 887500 * time.Microsecond, Opacity: 0.25},
+		{At: 925 * time.Millisecond, Opacity: 0.5},
+		{At: 962500 * time.Microsecond, Opacity: 0.75},
+	},
+}
+
 // Compile-time checks.
 var (
 	_ textfield.Painter       = TextFieldPainter{}
 	_ textfield.LayoutMetrics = TextFieldPainter{}
+	_ textfield.CaretBlinker  = TextFieldPainter{}
 )

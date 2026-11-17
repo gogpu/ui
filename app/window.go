@@ -172,6 +172,10 @@ type Window struct {
 	// overhead for windows with no GestureAware widgets. One arena per
 	// window is the Flutter pattern (GestureBinding.gestureArena).
 	gestureArena *gesture.Arena
+
+	// redrawTimers holds the redraws widgets scheduled through
+	// widget.RedrawScheduler, such as a blinking caret's next phase.
+	redrawTimers *redrawTimers
 }
 
 // newWindow creates a Window with the given providers.
@@ -273,6 +277,19 @@ func newWindow(
 			w.animToken = newAnimPumper(w.wp)
 		}
 	})
+
+	// Wire timed redraws (widget.RedrawScheduler). Unlike the animation
+	// pumper, nothing renders between the requested times. Deadlines count
+	// from the frame time the widget drew at, which its delay is relative to.
+	w.redrawTimers = newRedrawTimers(func() {
+		if wp != nil {
+			wp.RequestRedraw()
+		}
+	})
+	ctx.SetOnScheduleRedraw(
+		func(wgt widget.Widget, d time.Duration) { w.redrawTimers.schedule(wgt, d, ctx.Now()) },
+		w.redrawTimers.cancel,
+	)
 
 	// Wire pointer capture callbacks (ADR-031). Widgets call CapturePointer
 	// during drag start to receive mouse events directly, bypassing tree
@@ -603,6 +620,16 @@ func (w *Window) HandleFocusChange(focused bool) {
 		w.cancelPointerState()
 	}
 
+	if w.ctx != nil {
+		w.ctx.SetWindowFocused(focused)
+		// The focused widget may draw state that only shows while the window
+		// is active, such as a text caret. Its subtree may sit in a clean
+		// repaint boundary that the root redraw below would reuse.
+		if fw, ok := w.ctx.FocusedWidget().(interface{ SetNeedsRedraw(bool) }); ok {
+			fw.SetNeedsRedraw(true)
+		}
+	}
+
 	if w.root == nil {
 		return
 	}
@@ -706,6 +733,12 @@ func (w *Window) Frame() {
 
 	// Begin frame timing. DeltaTime = time since last BeginFrame.
 	w.ctx.BeginFrame(frameStart)
+
+	// Mark widgets whose scheduled redraw is due, before dirty checks read
+	// the flags their SetNeedsRedraw sets.
+	if w.redrawTimers != nil {
+		w.redrawTimers.flush(frameStart)
+	}
 
 	// Cursor is managed in Event handlers (updateHover resets on target
 	// change, widgets set Pointer in MouseEnter/Default in MouseLeave).
@@ -1048,6 +1081,10 @@ func (w *Window) Close() {
 	if w.animToken != nil {
 		w.animToken.Stop()
 		w.animToken = nil
+	}
+
+	if w.redrawTimers != nil {
+		w.redrawTimers.stop()
 	}
 
 	// Unmount all overlay widget trees.

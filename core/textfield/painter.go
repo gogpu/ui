@@ -55,8 +55,16 @@ type PaintState struct {
 	// SelectionRect is the selection highlight rectangle (zero if no selection).
 	SelectionRect geometry.Rect
 
-	// ShowCursor is true when the cursor should be drawn (focused, no selection, enabled).
+	// ShowCursor is true when the cursor should be drawn: the field is
+	// focused and enabled, has no selection, its window is active, and the
+	// caret is not in the hidden step of its blink.
 	ShowCursor bool
+
+	// CursorOpacity is the caret's blink opacity in (0, 1] while ShowCursor
+	// is true. Painters scale the caret color's alpha by it, as
+	// [PaintCursor] does. Zero means fully opaque, for states built without
+	// the widget.
+	CursorOpacity float32
 
 	// ShowSelection is true when a selection highlight should be drawn.
 	ShowSelection bool
@@ -124,6 +132,12 @@ func (DefaultPainter) TextFieldCursorWidth() float32 { return cursorWidth }
 // TextFieldCornerRadius returns the default corner radius.
 func (DefaultPainter) TextFieldCornerRadius() float32 { return defaultCornerRadius }
 
+// TextFieldCaretBlink returns the default blink: visible and hidden for
+// [DefaultCaretBlinkInterval] each.
+func (DefaultPainter) TextFieldCaretBlink() CaretBlink {
+	return defaultCaretBlink
+}
+
 // PaintTextField renders a minimal text field with gray outline.
 // It uses the pre-computed fields from PaintState for cursor/selection positioning.
 func (p DefaultPainter) PaintTextField(canvas widget.Canvas, st *PaintState) {
@@ -143,7 +157,7 @@ func (p DefaultPainter) PaintTextField(canvas widget.Canvas, st *PaintState) {
 	paintBackground(canvas, st, colors)
 	paintBorder(canvas, st, colors)
 	paintContent(canvas, st, colors, fontSize)
-	paintCursorFromState(canvas, st, colors)
+	PaintCursor(canvas, st, colors.CursorColor, 0)
 }
 
 // paintBackground fills the text field background.
@@ -201,17 +215,6 @@ func paintContent(canvas widget.Canvas, st *PaintState, colors TextFieldColorSch
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, textAlignLeft)
 }
 
-// paintCursorFromState draws the cursor using pre-computed CursorRect.
-func paintCursorFromState(canvas widget.Canvas, st *PaintState, colors TextFieldColorScheme) {
-	if !st.ShowCursor {
-		return
-	}
-
-	top := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Min.Y)
-	bottom := geometry.Pt(st.CursorRect.Min.X, st.CursorRect.Max.Y)
-	canvas.DrawLine(top, bottom, colors.CursorColor, st.CursorRect.Width())
-}
-
 // maskText returns a string of dots with the given length.
 func maskText(length int) string {
 	runes := make([]rune, length)
@@ -234,9 +237,13 @@ const (
 	passwordMaskChar                = '\u2022' // bullet character
 )
 
+// defaultCaretBlink is the blink of [DefaultPainter].
+var defaultCaretBlink = HardCaretBlink(DefaultCaretBlinkInterval)
+
 // Compile-time checks.
 var (
 	_ LayoutMetrics = DefaultPainter{}
+	_ CaretBlinker  = DefaultPainter{}
 )
 
 // defaultColorScheme is the color scheme for DefaultPainter.

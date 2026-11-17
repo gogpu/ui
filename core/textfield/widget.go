@@ -59,6 +59,9 @@ type Widget struct {
 	cachedDisplayText string
 	cachedFontSize    float32
 	gestureHandledTap bool
+
+	// caret tracks when the blink cycle last restarted.
+	caret caretBlinkState
 }
 
 // New creates a new text field Widget with the given options.
@@ -133,7 +136,7 @@ func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geom
 }
 
 // Draw renders the text field to the canvas.
-func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
+func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	// Sync from signal if bound.
 	if w.cfg.signal != nil {
 		current := w.cfg.signal.Get()
@@ -189,7 +192,8 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 	// Flutter/Qt pattern: compute cursor/selection in UNSHIFTED content rect
 	// (text-local coordinates), then apply scrollOffsetX uniformly.
 	// This ensures cursor and text share the same offset — they never drift apart.
-	showCursor := focused && !disabled && !hasSelection
+	cursorOpacity := w.caretOpacity(ctx, focused && !disabled && !hasSelection && windowFocused(ctx), text)
+	showCursor := cursorOpacity > 0
 	var cursorRect geometry.Rect
 	if showCursor {
 		cursorRect = tm.CursorRect(contentRect, displayText, w.sel.cursor, cw)
@@ -227,6 +231,7 @@ func (w *Widget) Draw(_ widget.Context, canvas widget.Canvas) {
 		CursorRect:    cursorRect,
 		SelectionRect: selectionRect,
 		ShowCursor:    showCursor,
+		CursorOpacity: cursorOpacity,
 		ShowSelection: showSelection,
 		FontSize:      fontSize,
 	})
