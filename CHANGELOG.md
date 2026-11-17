@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`WidgetBase.MoveChild`** ([#243](https://github.com/gogpu/ui/issues/243)) — reorders a child without detaching it, so a moved child keeps its state and its signal bindings.
 - **`widget.IsDetached`** — reports whether a widget was removed from a tree (`UnmountTree` ran on it: `RemoveChild`, a replaced root, a closed overlay) and has not been attached again. It is not "not mounted": a live widget a container added without a mount pass is not detached. Code that keeps references to widgets across frames, as the window does for pointer capture and hover, uses it to drop references to removed ones.
 - **Dropdown items from a signal** ([#243](https://github.com/gogpu/ui/issues/243)) — `dropdown.ItemsSignal`, `ItemsReadonlySignal` and `ItemsFn` set the items at runtime, with the same priority as the other widgets (ReadonlySignal > Signal > Fn > Static). Changing the list clamps the selected index, an empty list clears the selection and shows the placeholder, and the trigger repaints; an open menu picks the new list up on the next open.
+- **Switch widget** — `core/toggleswitch` is an on/off switch for a setting that takes effect at once (a checkbox usually belongs to a form that is submitted later). A click or Space toggles it; dragging the thumb moves it with the pointer, and on release the switch takes the nearer side. `CheckedSignal` binds the value both ways, the label and the disabled state accept signals and functions as on the other widgets, and the widget reports `a11y.RoleSwitch`. The thumb, the hover highlight and the press reaction animate from the frame clock; a painter sets the timing through `MotionProvider` and the size through `LayoutMetrics`. Each design system draws its own switch:
+  - `material3.SwitchPainter` — the M3 switch: a 52×32 track, a thumb that grows from 16 to 24 dp when on and to 28 dp while pressed, a slight overshoot as it lands (300 ms), and the state layer on hover and press.
+  - `fluent.SwitchPainter` — the WinUI ToggleSwitch: a 40×20 track with a border while off, a knob that grows on hover and stretches while pressed, and the Fluent fast-out curve (167 ms).
+  - `cupertino.SwitchPainter` — the iOS switch: a 51×31 track that turns green when on and a white shadowed knob that stretches while pressed (200 ms).
+  - `devtools.SwitchPainter` — the IntelliJ Int UI toggle: a 26×16 track whose ring slides across and fills into a dot (100 ms). `devtools.Painters` gains a `Switch` field.
+
+  The gallery example shows the switch in all four design systems.
 
 ### Fixed
 

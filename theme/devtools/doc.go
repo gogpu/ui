@@ -17,7 +17,7 @@
 //
 // # Painters
 //
-// DevTools provides 24 painters covering all interactive and data-display widgets:
+// DevTools provides 25 painters covering all interactive and data-display widgets:
 //
 //   - [BadgePainter] — notification badge (dot or count pill)
 //   - [ButtonPainter] — compact 28px buttons with 4px radius
@@ -27,6 +27,7 @@
 //   - [TextFieldPainter] — single-line input with cursor, selection, error state
 //   - [DropdownPainter] — trigger + menu with keyboard navigation
 //   - [SliderPainter] — horizontal/vertical with marks
+//   - [SwitchPainter] — Int UI toggle whose ring knob slides and fills
 //   - [DialogPainter] — modal/modeless dialog surface
 //   - [ScrollbarPainter] — thin overlay scrollbar
 //   - [TabViewPainter] — IDE-style tab strip with close buttons
@@ -44,7 +45,7 @@
 //   - [TitleBarPainter] — window title bar with control buttons
 //   - [StripePainter] — alternating row backgrounds
 //
-// Use [NewPainters] to create all 24 painters at once:
+// Use [NewPainters] to create all 25 painters at once:
 //
 //	dt := devtools.NewDarkTheme()
 //	p := devtools.NewPainters(dt)

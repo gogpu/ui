@@ -43,7 +43,7 @@ type Bundle interface {
 	//   "dialog", "docking", "dropdown", "gridview", "linechart", "listview",
 	//   "menu", "popover", "progress", "progressbar", "radio", "scrollview",
 	//   "slider", "splitview", "stripe", "tabview", "textfield", "titlebar",
-	//   "toolbar", "treeview"
+	//   "toggleswitch", "toolbar", "treeview"
 	Painter(widget string) any
 
 	// Painters returns all painters as a map from widget name to painter.

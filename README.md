@@ -48,7 +48,7 @@
 | **Layout engine** | Flexbox + Grid + per-widget cache | Custom | Flex |
 | **Accessibility** | Day 1 (35+ ARIA roles) | Limited | Limited |
 | **Design systems** | 4 (M3, DevTools, Fluent, Cupertino) | 1 | 1 |
-| **Widgets** | 27 interactive + primitives | ~20 | ~15 |
+| **Widgets** | 28 interactive + primitives | ~20 | ~15 |
 | **Plugin system** | Yes (deps, assets, fonts) | No | No |
 | **Android** | In review ([wgpu#268](https://github.com/gogpu/wgpu/pull/268)) | Yes | Yes |
 
@@ -166,7 +166,7 @@ func main() {
 | `core/dropdown` | Dropdown/select with overlay menu, keyboard navigation, signal bindings | 96%+ |
 | `overlay` | Overlay/popup stack, container, position helper | 95%+ |
 | `primitives` | Box, Text, Image, RepaintBoundary (GPU texture caching via Layer Tree compositor) | 94.4% |
-| `theme/material3` | Material Design 3 — theme (HCT color science) + 24 component painters | 97%+ |
+| `theme/material3` | Material Design 3 — theme (HCT color science) + 25 component painters | 97%+ |
 | `focus` | Keyboard focus management with Tab/Shift+Tab navigation | 95.2% |
 | `internal/focus` | Internal focus manager implementation | 15.2% |
 
@@ -199,10 +199,11 @@ func main() {
 | `core/docking` | IDE-style dockable panels: border layout, tabbed groups, Dock/Undock API | 95.3% |
 | `core/badge` | Notification badge: count mode (pill, "99+" overflow), dot mode, signal bindings with dedup | 99.3% |
 | `core/chip` | Action/filter chip (M3 spec): toggleable selection, two-way signal write-back, state layers | 99.0% |
-| `theme/material3` | 24 component painters (all widgets covered) | 97%+ |
-| `theme/devtools` | **JetBrains DevTools**: 24 painters, Int UI gray scale, dark/light, IDE-style | 96%+ |
-| `theme/fluent` | Microsoft Fluent Design: 11 painters, accent colors, inner focus ring, light/dark | 96%+ |
-| `theme/cupertino` | Apple HIG: 11 painters, macOS checkbox, segmented control, pill buttons | 96%+ |
+| `core/toggleswitch` | On/off switch: animated, draggable thumb, hover/press motion per design system, two-way signal binding | 95.7% |
+| `theme/material3` | 25 component painters (all widgets covered) | 97%+ |
+| `theme/devtools` | **JetBrains DevTools**: 25 painters, Int UI gray scale, dark/light, IDE-style | 96%+ |
+| `theme/fluent` | Microsoft Fluent Design: 12 painters, accent colors, inner focus ring, light/dark | 96%+ |
+| `theme/cupertino` | Apple HIG: 12 painters, macOS checkbox, iOS switch, segmented control, pill buttons | 96%+ |
 | `theme/font` | Font Registry: CSS weight matching (W3C spec), Weight 100-900, Style, Family/Face | 97.7% |
 | `icon` | SVG icons (JetBrains expui), 2-level cache, DPI-aware rasterization, gg/svg renderer | 97%+ |
 | `i18n` | Internationalization: Locale, Bundle, Translator, CLDR plural rules, RTL, LocaleSignal | 97.9% |
@@ -243,16 +244,16 @@ The **software backend** runs on any machine without GPU drivers. It uses the sa
 │                    User Application                         │
 ├─────────────────────────────────────────────────────────────┤
 │  theme/material3/  │  theme/devtools/ │  theme/fluent/      │
-│  24 Painters       │  24 Painters     │  11 Painters        │
+│  25 Painters       │  25 Painters     │  12 Painters        │
 │  theme/cupertino/  │                  │                     │
-│  11 Painters       │  70 painters total across 4 systems   │
+│  12 Painters       │  74 painters total across 4 systems   │
 ├─────────────────────────────────────────────────────────────┤
-│  27 Interactive Widgets (core/)                             │
+│  28 Interactive Widgets (core/)                             │
 │  button, checkbox, radio, textfield, dropdown, slider,      │
 │  dialog, scrollview, tabview, listview, gridview, linechart,│
 │  progressbar, progress, collapsible, popover, splitview,    │
 │  treeview, datatable, toolbar, menu, docking, badge, chip,  │
-│  stripe, titlebar, gpuview                                  │
+│  stripe, titlebar, gpuview, toggleswitch                    │
 ├──────────────┬──────────────────────────────────────────────┤
 │  cdk/        │  Content[C] polymorphic pattern              │
 ├──────────────┴──────────────────────────────────────────────┤
@@ -325,7 +326,7 @@ Works on all backends: Vulkan, DX12, Metal, GLES, Software, Browser (WASM).
 | [`examples/hello`](examples/hello) | Widget demo: checkbox, radio, ListView (1000 items), M3 theme, event-driven GPU rendering |
 | [`examples/signals`](examples/signals) | Reactive signals: TextSignal, ContentSignal, CheckedSignal, SelectedSignal, DisabledSignal |
 | [`examples/taskmanager`](examples/taskmanager) | Full task manager: charts, tables, animations, real-time data |
-| [`examples/gallery`](examples/gallery) | Widget gallery: all 26 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
+| [`examples/gallery`](examples/gallery) | Widget gallery: all 27 widgets, 4 design systems (M3/DevTools/Fluent/Cupertino), theme switching |
 | [`examples/ide`](examples/ide) | GoLand-inspired IDE layout: DevTools theme, toolbar, tree, tabs, terminal, SVG icons |
 | [`examples/filedrop`](examples/filedrop) | OS file drag-and-drop: drop files from file manager, reactive path display |
 | [`examples/gpuview`](examples/gpuview) | GPU view widget: offscreen texture compositing (Flutter Texture pattern) |
@@ -639,7 +640,7 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] TextField widget (cursor, selection, clipboard, validation)
 - [x] Dropdown/Select widget (overlay menu, keyboard nav, scroll)
 - [x] Overlay infrastructure (stack, container, position)
-- [x] Material Design 3 theme (HCT color science, 24 painters)
+- [x] Material Design 3 theme (HCT color science, 25 painters)
 - [x] Keyboard navigation (focus management, Tab/Shift+Tab, shortcuts)
 - [x] ThemeScope (theme override for widget subtrees)
 - [x] Event-driven rendering (0% CPU when idle)
@@ -677,10 +678,11 @@ testApp.Window().Frame()  // processes layout + draw
 - [x] Menu system (MenuBar + ContextMenu, submenus, shortcuts)
 - [x] IDE-style docking system (border layout, tabbed groups)
 - [x] Drag & drop foundation (DragSource, DropTarget, Manager)
-- [x] Fluent Design theme (11 painters, accent colors)
-- [x] Cupertino theme (11 painters, iOS-style)
+- [x] Fluent Design theme (12 painters, accent colors)
+- [x] Cupertino theme (12 painters, iOS-style)
 - [x] Badge widget (notification count/dot, signal bindings)
 - [x] Chip widget (action/filter, toggleable, two-way signal)
+- [x] ToggleSwitch widget (animated, draggable thumb, per-theme motion, two-way signal)
 - [x] Stripe widget (sidebar tool buttons)
 - [x] TitleBar widget (CSD window title bar)
 - [x] i18n (CLDR plural rules, RTL detection, LocaleSignal)
