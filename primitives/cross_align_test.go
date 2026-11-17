@@ -76,3 +76,58 @@ func TestVBox_CrossAxisEnd(t *testing.T) {
 			bounds.Min.X, expectedX, childW)
 	}
 }
+
+// HBox aligns children vertically below the top padding, both without and
+// with an Expanded child (the two horizontal layout passes).
+func TestHBox_CrossAxisAlignment(t *testing.T) {
+	const padTop = 6
+	for _, tc := range []struct {
+		name       string
+		align      primitives.CrossAxisAlignment
+		expanded   bool
+		wantShortY float32
+	}{
+		{"start", primitives.CrossAxisStart, false, padTop},
+		{"start/expanded", primitives.CrossAxisStart, true, padTop},
+		{"center", primitives.CrossAxisCenter, false, padTop + (40-10)/2},
+		{"center/expanded", primitives.CrossAxisCenter, true, padTop + (40-10)/2},
+		{"end", primitives.CrossAxisEnd, false, padTop + 40 - 10},
+		{"end/expanded", primitives.CrossAxisEnd, true, padTop + 40 - 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := widget.NewContext()
+			tall := primitives.Box().Width(10).Height(40)
+			short := primitives.Box().Width(10).Height(10)
+			var last widget.Widget = primitives.Box().Width(10).Height(20)
+			if tc.expanded {
+				last = primitives.Expanded(last)
+			}
+			box := primitives.HBox(tall, short, last).CrossAlign(tc.align).PaddingTop(padTop)
+
+			box.Layout(ctx, geometry.BoxConstraints(0, 400, 0, 400))
+
+			if y := tall.Bounds().Min.Y; y != padTop {
+				t.Errorf("tallest child Y = %v, want %v", y, padTop)
+			}
+			if y := short.Bounds().Min.Y; y != tc.wantShortY {
+				t.Errorf("short child Y = %v, want %v", y, tc.wantShortY)
+			}
+		})
+	}
+}
+
+// VBox with an Expanded child (the two-pass vertical layout) centers
+// narrower children like the single-pass layout does.
+func TestVBox_CrossAxisCenter_WithExpanded(t *testing.T) {
+	ctx := widget.NewContext()
+	narrow := primitives.Box().Width(100).Height(10)
+	wide := primitives.Box().Width(300).Height(10)
+	box := primitives.VBox(narrow, wide, primitives.Expanded(primitives.Box())).
+		CrossAlign(primitives.CrossAxisCenter)
+
+	box.Layout(ctx, geometry.BoxConstraints(0, 400, 0, 400))
+
+	if x := narrow.Bounds().Min.X; x != 100 {
+		t.Errorf("narrow child X = %v, want 100 (centered under the 300px child)", x)
+	}
+}
