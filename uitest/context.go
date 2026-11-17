@@ -3,6 +3,7 @@ package uitest
 import (
 	"time"
 
+	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
@@ -83,11 +84,17 @@ func NewMockContext() *MockContext {
 	}
 }
 
-// RequestFocus sets FocusedVal to the given widget.
+// RequestFocus sets FocusedVal to the given widget and, like
+// [widget.ContextImpl], sends FocusLost to the previously focused widget and
+// FocusGained to w.
 func (c *MockContext) RequestFocus(w widget.Widget) {
+	if c.FocusedVal == w {
+		return
+	}
+	previous := c.FocusedVal
 	// Notify previous widget of focus loss.
-	if c.FocusedVal != nil && c.FocusedVal != w {
-		if setter, ok := c.FocusedVal.(interface{ SetFocused(bool) }); ok {
+	if previous != nil {
+		if setter, ok := previous.(interface{ SetFocused(bool) }); ok {
 			setter.SetFocused(false)
 		}
 		if vs, ok := c.FocusedVal.(interface{ SetFocusVisible(bool) }); ok {
@@ -103,11 +110,18 @@ func (c *MockContext) RequestFocus(w widget.Widget) {
 			vs.SetFocusVisible(c.FocusVisibleVal)
 		}
 	}
+	if previous != nil {
+		previous.Event(c, event.NewFocusEvent(event.FocusLost))
+	}
+	if w != nil && c.FocusedVal == w {
+		w.Event(c, event.NewFocusEvent(event.FocusGained))
+	}
 }
 
-// ReleaseFocus clears focus if the given widget currently has it.
+// ReleaseFocus clears focus if the given widget currently has it and sends
+// it FocusLost.
 func (c *MockContext) ReleaseFocus(w widget.Widget) {
-	if c.FocusedVal != w {
+	if w == nil || c.FocusedVal != w {
 		return
 	}
 	if setter, ok := c.FocusedVal.(interface{ SetFocused(bool) }); ok {
@@ -117,6 +131,7 @@ func (c *MockContext) ReleaseFocus(w widget.Widget) {
 		vs.SetFocusVisible(false)
 	}
 	c.FocusedVal = nil
+	w.Event(c, event.NewFocusEvent(event.FocusLost))
 }
 
 // IsFocused returns true if w is the currently focused widget.
