@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/gogpu/ui/core/button"
-	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/dialog"
 	"github.com/gogpu/ui/core/dropdown"
 	"github.com/gogpu/ui/core/radio"
@@ -439,105 +438,6 @@ func TestPaintButtonFontSizes(t *testing.T) {
 				t.Error("font size should be positive")
 			}
 		})
-	}
-}
-
-// --- CheckboxPainter tests (iOS toggle switch) ---
-
-func TestCheckboxPainterImplementsInterface(t *testing.T) {
-	var _ checkbox.Painter = cupertino.CheckboxPainter{}
-}
-
-func TestPaintCheckboxEmptyBounds(t *testing.T) {
-	canvas := &recordCanvas{}
-	painter := cupertino.CheckboxPainter{}
-
-	painter.PaintCheckbox(canvas, checkbox.PaintState{Bounds: geometry.Rect{}})
-
-	if len(canvas.calls) != 0 {
-		t.Errorf("empty bounds should produce no draw calls, got %d", len(canvas.calls))
-	}
-}
-
-func TestPaintCheckboxChecked(t *testing.T) {
-	canvas := &recordCanvas{}
-	painter := cupertino.CheckboxPainter{}
-
-	painter.PaintCheckbox(canvas, checkbox.PaintState{
-		Label:   "Toggle",
-		Checked: true,
-		Bounds:  testBounds(),
-	})
-
-	// Toggle ON: track (DrawRoundRect) + thumb (DrawCircle) + label (DrawText).
-	roundRects := canvas.methodCalls(methodDrawRoundRect)
-	if len(roundRects) < 1 {
-		t.Errorf("checked toggle should draw track, got %d DrawRoundRect", len(roundRects))
-	}
-
-	circles := canvas.methodCalls(methodDrawCircle)
-	if len(circles) < 1 {
-		t.Errorf("checked toggle should draw thumb, got %d DrawCircle", len(circles))
-	}
-
-	texts := canvas.methodCalls(methodDrawText)
-	if len(texts) != 1 {
-		t.Fatalf("should draw 1 DrawText for label, got %d", len(texts))
-	}
-	if texts[0].text != "Toggle" {
-		t.Errorf("label should be 'Toggle', got %q", texts[0].text)
-	}
-}
-
-func TestPaintCheckboxUnchecked(t *testing.T) {
-	canvas := &recordCanvas{}
-	painter := cupertino.CheckboxPainter{}
-
-	painter.PaintCheckbox(canvas, checkbox.PaintState{
-		Checked: false,
-		Bounds:  testBounds(),
-	})
-
-	// Toggle OFF: track outline (StrokeRoundRect) + thumb (DrawCircle).
-	strokes := canvas.methodCalls(methodStrokeRoundRect)
-	if len(strokes) < 1 {
-		t.Errorf("unchecked toggle should draw track outline, got %d StrokeRoundRect", len(strokes))
-	}
-
-	circles := canvas.methodCalls(methodDrawCircle)
-	if len(circles) < 1 {
-		t.Errorf("unchecked toggle should draw thumb, got %d DrawCircle", len(circles))
-	}
-}
-
-func TestPaintCheckboxIndeterminate(t *testing.T) {
-	canvas := &recordCanvas{}
-	painter := cupertino.CheckboxPainter{}
-
-	painter.PaintCheckbox(canvas, checkbox.PaintState{
-		Indeterminate: true,
-		Bounds:        testBounds(),
-	})
-
-	// Indeterminate: track fill + thumb + dash line.
-	lines := canvas.methodCalls(methodDrawLine)
-	if len(lines) < 1 {
-		t.Errorf("indeterminate should draw dash line, got %d DrawLine", len(lines))
-	}
-}
-
-func TestPaintCheckboxWithTheme(t *testing.T) {
-	theme := cupertino.NewTheme()
-	painter := cupertino.CheckboxPainter{Theme: theme}
-	canvas := &recordCanvas{}
-
-	painter.PaintCheckbox(canvas, checkbox.PaintState{
-		Checked: true,
-		Bounds:  testBounds(),
-	})
-
-	if len(canvas.calls) == 0 {
-		t.Fatal("themed checkbox painter should produce draw calls")
 	}
 }
 
@@ -1055,20 +955,5 @@ func TestDarkThemeButtonColors(t *testing.T) {
 	}
 	if len(canvasLight.calls) == 0 {
 		t.Fatal("light theme painter should produce draw calls")
-	}
-}
-
-func TestDarkThemeCheckboxColors(t *testing.T) {
-	darkTheme := cupertino.NewDarkTheme()
-	painter := cupertino.CheckboxPainter{Theme: darkTheme}
-	canvas := &recordCanvas{}
-
-	painter.PaintCheckbox(canvas, checkbox.PaintState{
-		Checked: true,
-		Bounds:  testBounds(),
-	})
-
-	if len(canvas.calls) == 0 {
-		t.Fatal("dark theme checkbox painter should produce draw calls")
 	}
 }

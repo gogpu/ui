@@ -149,7 +149,7 @@
 | `theme/material3/` | M3 design tokens + 24 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `GridViewPainter`, `LineChartPainter`, `ProgressBarPainter`, `ProgressPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `ColorScheme`, `TypeScale`, `ShapeScale` |
 | `theme/devtools/` | JetBrains DevTools (Int UI) + 24 painters | `Theme`, `ButtonPainter`, `CheckboxPainter`, `RadioPainter`, `TextFieldPainter`, `DropdownPainter`, `SliderPainter`, `DialogPainter`, `ScrollbarPainter`, `TabViewPainter`, `ListViewPainter`, `LineChartPainter`, `CollapsiblePainter`, `PopoverPainter`, `SplitViewPainter`, `TreeViewPainter`, `DataTablePainter`, `ToolbarPainter`, `MenuPainter`, `DockingPainter`, `BadgePainter`, `ChipPainter`, `StripePainter`, `TitleBarPainter`, `ProgressPainter` |
 | `theme/fluent/` | Microsoft Fluent Design + 11 painters | `Theme`, accent color system, inner focus ring, 4px radii, light/dark |
-| `theme/cupertino/` | Apple HIG + 11 painters | `Theme`, iOS toggle switch, segmented control, pill buttons |
+| `theme/cupertino/` | Apple HIG + 11 painters | `Theme`, macOS checkbox, segmented control, pill buttons |
 
 ### Infrastructure
 
