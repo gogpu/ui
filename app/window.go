@@ -450,14 +450,15 @@ func (w *Window) HandleEvent(e event.Event) {
 	}
 
 	// ADR-031: Pointer capture — deliver mouse events directly to the
-	// captured widget, bypassing tree hit-testing. This enables drag
+	// captured widget, bypassing tree hit-testing, in the widget's own
+	// coordinates (see toCaptureSpace). This enables drag
 	// operations (slider, splitview, scrollbar, text selection) to work
 	// when the mouse moves outside the widget's bounds.
 	// Auto-releases on MouseRelease when all buttons are up.
 	if me, ok := e.(*event.MouseEvent); ok && w.capturedWidget != nil {
 		switch me.MouseType {
 		case event.MouseMove, event.MouseRelease, event.MousePress:
-			consumed := w.capturedWidget.Event(w.ctx, me)
+			consumed := w.capturedWidget.Event(w.ctx, toCaptureSpace(w.capturedWidget, me))
 			// Auto-release when all mouse buttons are up (drag ended).
 			if me.MouseType == event.MouseRelease && me.Buttons == 0 {
 				w.capturedWidget = nil
@@ -1366,6 +1367,33 @@ func (w *Window) HandlePointerEvent(ev *gesture.PointerEvent) {
 	if derived != nil {
 		w.HandleEvent(derived)
 	}
+}
+
+// toCaptureSpace returns me with its position moved from window coordinates
+// into the space the captured widget receives events in through the tree.
+// Containers translate events on the way down (a ScrollView by its scroll
+// offset), so that is the space of the widget's Bounds and of the press that
+// started the capture. Delivered in window coordinates instead, a release
+// inside scrolled content would land somewhere other than the press.
+//
+// A widget that has not been drawn yet has no screen origin; its event is
+// returned unchanged.
+func toCaptureSpace(wgt widget.Widget, me *event.MouseEvent) *event.MouseEvent {
+	placed, ok := wgt.(interface {
+		Bounds() geometry.Rect
+		ScreenOrigin() geometry.Point
+		IsScreenOriginValid() bool
+	})
+	if !ok || !placed.IsScreenOriginValid() {
+		return me
+	}
+	offset := placed.Bounds().Min.Sub(placed.ScreenOrigin())
+	if offset == (geometry.Point{}) {
+		return me
+	}
+	local := *me
+	local.Position = me.Position.Add(offset)
+	return &local
 }
 
 // deriveMouseEvent synthesizes a legacy MouseEvent from a gesture.PointerEvent

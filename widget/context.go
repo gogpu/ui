@@ -276,7 +276,10 @@ type ImageCacheProvider interface {
 type PointerCapturer interface {
 	// CapturePointer requests exclusive mouse event delivery for the widget.
 	// While captured, MouseMove, MouseRelease, and MousePress events are
-	// delivered directly to this widget without tree hit-testing.
+	// delivered directly to this widget without tree hit-testing. Their
+	// positions are in the widget's own coordinates (the space of its
+	// Bounds), as tree dispatch would deliver them, including inside
+	// scrolled or transformed containers.
 	// Only one widget can have capture at a time.
 	CapturePointer(w Widget)
 
