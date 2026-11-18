@@ -1,6 +1,10 @@
 package primitives
 
 import (
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
 	"github.com/gogpu/ui/a11y"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -248,7 +252,24 @@ func (t *TextWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	}
 
 	color := t.resolveColor(ctx)
+	lines, _ := t.lines(text, bounds.Width())
+	canvas.PushClip(bounds)
+	defer canvas.PopClip()
+	if len(lines) == 1 {
+		t.drawLine(canvas, lines[0], bounds, color)
+		return
+	}
+	height := t.lineHeight()
+	for i, line := range lines {
+		y := bounds.Min.Y + float32(i)*height
+		if y >= bounds.Max.Y {
+			break
+		}
+		t.drawLine(canvas, line, geometry.NewRect(bounds.Min.X, y, bounds.Width(), height), color)
+	}
+}
 
+func (t *TextWidget) drawLine(canvas widget.Canvas, text string, bounds geometry.Rect, color widget.Color) {
 	// Use StyledTextDrawer path when custom font family or italic is set.
 	if t.style.FontFamily != "" || t.style.Italic {
 		if sd, ok := canvas.(widget.StyledTextDrawer); ok {
@@ -336,53 +357,68 @@ func (t *TextWidget) measureText(text string, maxWidth float32) geometry.Size {
 		return geometry.Size{}
 	}
 
-	fontSize := t.style.FontSize
-	if fontSize <= 0 {
-		fontSize = defaultFontSize
+	lines, wrapped := t.lines(text, maxWidth)
+	var longest int
+	for _, line := range lines {
+		longest = max(longest, utf8.RuneCountInString(line))
 	}
-	lineH := fontSize * t.style.LineHeight
-	charW := fontSize * estimatedCharWidth
-
-	runes := []rune(text)
-	runeCount := len(runes)
-
-	if !isBoundedWidth(maxWidth) || maxWidth <= 0 {
-		// Unbounded: single line
-		width := float32(runeCount) * charW
-		return geometry.Sz(width, lineH)
+	width := float32(longest) * t.fontSize() * estimatedCharWidth
+	if wrapped {
+		width = maxWidth
 	}
-
-	// Calculate characters per line
-	charsPerLine := int(maxWidth / charW)
-	if charsPerLine < 1 {
-		charsPerLine = 1
-	}
-
-	lines := (runeCount + charsPerLine - 1) / charsPerLine
-	if lines < 1 {
-		lines = 1
-	}
-
-	// Apply max lines
-	if t.style.MaxLines > 0 && lines > t.style.MaxLines {
-		lines = t.style.MaxLines
-	}
-
-	width := maxWidth
-	if lines == 1 {
-		singleLineWidth := float32(runeCount) * charW
-		if singleLineWidth < maxWidth {
-			width = singleLineWidth
-		}
-	}
-
-	height := float32(lines) * lineH
-	return geometry.Sz(width, height)
+	return geometry.Sz(width, float32(len(lines))*t.lineHeight())
 }
 
-// isBoundedWidth returns true if the width value is bounded (not infinity).
-func isBoundedWidth(v float32) bool {
-	return v < geometry.Infinity
+func (t *TextWidget) fontSize() float32 {
+	if t.style.FontSize > 0 {
+		return t.style.FontSize
+	}
+	return defaultFontSize
+}
+
+func (t *TextWidget) lineHeight() float32 { return t.fontSize() * t.style.LineHeight }
+
+// lines uses the same width estimate for measuring and painting. Explicit
+// newlines start a new line even when the available width is unbounded.
+func (t *TextWidget) lines(text string, width float32) ([]string, bool) {
+	count := utf8.RuneCountInString(text)
+	limit := count + 1
+	charWidth := t.fontSize() * estimatedCharWidth
+	if width > 0 && width < float32(limit)*charWidth {
+		limit = max(1, int(width/charWidth+0.0001))
+	}
+	if count <= limit && !strings.ContainsRune(text, '\n') {
+		return []string{text}, false
+	}
+	lines := make([]string, 0, 1)
+	wrapped := false
+	for _, paragraph := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+		runes := []rune(paragraph)
+		for len(runes) > limit {
+			end := limit
+			for end > 0 && !unicode.IsSpace(runes[end]) {
+				end--
+			}
+			if end == 0 {
+				end = limit
+			}
+			lines = append(lines, string(runes[:end]))
+			runes = runes[end:]
+			if len(runes) > 0 && unicode.IsSpace(runes[0]) {
+				runes = runes[1:]
+			}
+			wrapped = true
+		}
+		lines = append(lines, string(runes))
+	}
+	if n := t.style.MaxLines; n > 0 && len(lines) > n {
+		lines = lines[:n]
+		if t.style.Overflow == TextOverflowEllipsis {
+			last := []rune(lines[n-1])
+			lines[n-1] = string(last[:min(len(last), limit-1)]) + "…"
+		}
+	}
+	return lines, wrapped
 }
 
 // Mount creates signal bindings for push-based invalidation.
