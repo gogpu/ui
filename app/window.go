@@ -172,6 +172,14 @@ type Window struct {
 	// overhead for windows with no GestureAware widgets. One arena per
 	// window is the Flutter pattern (GestureBinding.gestureArena).
 	gestureArena *gesture.Arena
+
+	// gestureOrigins tracks, per active pointer, the window-space origin of
+	// the coordinate system each collected recognizer expects Position in:
+	// ScreenOrigin().Sub(Bounds().Min), so that localizing a window
+	// position yields the same space as the widget's derived MouseEvents.
+	// Populated during PointerDown recognizer collection, used to localize
+	// routed Move/Up/Cancel events, cleared when the pointer sequence ends.
+	gestureOrigins map[int]map[gesture.Recognizer]geometry.Point
 }
 
 // newWindow creates a Window with the given providers.
@@ -653,6 +661,7 @@ func (w *Window) cancelPointerState() {
 		w.ctx.ReleasePointer(captured)
 	}
 	w.mouseButtonsHeld = 0
+	w.gestureOrigins = nil
 	w.clearHover(0, event.ModNone)
 	w.ctx.ResetCursor()
 	if w.pp != nil {
@@ -1343,22 +1352,50 @@ func (w *Window) HandlePointerEvent(ev *gesture.PointerEvent) {
 	case gesture.PointerDown:
 		// Hit-test: find all GestureAware widgets under the pointer.
 		// Collect their recognizers and add them to the arena.
-		recognizers := w.hitTestGestureAware(ev.GlobalPosition)
-		for _, rec := range recognizers {
-			rec.AddPointer(ev, w.gestureArena)
+		targets := w.hitTestGestureAware(ev.GlobalPosition)
+		if len(targets) > 0 {
+			if w.gestureOrigins == nil {
+				w.gestureOrigins = make(map[int]map[gesture.Recognizer]geometry.Point)
+			}
+			origins := make(map[gesture.Recognizer]geometry.Point, len(targets))
+			for _, t := range targets {
+				origins[t.rec] = t.origin
+				// Deliver the down event in the recognizer's widget-local
+				// space (the space of its derived MouseEvents), so that
+				// LocalPosition in recognizer callbacks matches what the
+				// widget's Event handler receives.
+				local := *ev
+				local.Position = ev.GlobalPosition.Sub(t.origin)
+				t.rec.AddPointer(&local, w.gestureArena)
+			}
+			w.gestureOrigins[ev.PointerID] = origins
 		}
 		// Close the arena for this pointer — no more members can join.
 		w.gestureArena.Close(ev.PointerID)
 
 	case gesture.PointerMove, gesture.PointerUp, gesture.PointerCancel:
-		// Route to all recognizers tracking this pointer.
-		w.gestureArena.Route(ev)
+		// Route to all recognizers tracking this pointer, translating the
+		// position into each recognizer's widget-local coordinate space.
+		origins := w.gestureOrigins[ev.PointerID]
+		w.gestureArena.RouteLocalized(ev, func(m gesture.ArenaMember) (geometry.Point, bool) {
+			if r, ok := m.(gesture.Recognizer); ok {
+				if o, ok2 := origins[r]; ok2 {
+					return o, true
+				}
+			}
+			return geometry.Point{}, false
+		})
 	}
 
 	// Sweep after PointerUp: if no recognizer has claimed victory,
 	// the first remaining member wins by default.
 	if ev.EventType == gesture.PointerUp {
 		w.gestureArena.Sweep(ev.PointerID)
+	}
+
+	// The pointer sequence is complete — drop its origin table.
+	if ev.EventType == gesture.PointerUp || ev.EventType == gesture.PointerCancel {
+		delete(w.gestureOrigins, ev.PointerID)
 	}
 
 	// --- Part 2: Derive MouseEvent for existing widget dispatch ---
@@ -1406,6 +1443,14 @@ func (w *Window) GestureArena() *gesture.Arena {
 	return w.gestureArena
 }
 
+// gestureTarget pairs a recognizer collected from a GestureAware widget with
+// the window-space origin of the coordinate system the widget expects pointer
+// positions in. See hitTestGestureRecursive.
+type gestureTarget struct {
+	rec    gesture.Recognizer
+	origin geometry.Point
+}
+
 // hitTestGestureAware walks the widget tree from root, collecting
 // recognizers from all GestureAware widgets whose ScreenBounds contain
 // the given position. Children are checked in reverse order (topmost
@@ -1419,10 +1464,10 @@ func (w *Window) GestureArena() *gesture.Arena {
 // Each GestureAware widget receives the pointer position in widget-local
 // coordinates, allowing container widgets (Collapsible, TabView, Docking)
 // to filter recognizers based on their interactive region.
-func (w *Window) hitTestGestureAware(pos geometry.Point) []gesture.Recognizer {
-	var recognizers []gesture.Recognizer
-	hitTestGestureRecursive(w.root, pos, &recognizers)
-	return recognizers
+func (w *Window) hitTestGestureAware(pos geometry.Point) []gestureTarget {
+	var targets []gestureTarget
+	hitTestGestureRecursive(w.root, pos, &targets)
+	return targets
 }
 
 // hitTestGestureRecursive walks the widget tree depth-first, collecting
@@ -1432,7 +1477,12 @@ func (w *Window) hitTestGestureAware(pos geometry.Point) []gesture.Recognizer {
 // to widget-local coordinates using ScreenOrigin. This lets container widgets
 // decide whether the click is within their interactive area (e.g., Collapsible
 // header) before returning recognizers.
-func hitTestGestureRecursive(w widget.Widget, pos geometry.Point, out *[]gesture.Recognizer) {
+//
+// Each collected recognizer also records its event-space origin —
+// ScreenOrigin().Sub(Bounds().Min) — so that HandlePointerEvent can deliver
+// pointer events in the same coordinate space as the widget's derived
+// MouseEvents (window position minus the origin).
+func hitTestGestureRecursive(w widget.Widget, pos geometry.Point, out *[]gestureTarget) {
 	if w == nil {
 		return
 	}
@@ -1454,13 +1504,21 @@ func hitTestGestureRecursive(w widget.Widget, pos geometry.Point, out *[]gesture
 	// Translate pos to widget-local coordinates using ScreenOrigin.
 	if ga, ok := w.(gesture.GestureAware); ok {
 		localPos := pos
-		if so, ok2 := w.(interface{ ScreenOrigin() geometry.Point }); ok2 {
-			origin := so.ScreenOrigin()
-			localPos = geometry.Pt(pos.X-origin.X, pos.Y-origin.Y)
+		origin := geometry.Point{}
+		if so, ok2 := w.(interface {
+			ScreenOrigin() geometry.Point
+			Bounds() geometry.Rect
+		}); ok2 {
+			screenOrigin := so.ScreenOrigin()
+			localPos = geometry.Pt(pos.X-screenOrigin.X, pos.Y-screenOrigin.Y)
+			// Inverse of the legacy dispatch translation chain: containers
+			// subtract their Bounds().Min on the way down, so a widget's
+			// event space is anchored at ScreenOrigin - Bounds().Min.
+			origin = screenOrigin.Sub(so.Bounds().Min)
 		}
 		recs := ga.GestureHitTest(localPos)
-		if len(recs) > 0 {
-			*out = append(*out, recs...)
+		for _, rec := range recs {
+			*out = append(*out, gestureTarget{rec: rec, origin: origin})
 		}
 	}
 

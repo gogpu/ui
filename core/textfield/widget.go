@@ -52,7 +52,7 @@ type Widget struct {
 	scrollOffsetX float32
 
 	// Cached text metrics from last Draw call, used by gesture handlers
-	// (positionFromGlobal) that don't have access to canvas.
+	// (positionFromLocal) that don't have access to canvas.
 	cachedMetrics *textmetrics.Metrics
 	// Cached layout values from last Draw call.
 	cachedContentRect geometry.Rect
@@ -474,7 +474,7 @@ func (w *Widget) handleGestureTapDown(details gesture.TapDragDownDetails) {
 	// still calls RequestFocus). The cursor placement happens immediately.
 
 	runes := w.textRunes()
-	pos := positionFromGlobal(w, details.LocalPosition)
+	pos := positionFromLocal(w, details.LocalPosition)
 
 	switch details.ConsecutiveTapCount {
 	case 1:
@@ -513,7 +513,7 @@ func (w *Widget) handleGestureDragStart(_ gesture.TapDragStartDetails) {
 //   - 3 = line-by-line (select-all for single-line TextField)
 func (w *Widget) handleGestureDragUpdate(details gesture.TapDragUpdateDetails) {
 	runes := w.textRunes()
-	pos := positionFromGlobal(w, details.LocalPosition)
+	pos := positionFromLocal(w, details.LocalPosition)
 
 	switch details.ConsecutiveTapCount {
 	case 1:
@@ -563,19 +563,6 @@ func positionFromLocal(w *Widget, localPos geometry.Point) int {
 	charW := fontSize * 0.55
 	pos := int(localX / charW)
 	return clampPos(pos, len(runes))
-}
-
-// positionFromGlobal converts a window-coordinate (global) position to a rune
-// index. Used by gesture recognizer callbacks where positions are in window
-// coordinates (gesture.PointerEvent.GlobalPosition).
-//
-// Converts global to draw-local by subtracting the widget's ScreenOrigin
-// (accumulated parent transforms) and adding Bounds().Min (parent-local offset).
-// This produces the same coordinate space as derived MouseEvent positions.
-func positionFromGlobal(w *Widget, globalPos geometry.Point) int {
-	so := w.ScreenOrigin()
-	localPos := globalPos.Sub(so).Add(w.Bounds().Min)
-	return positionFromLocal(w, localPos)
 }
 
 // Verify Widget implements required interfaces at compile time.
