@@ -329,6 +329,27 @@ func TestDrawTo_DirtyTrackerRegionCount(t *testing.T) {
 	}
 }
 
+func TestDrawTo_DirtyClipIncludesStrokeFringe(t *testing.T) {
+	a := New(WithRenderMode(RenderModeFrameworkManaged))
+	w := a.Window()
+	bounds := geometry.NewRect(10, 20, 100, 50)
+	root := newDrawTrackingWidget(bounds)
+	w.SetRoot(root)
+
+	w.DrawTo(&recordingCanvas{}) // Full repaint.
+	root.SetNeedsRedraw(true)
+
+	canvas := &recordingCanvas{}
+	w.DrawTo(canvas)
+	if len(canvas.pushClipCalls) != 1 {
+		t.Fatalf("dirty clip calls = %d, want 1", len(canvas.pushClipCalls))
+	}
+	want := bounds.Expand(1)
+	if got := canvas.pushClipCalls[0]; got != want {
+		t.Fatalf("dirty clip = %v, want %v", got, want)
+	}
+}
+
 func TestDrawTo_IncrementalSkipsNonOverlappingWidgets(t *testing.T) {
 	// When only child1 is dirty, child2 (non-overlapping) should NOT be drawn
 	// in the incremental path.
