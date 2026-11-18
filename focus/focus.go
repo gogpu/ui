@@ -113,22 +113,12 @@ func (m *Manager) HandleKeyEvent(e *event.KeyEvent) bool {
 // When the shortcut's key combination is pressed, the handler function
 // is called. Shortcuts take precedence over tab navigation.
 func (m *Manager) RegisterShortcut(s Shortcut, handler func()) {
-	m.impl.RegisterShortcut(ifocus.Shortcut{
-		Key:   s.Key,
-		Ctrl:  s.Ctrl,
-		Shift: s.Shift,
-		Alt:   s.Alt,
-	}, handler)
+	m.impl.RegisterShortcut(s, handler)
 }
 
 // UnregisterShortcut removes all handlers for the given shortcut.
 func (m *Manager) UnregisterShortcut(s Shortcut) {
-	m.impl.UnregisterShortcut(ifocus.Shortcut{
-		Key:   s.Key,
-		Ctrl:  s.Ctrl,
-		Shift: s.Shift,
-		Alt:   s.Alt,
-	})
+	m.impl.UnregisterShortcut(s)
 }
 
 // DrawFocusRing draws a focus indicator around the given bounds.
