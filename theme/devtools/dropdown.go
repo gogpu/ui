@@ -133,7 +133,11 @@ func dtDDPaintTriggerText(canvas widget.Canvas, st *dropdown.TriggerPaintState, 
 		Min: geometry.Pt(st.Bounds.Min.X+dtDDContentPaddingH, st.Bounds.Min.Y),
 		Max: geometry.Pt(st.Bounds.Max.X-dtDDChevronWidth-dtDDContentPaddingH, st.Bounds.Max.Y),
 	}
-	canvas.DrawText(st.SelectedText, textBounds, dtDDFontSize, textColor, false, dtDDTextAlignLeft)
+	if !textBounds.IsEmpty() {
+		canvas.PushClip(textBounds)
+		canvas.DrawText(st.SelectedText, textBounds, dtDDFontSize, textColor, false, dtDDTextAlignLeft)
+		canvas.PopClip()
+	}
 }
 
 // dtDDPaintTriggerChevron draws the chevron indicator.

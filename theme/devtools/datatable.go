@@ -80,7 +80,11 @@ func (p DataTablePainter) PaintHeaderCell(canvas widget.Canvas, bounds geometry.
 	if hcs.Disabled {
 		fg = fg.WithAlpha(dtTableDisabledAlpha)
 	}
-	canvas.DrawText(displayText, textBounds, dtTableHeaderFontSize, fg, true, hcs.Align)
+	if !textBounds.IsEmpty() {
+		canvas.PushClip(textBounds)
+		canvas.DrawText(displayText, textBounds, dtTableHeaderFontSize, fg, true, hcs.Align)
+		canvas.PopClip()
+	}
 }
 
 // PaintRow draws the row background with zebra striping and DevTools selection/hover highlights.
@@ -128,7 +132,11 @@ func (p DataTablePainter) PaintCell(canvas widget.Canvas, cps datatable.CellPain
 		cps.Bounds.Width()-dtTableCellPaddingH*2,
 		cps.Bounds.Height(),
 	)
-	canvas.DrawText(cps.Value, textBounds, dtTableCellFontSize, fg, false, cps.Align)
+	if !textBounds.IsEmpty() {
+		canvas.PushClip(textBounds)
+		canvas.DrawText(cps.Value, textBounds, dtTableCellFontSize, fg, false, cps.Align)
+		canvas.PopClip()
+	}
 }
 
 // PaintEmptyState draws a centered "No data" message.
