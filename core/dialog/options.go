@@ -50,6 +50,12 @@ func Content(w widget.Widget) Option {
 	}
 }
 
+// ContentOnly lets the content supply its own header and actions.
+// The dialog still paints the surface and backdrop and manages dismissal.
+func ContentOnly() Option {
+	return func(c *config) { c.contentOnly = true }
+}
+
 // Actions sets the action buttons displayed at the bottom of the dialog.
 // Actions are rendered right-aligned in the order provided.
 func Actions(actions ...Action) Option {

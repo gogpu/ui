@@ -205,27 +205,32 @@ func (w *Widget) computeDialogBounds(ctx widget.Context, windowSize geometry.Siz
 
 	// Lay the content out within the width the dialog will have, and take its
 	// height into the dialog height.
-	contentH := availH - titleAreaHeight - actionAreaHeight - contentPadding*2
-	if contentH < 0 {
-		contentH = 0
-	}
-	var contentSize geometry.Size
-	if w.cfg.content != nil {
-		contentSize = w.cfg.content.Layout(
-			ctx,
-			geometry.BoxConstraints(0, maxW-contentPadding*2, 0, contentH),
-		)
-	}
-
-	dialogH := titleAreaHeight + actionAreaHeight + contentSize.Height
-	if w.cfg.content != nil {
-		dialogH += contentPadding * 2 // content padding top + bottom
-	}
-
 	maxH := w.cfg.maxHeight
 	if maxH <= 0 || maxH > availH {
 		maxH = availH
 	}
+	chromeHeight := titleAreaHeight + actionAreaHeight
+	padding := contentPadding
+	if w.cfg.content != nil {
+		chromeHeight += padding * 2
+	}
+	if w.cfg.contentOnly {
+		chromeHeight, padding = 0, 0
+	}
+	var contentSize geometry.Size
+	if w.cfg.content != nil {
+		width := max(0, maxW-padding*2)
+		minWidth := float32(0)
+		if w.cfg.contentOnly {
+			minWidth = width
+		}
+		contentSize = widget.LayoutChild(w.cfg.content,
+			ctx,
+			geometry.BoxConstraints(minWidth, width, 0, max(0, maxH-chromeHeight)),
+		)
+	}
+
+	dialogH := chromeHeight + contentSize.Height
 	if dialogH > maxH {
 		dialogH = maxH
 	}
@@ -306,6 +311,12 @@ func newSurfaceWidget(d *Widget, ctx widget.Context) *surfaceWidget {
 	}
 	s.SetVisible(true)
 	s.SetEnabled(true)
+	if child, ok := d.cfg.content.(interface{ SetParent(widget.Widget) }); ok {
+		child.SetParent(s)
+	}
+	if d.cfg.contentOnly {
+		return s
+	}
 
 	// Set initial focus to the default action.
 	for i, a := range d.cfg.actions {
@@ -326,7 +337,23 @@ func (s *surfaceWidget) Layout(ctx widget.Context, constraints geometry.Constrai
 	windowSize := ctx.WindowSize()
 	size := constraints.Constrain(windowSize)
 	s.SetBounds(geometry.NewRect(0, 0, size.Width, size.Height))
+	s.positionContent(ctx)
 	return size
+}
+
+func (s *surfaceWidget) positionContent(ctx widget.Context) geometry.Rect {
+	bounds := s.dialog.computeDialogBounds(ctx, ctx.WindowSize())
+	contentBounds := bounds
+	if !s.dialog.cfg.contentOnly {
+		contentBounds = geometry.Rect{
+			Min: geometry.Pt(bounds.Min.X+contentPadding, bounds.Min.Y+titleAreaHeight),
+			Max: geometry.Pt(bounds.Max.X-contentPadding, bounds.Max.Y-actionAreaHeight),
+		}
+	}
+	if child, ok := s.dialog.cfg.content.(interface{ SetBounds(geometry.Rect) }); ok {
+		child.SetBounds(contentBounds)
+	}
+	return bounds
 }
 
 // Draw renders the backdrop and dialog surface.
@@ -342,17 +369,20 @@ func (s *surfaceWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	canvas.DrawRect(s.Bounds(), backdropColor)
 
 	// Compute dialog bounds (and lay the content out).
-	windowSize := ctx.WindowSize()
-	dialogBounds := d.computeDialogBounds(ctx, windowSize)
+	dialogBounds := s.positionContent(ctx)
 
 	// Pre-compute action button rects using MeasureText (ADR-034 Phase 4).
-	actionRects := computeActionRects(canvas, dialogBounds, d.cfg.actions)
+	title, actions := d.cfg.ResolvedTitle(), d.cfg.actions
+	if d.cfg.contentOnly {
+		title, actions = "", nil
+	}
+	actionRects := computeActionRects(canvas, dialogBounds, actions)
 
 	// Delegate to painter for the dialog surface.
 	d.painter.PaintDialog(canvas, PaintState{
-		Title:       d.cfg.ResolvedTitle(),
+		Title:       title,
 		HasContent:  d.cfg.content != nil,
-		Actions:     d.cfg.actions,
+		Actions:     actions,
 		Focused:     s.focusIndex >= 0,
 		Bounds:      dialogBounds,
 		ActionRects: actionRects,
@@ -360,14 +390,8 @@ func (s *surfaceWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 
 	// Draw content widget if present.
 	if d.cfg.content != nil {
-		contentBounds := geometry.Rect{
-			Min: geometry.Pt(dialogBounds.Min.X+contentPadding, dialogBounds.Min.Y+titleAreaHeight),
-			Max: geometry.Pt(dialogBounds.Max.X-contentPadding, dialogBounds.Max.Y-actionAreaHeight),
-		}
-		if setter, ok := d.cfg.content.(interface{ SetBounds(geometry.Rect) }); ok {
-			setter.SetBounds(contentBounds)
-		}
-		d.cfg.content.Draw(ctx, canvas)
+		widget.StampScreenOrigin(d.cfg.content, canvas)
+		widget.DrawChild(d.cfg.content, ctx, canvas)
 	}
 }
 
@@ -375,13 +399,35 @@ func (s *surfaceWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 func (s *surfaceWidget) Event(ctx widget.Context, e event.Event) bool {
 	switch ev := e.(type) {
 	case *event.KeyEvent:
+		if ev.Key != event.KeyEscape && s.dialog.cfg.content != nil {
+			if s.dialog.cfg.content.Event(ctx, e) {
+				return true
+			}
+			if ev.Key == event.KeyTab && (s.dialog.cfg.contentOnly || len(s.dialog.cfg.actions) == 0) {
+				return false // let the window traverse focusable controls
+			}
+		}
 		return s.handleKeyEvent(ctx, ev)
 	case *event.MouseEvent:
+		if s.dispatchContentPointer(ctx, ev.Position, ev) {
+			return true
+		}
 		return s.handleMouseEvent(ctx, ev)
+	case *event.WheelEvent:
+		s.dispatchContentPointer(ctx, ev.Position, ev)
+		return true
 	default:
 		// Modal: consume all events to prevent interaction with background.
 		return true
 	}
+}
+
+func (s *surfaceWidget) dispatchContentPointer(ctx widget.Context, point geometry.Point, e event.Event) bool {
+	content := s.dialog.cfg.content
+	if child, ok := content.(interface{ Bounds() geometry.Rect }); ok && child.Bounds().Contains(point) {
+		return content.Event(ctx, e)
+	}
+	return false
 }
 
 // handleKeyEvent processes keyboard events.
@@ -400,11 +446,13 @@ func (s *surfaceWidget) handleKeyEvent(ctx widget.Context, e *event.KeyEvent) bo
 		return true
 
 	case event.KeyTab:
-		s.cycleFocus(ctx, e.IsShift())
+		if !d.cfg.contentOnly {
+			s.cycleFocus(ctx, e.IsShift())
+		}
 		return true
 
 	case event.KeyEnter, event.KeySpace:
-		if s.focusIndex >= 0 && s.focusIndex < len(d.cfg.actions) {
+		if !d.cfg.contentOnly && s.focusIndex >= 0 && s.focusIndex < len(d.cfg.actions) {
 			action := d.cfg.actions[s.focusIndex]
 			if action.OnClick != nil {
 				action.OnClick()
@@ -469,7 +517,7 @@ func (s *surfaceWidget) handleMouseEvent(ctx widget.Context, e *event.MouseEvent
 // handleActionClick checks if a mouse press hit an action button.
 func (s *surfaceWidget) handleActionClick(ctx widget.Context, e *event.MouseEvent, dialogBounds geometry.Rect) {
 	d := s.dialog
-	if len(d.cfg.actions) == 0 {
+	if d.cfg.contentOnly || len(d.cfg.actions) == 0 {
 		return
 	}
 
@@ -489,9 +537,12 @@ func (s *surfaceWidget) handleActionClick(ctx widget.Context, e *event.MouseEven
 	}
 }
 
-// Children returns nil; the surface has no child widgets in the tree.
+// Children returns the dialog content for mounting, focus and input routing.
 func (s *surfaceWidget) Children() []widget.Widget {
-	return nil
+	if s.dialog.cfg.content == nil {
+		return nil
+	}
+	return []widget.Widget{s.dialog.cfg.content}
 }
 
 // Dismiss is called by the overlay stack when the overlay should close.

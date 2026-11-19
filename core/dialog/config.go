@@ -12,6 +12,7 @@ type config struct {
 	titleSignal         state.Signal[string]
 	readonlyTitleSignal state.ReadonlySignal[string]
 	content             widget.Widget
+	contentOnly         bool
 	actions             []Action
 	dismissible         bool
 	escToClose          bool

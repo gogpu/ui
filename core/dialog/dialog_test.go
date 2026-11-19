@@ -4,10 +4,14 @@ import (
 	"image"
 	"testing"
 
+	"github.com/gogpu/ui/app"
+	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/dialog"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
+	"github.com/gogpu/ui/uitest"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -55,6 +59,34 @@ func TestNew_AllOptions(t *testing.T) {
 		dialog.PainterOpt(dialog.DefaultPainter{}),
 	)
 	_ = d
+}
+
+func TestContentOnlyRoutesInputToMountedControl(t *testing.T) {
+	a := app.New()
+	a.SetRoot(primitives.Box())
+	win := a.Window()
+	win.HandleResize(800, 600)
+	a.Frame()
+	checked := false
+	control := checkbox.New(checkbox.Label("Option"), checkbox.OnToggle(func(on bool) { checked = on }))
+	d := dialog.New(dialog.ContentOnly(), dialog.Content(primitives.VBox(control).Padding(12)))
+	d.Show(win.Context())
+	a.Frame()
+	win.DrawOverlays(&uitest.MockCanvas{})
+
+	if !control.IsMounted() || control.ScreenBounds().IsEmpty() {
+		t.Fatalf("control not mounted or laid out: %v", control.ScreenBounds())
+	}
+	p := control.ScreenBounds().Center()
+	win.HandleEvent(event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft, p, p, event.ModNone))
+	win.HandleEvent(event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0, p, p, event.ModNone))
+	if !checked || win.Context().FocusedWidget() != control || !d.IsOpen() {
+		t.Fatal("mouse input did not toggle and focus the control inside the dialog")
+	}
+	win.HandleEvent(event.NewKeyEvent(event.KeyPress, event.KeyEscape, 0, event.ModNone))
+	if d.IsOpen() || control.IsMounted() {
+		t.Fatal("Escape did not close the dialog and unmount its content")
+	}
 }
 
 // --- Show/Close Lifecycle Tests ---
