@@ -115,10 +115,12 @@ func (w *screenOriginContainer) Layout(_ widget.Context, c geometry.Constraints)
 }
 
 func (w *screenOriginContainer) Draw(ctx widget.Context, canvas widget.Canvas) {
+	canvas.PushTransform(w.Bounds().Min)
 	for _, child := range w.kids {
 		widget.StampScreenOrigin(child, canvas)
 		widget.DrawChild(child, ctx, canvas)
 	}
+	canvas.PopTransform()
 }
 
 func (w *screenOriginContainer) Event(_ widget.Context, _ event.Event) bool { return false }

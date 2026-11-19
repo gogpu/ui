@@ -550,20 +550,12 @@ func recordBoundary(bi boundaryInfo, ctx widget.Context) {
 		ds.SetSuppressDirtyCallback(true)
 	}
 
-	// Set ScreenOriginBase so StampScreenOrigin inside Draw computes correct
-	// screen-space origins for child widgets (Flutter PaintingContext.offset).
-	// Without this, nested boundaries (ScrollView → items) get ScreenOrigin
-	// relative to (0,0) instead of the boundary's actual screen position.
-	//
-	// ScreenOriginBase must compensate for the PushTransform(-bounds.Min) below.
-	// After PushTransform, TransformOffset = -bounds.Min. StampScreenOrigin
-	// computes: offset = TransformOffset + ScreenOriginBase = -bounds.Min + base.
-	// For a child at childBounds.Min, screenOrigin = offset + childBounds.Min.
-	// We want: screenOrigin = bi.ScreenOrigin() + childBounds.Min.
-	// So: base = bi.ScreenOrigin() + bounds.Min.
+	// The recorder removes bounds.Min to paint this boundary at texture-local
+	// (0, 0). ScreenOrigin already identifies where that texture is placed in
+	// the window. Child stamping adds it to the recorder's local transform.
 	type screenBaseSetter interface{ SetScreenOriginBase(geometry.Point) }
 	if sbs, ok := recorder.(screenBaseSetter); ok {
-		sbs.SetScreenOriginBase(bi.ScreenOrigin().Add(bounds.Min))
+		sbs.SetScreenOriginBase(bi.ScreenOrigin())
 	}
 
 	// Record in local coordinates.
