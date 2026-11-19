@@ -627,6 +627,9 @@ func (w *Widget) GetRowCount() int {
 // invalidates the table through the scheduler; InvalidateData is the path for
 // value-only changes and for apps that own their data outside signals.
 func (w *Widget) InvalidateData() {
+	if w.virtual != nil {
+		w.virtual.MarkNeedsLayout()
+	}
 	w.MarkNeedsLayout()
 	w.SetNeedsRedraw(true)
 }

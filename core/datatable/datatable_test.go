@@ -1028,6 +1028,21 @@ func TestInvalidateData_AfterLayout_RequestsRedraw(t *testing.T) {
 	}
 }
 
+func TestInvalidateData_RemeasuresScrollContent(t *testing.T) {
+	count := 10
+	dt := New(Columns(testColumns()), RowCountFn(func() int { return count }), RowHeight(24))
+	ctx := widget.NewContext()
+	constraints := geometry.Tight(geometry.Sz(600, 400))
+	widget.LayoutChild(dt, ctx, constraints)
+
+	count = 2
+	dt.InvalidateData()
+	widget.LayoutChild(dt, ctx, constraints)
+	if got := dt.scroll.ContentSize().Height; got != 48 {
+		t.Errorf("scroll content height after changing the row count = %v, want 48", got)
+	}
+}
+
 // --- Children Tests ---
 
 func TestChildren(t *testing.T) {
