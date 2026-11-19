@@ -132,6 +132,7 @@ type Window struct {
 	// mouseButtonsHeld tracks pressed mouse buttons to prevent cursor
 	// reset during drag operations (Frame.ResetCursor skipped while dragging).
 	mouseButtonsHeld event.ButtonState
+	overlayPress     overlay.Overlay // owns the mouse sequence through the last release
 
 	// windowSize tracks the last known window size in logical pixels.
 	windowSize geometry.Size
@@ -453,8 +454,37 @@ func (w *Window) HandleEvent(e event.Event) {
 
 	w.trackInputModality(e)
 
+	top := w.overlays.Top()
+	overlayOwnsMouse := false
+	if me, ok := e.(*event.MouseEvent); ok {
+		owner := w.overlayPress
+		overlayOwnsMouse = owner != nil
+		if me.MouseType == event.MouseRelease && me.Buttons == 0 {
+			w.overlayPress = nil
+		}
+		// Dismissing an overlay must not leave a release for the widget beneath it.
+		if owner != nil && owner != top {
+			return
+		}
+		if w.dispatchCapturedMouse(me, top) {
+			return
+		}
+		w.trackHover(me)
+	}
+
 	// Overlays get priority.
 	if w.overlays.HandleEvent(w.ctx, e) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			if me.MouseType == event.MousePress && me.Buttons != 0 {
+				w.overlayPress = top
+			}
+			if w.pp != nil {
+				w.syncCursor()
+			}
+		}
+		return
+	}
+	if overlayOwnsMouse {
 		return
 	}
 
@@ -466,30 +496,6 @@ func (w *Window) HandleEvent(e event.Event) {
 			w.syncManagerFocusToContext()
 			return
 		}
-	}
-
-	// ADR-031: Pointer capture — deliver mouse events directly to the
-	// captured widget, bypassing tree hit-testing, in the widget's own
-	// coordinates (see toCaptureSpace). This enables drag
-	// operations (slider, splitview, scrollbar, text selection) to work
-	// when the mouse moves outside the widget's bounds.
-	// Auto-releases on MouseRelease when all buttons are up.
-	if me, ok := e.(*event.MouseEvent); ok && w.capturedWidget != nil {
-		switch me.MouseType {
-		case event.MouseMove, event.MouseRelease, event.MousePress:
-			consumed := w.capturedWidget.Event(w.ctx, toCaptureSpace(w.capturedWidget, me))
-			// Auto-release when all mouse buttons are up (drag ended).
-			if me.MouseType == event.MouseRelease && me.Buttons == 0 {
-				w.capturedWidget = nil
-			}
-			if consumed {
-				return
-			}
-		}
-	}
-
-	if me, ok := e.(*event.MouseEvent); ok {
-		w.trackHover(me)
 	}
 
 	focusedBefore := w.ctx.FocusedWidget()
@@ -510,6 +516,31 @@ func (w *Window) HandleEvent(e event.Event) {
 		w.blurOnOutsidePress(me.Position, focusedBefore)
 		w.syncContextFocusToManager()
 	}
+}
+
+// dispatchCapturedMouse keeps drags inside the active input layer, even when
+// the pointer leaves the captured widget or moves over the popup's padding.
+func (w *Window) dispatchCapturedMouse(me *event.MouseEvent, top overlay.Overlay) bool {
+	captured := w.capturedWidget
+	if captured == nil {
+		return false
+	}
+	switch me.MouseType {
+	case event.MouseMove, event.MouseRelease, event.MousePress:
+	default:
+		return false
+	}
+	if me.MouseType == event.MouseRelease && me.Buttons == 0 {
+		defer func() { w.capturedWidget = nil }()
+	}
+	if top != nil {
+		for ancestor := captured; ancestor != top; ancestor = parentOf(ancestor) {
+			if ancestor == nil {
+				return false
+			}
+		}
+	}
+	return captured.Event(w.ctx, toCaptureSpace(captured, me))
 }
 
 // blurOnOutsidePress clears focus when a press lands outside the focused
@@ -658,6 +689,7 @@ func (w *Window) HandleFocusChange(focused bool) {
 // PointerCancel. Captured widgets receive releases at an outside-window point
 // first so they can clear internal drag state without activating a control.
 func (w *Window) cancelPointerState() {
+	w.overlayPress = nil
 	// Window's zero value is valid for public no-op handlers such as
 	// HandleFocusChange. Pointer callbacks also share this cleanup path, so
 	// keep it safe before newWindow has installed a widget context.
@@ -1539,7 +1571,14 @@ func (w *Window) GestureArena() *gesture.Arena {
 // to filter recognizers based on their interactive region.
 func (w *Window) hitTestGestureAware(pos geometry.Point) []gesture.Recognizer {
 	var recognizers []gesture.Recognizer
-	hitTestGestureRecursive(w.root, pos, &recognizers)
+	root := w.root
+	if top := w.overlays.Top(); top != nil {
+		root = top
+		if container, ok := top.(*overlay.Container); ok {
+			root = container.Content()
+		}
+	}
+	hitTestGestureRecursive(root, pos, &recognizers)
 	return recognizers
 }
 
@@ -1561,11 +1600,8 @@ func hitTestGestureRecursive(w widget.Widget, pos geometry.Point, out *[]gesture
 	}
 
 	// Check if the widget's ScreenBounds contains the position.
-	if sb, ok := w.(interface{ ScreenBounds() geometry.Rect }); ok {
-		bounds := sb.ScreenBounds()
-		if !bounds.Contains(pos) {
-			return
-		}
+	if !hitTestContains(w, pos) {
+		return
 	}
 
 	// Collect recognizers from GestureAware widgets.

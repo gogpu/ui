@@ -90,8 +90,9 @@ func (c *Container) Draw(ctx widget.Context, canvas widget.Canvas) {
 }
 
 // Event dispatches events. Content gets first chance. If content does not
-// consume the event, Escape key and mouse press outside content trigger
-// dismissal. Modal containers consume all remaining events.
+// consume the event, the content area still blocks pointer and wheel input.
+// Escape and mouse presses outside dismiss the overlay. Modal containers
+// consume all remaining events.
 func (c *Container) Event(ctx widget.Context, e event.Event) bool {
 	// Give content first chance at the event.
 	if content := c.Content(); content != nil && content.Event(ctx, e) {
@@ -106,39 +107,32 @@ func (c *Container) Event(ctx widget.Context, e event.Event) bool {
 		}
 	}
 
-	// Mouse press outside content dismisses.
-	if c.handleMouseDismiss(e) {
-		return true
+	switch ev := e.(type) {
+	case *event.MouseEvent:
+		if c.containsContent(ev.Position) {
+			return true
+		}
+		if ev.MouseType == event.MousePress {
+			c.Dismiss()
+			return true
+		}
+	case *event.WheelEvent:
+		if c.containsContent(ev.Position) {
+			return true
+		}
 	}
 
 	// Modal overlays consume all events to prevent interaction with content below.
 	return c.modal
 }
 
-// handleMouseDismiss checks if a mouse press event occurred outside the
-// content bounds and dismisses if so. Returns true if the event was handled.
-func (c *Container) handleMouseDismiss(e event.Event) bool {
-	me, ok := e.(*event.MouseEvent)
-	if !ok || me.MouseType != event.MousePress {
-		return false
-	}
-
+func (c *Container) containsContent(position geometry.Point) bool {
 	content := c.Content()
 	if content == nil {
-		c.Dismiss()
-		return true
-	}
-
-	boundsGetter, ok := content.(interface{ Bounds() geometry.Rect })
-	if !ok {
 		return false
 	}
-
-	if !boundsGetter.Bounds().Contains(me.Position) {
-		c.Dismiss()
-		return true
-	}
-	return false
+	boundsGetter, ok := content.(interface{ Bounds() geometry.Rect })
+	return !ok || boundsGetter.Bounds().Contains(position)
 }
 
 // Dismiss triggers the dismissal callback.
