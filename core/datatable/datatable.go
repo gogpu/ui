@@ -77,6 +77,7 @@ type config struct {
 	selectedRowSignal         state.Signal[int]
 	readonlySelectedRowSignal state.ReadonlySignal[int]
 	onRowSelect               func(row int)
+	onRowReselect             func(row int)
 
 	// Multi-selection (only used when selectionMode == SelectionMulti).
 	selectedRows map[int]bool
@@ -229,6 +230,11 @@ func OnRowSelect(fn func(row int)) Option {
 	return func(c *config) { c.onRowSelect = fn }
 }
 
+// OnRowReselect is called when the selected row is clicked in single-selection mode.
+func OnRowReselect(fn func(row int)) Option {
+	return func(c *config) { c.onRowReselect = fn }
+}
+
 // Disabled sets the table's disabled state.
 func Disabled(d bool) Option {
 	return func(c *config) { c.disabled = d }
@@ -292,6 +298,7 @@ type Widget struct {
 	// Internal scroll view for the data rows (not header).
 	scroll  *scrollview.Widget
 	virtual *virtualContent
+	details rowDetails
 
 	// Layout state.
 	viewportWidth  float32
@@ -339,14 +346,16 @@ func New(opts ...Option) *Widget {
 	// Create virtual content widget.
 	w.virtual = &virtualContent{table: w}
 	w.virtual.SetVisible(true)
+	w.virtual.SetSelf(w.virtual)
 
 	// Build internal scroll view.
 	svOpts := []scrollview.Option{
 		scrollview.DirectionOpt(scrollview.Vertical),
 	}
-	if w.cfg.scrollYSignal != nil {
-		svOpts = append(svOpts, scrollview.ScrollYSignal(w.cfg.scrollYSignal))
+	if w.cfg.scrollYSignal == nil {
+		w.cfg.scrollYSignal = state.NewSignal(float32(0))
 	}
+	svOpts = append(svOpts, scrollview.ScrollYSignal(w.cfg.scrollYSignal))
 	if w.cfg.onScroll != nil {
 		fn := w.cfg.onScroll
 		svOpts = append(svOpts, scrollview.OnScroll(func(_, y float32) {
@@ -417,6 +426,9 @@ func (w *Widget) Layout(ctx widget.Context, constraints geometry.Constraints) ge
 	}
 	svConstraints := geometry.Tight(geometry.Sz(size.Width, scrollH))
 	widget.LayoutChild(w.scroll, ctx, svConstraints)
+	if w.currentScrollY() > max(0, w.totalDataHeight()-scrollH) {
+		w.setScrollY(max(0, w.totalDataHeight()-scrollH))
+	}
 
 	return size
 }
@@ -548,9 +560,13 @@ func (w *Widget) Unmount() {
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
 // DataTable is a leaf widget — always returns recognizers (hit-test already
 // confirmed bounds containment).
-func (w *Widget) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
+func (w *Widget) GestureHitTest(pos geometry.Point) []gesture.Recognizer {
 	if w.clickRec == nil {
 		return nil
+	}
+	contentPos := pos.Add(geometry.Pt(0, w.currentScrollY()-defaultHeaderHeight))
+	if w.detailsBounds(w.viewportWidth).Contains(contentPos) {
+		return nil // embedded controls own gestures in the detail panel
 	}
 	return []gesture.Recognizer{w.clickRec}
 }
@@ -627,6 +643,10 @@ func (w *Widget) GetRowCount() int {
 // invalidates the table through the scheduler; InvalidateData is the path for
 // value-only changes and for apps that own their data outside signals.
 func (w *Widget) InvalidateData() {
+	if w.details.content != nil && w.details.row >= w.GetRowCount() {
+		w.details = rowDetails{}
+		w.virtual.ClearChildren()
+	}
 	if w.virtual != nil {
 		w.virtual.MarkNeedsLayout()
 	}
@@ -634,18 +654,22 @@ func (w *Widget) InvalidateData() {
 	w.SetNeedsRedraw(true)
 }
 
-// ScrollToRow scrolls to make the given row visible.
+// ScrollToRow scrolls to make the given row and as much of its details as
+// possible visible.
 func (w *Widget) ScrollToRow(row int) {
 	rowCount := w.cfg.ResolvedRowCount()
 	if row < 0 || row >= rowCount {
 		return
 	}
-	rowTop := float32(row) * w.cfg.rowHeight
+	rowTop := w.rowTop(row)
 	rowBottom := rowTop + w.cfg.rowHeight
 	scrollY := w.currentScrollY()
 	dataViewH := w.viewportHeight - defaultHeaderHeight
 	if dataViewH <= 0 {
 		return
+	}
+	if w.details.content != nil && w.details.row == row {
+		rowBottom = min(rowBottom+w.detailsBounds(1).Height(), rowTop+dataViewH)
 	}
 
 	if rowTop >= scrollY && rowBottom <= scrollY+dataViewH {
@@ -767,7 +791,7 @@ func (w *Widget) totalDataHeight() float32 {
 	if rowCount <= 0 {
 		return 0
 	}
-	return float32(rowCount) * w.cfg.rowHeight
+	return float32(rowCount)*w.cfg.rowHeight + w.detailsBounds(1).Height()
 }
 
 // visibleRowRange returns [firstRow, lastRow] (inclusive) that overlap the data viewport.
@@ -780,11 +804,11 @@ func (w *Widget) visibleRowRange(scrollY, viewH float32) (int, int) {
 		return 0, 0
 	}
 
-	firstRow := int(scrollY / w.cfg.rowHeight)
+	firstRow := w.rowAtOffset(scrollY)
 	if firstRow < 0 {
 		firstRow = 0
 	}
-	lastRow := int((scrollY + viewH) / w.cfg.rowHeight)
+	lastRow := w.rowAtOffset(scrollY + viewH)
 	if lastRow >= rowCount {
 		lastRow = rowCount - 1
 	}
@@ -869,7 +893,7 @@ func (w *Widget) drawVisibleRows(ctx widget.Context, canvas widget.Canvas) {
 		// be placed at their absolute content offset. Subtracting scrollY here
 		// too would double-scroll (rows move 2x, content runs off the end and
 		// shows blank space; hit-testing via rowAtY desyncs from the highlight).
-		y := float32(row) * w.cfg.rowHeight
+		y := w.rowTop(row)
 		rowBounds := geometry.NewRect(0, y, w.viewportWidth, w.cfg.rowHeight)
 
 		isSelected := w.isRowSelected(row, selectedRow)
@@ -1210,6 +1234,10 @@ func handleContentMousePress(dt *Widget, ctx widget.Context, e *event.MouseEvent
 
 // applyRowSelection updates selection state after a row click.
 func applyRowSelection(dt *Widget, ctx widget.Context, row int, ctrlHeld bool) {
+	if dt.cfg.selectionMode == SelectionSingle && row == dt.cfg.ResolvedSelectedRow() && dt.cfg.onRowReselect != nil {
+		dt.cfg.onRowReselect(row)
+		return
+	}
 	if dt.cfg.selectionMode == SelectionMulti && ctrlHeld {
 		toggleMultiSelect(dt, ctx, row)
 		return
@@ -1246,7 +1274,11 @@ func (w *Widget) rowAtY(y float32) int {
 	if y < 0 || w.cfg.rowHeight <= 0 {
 		return noHoveredRow
 	}
-	row := int(y / w.cfg.rowHeight)
+	gap := w.detailsBounds(1)
+	if !gap.IsEmpty() && y >= gap.Min.Y && y < gap.Max.Y {
+		return noHoveredRow
+	}
+	row := w.rowAtOffset(y)
 	if row >= w.cfg.ResolvedRowCount() {
 		return noHoveredRow
 	}
@@ -1262,7 +1294,7 @@ type virtualContent struct {
 }
 
 // Layout returns the total content size (all rows).
-func (vc *virtualContent) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
+func (vc *virtualContent) Layout(ctx widget.Context, c geometry.Constraints) geometry.Size {
 	if vc.table == nil {
 		return geometry.Size{}
 	}
@@ -1274,6 +1306,13 @@ func (vc *virtualContent) Layout(_ widget.Context, c geometry.Constraints) geome
 	if width < c.MinWidth {
 		width = c.MinWidth
 	}
+	if bounds := vc.table.detailsBounds(width); !bounds.IsEmpty() {
+		detail := vc.table.details.content
+		widget.LayoutChild(detail, ctx, geometry.Tight(bounds.Size()))
+		if setter, ok := detail.(interface{ SetBounds(geometry.Rect) }); ok {
+			setter.SetBounds(bounds)
+		}
+	}
 	return geometry.Sz(width, totalHeight)
 }
 
@@ -1283,6 +1322,10 @@ func (vc *virtualContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 	vc.table.drawVisibleRows(ctx, canvas)
+	if detail := vc.table.details.content; detail != nil && !vc.table.detailsBounds(vc.table.viewportWidth).IsEmpty() {
+		widget.StampScreenOrigin(detail, canvas)
+		widget.DrawChild(detail, ctx, canvas)
+	}
 }
 
 // Event delegates events back to the parent table for row interaction.
@@ -1290,16 +1333,26 @@ func (vc *virtualContent) Event(ctx widget.Context, e event.Event) bool {
 	if vc.table == nil {
 		return false
 	}
+	if detail := vc.table.details.content; detail != nil {
+		bounds := vc.table.detailsBounds(vc.table.viewportWidth)
+		if !bounds.IsEmpty() {
+			switch ev := e.(type) {
+			case *event.MouseEvent:
+				if bounds.Contains(ev.Position) && detail.Event(ctx, e) {
+					return true
+				}
+			case *event.WheelEvent:
+				return bounds.Contains(ev.Position) && detail.Event(ctx, e)
+			default:
+				return detail.Event(ctx, e)
+			}
+		}
+	}
 	me, ok := e.(*event.MouseEvent)
 	if !ok {
 		return false
 	}
 	return handleContentMouseEvent(vc.table, ctx, me)
-}
-
-// Children returns nil; rows are drawn directly, not as child widgets.
-func (vc *virtualContent) Children() []widget.Widget {
-	return nil
 }
 
 // Default viewport dimensions used as fallback.
