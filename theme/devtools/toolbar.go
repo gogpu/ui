@@ -15,6 +15,9 @@ import (
 // If Theme is nil, ToolbarPainter falls back to the default DevTools dark palette.
 type ToolbarPainter struct {
 	Theme *Theme // nil uses default DevTools dark fallback
+
+	// IconSize is the maximum icon size in logical pixels. Zero uses 16px.
+	IconSize float32
 }
 
 // resolveColors returns DevTools-derived colors for toolbar painting.
@@ -84,7 +87,11 @@ func (p ToolbarPainter) PaintButtonItem(canvas widget.Canvas, state toolbar.Pain
 	}
 
 	// Draw icon centered in the button area.
-	iconBounds := dtToolbarIconBounds(state.Bounds, state.ShowLabel)
+	iconSize := p.IconSize
+	if iconSize <= 0 {
+		iconSize = dtToolbarMaxIconSize
+	}
+	iconBounds := dtToolbarIconBounds(state.Bounds, state.ShowLabel, iconSize)
 	icon.Draw(canvas, state.Icon, iconBounds, fg)
 
 	// Draw label text if ShowLabel is true.
@@ -138,15 +145,8 @@ var dtDefaultToolbarColors = dtToolbarColors{
 }
 
 // dtToolbarIconBounds calculates the icon bounds within a button item.
-func dtToolbarIconBounds(itemBounds geometry.Rect, showLabel bool) geometry.Rect {
-	h := itemBounds.Height() - dtToolbarIconPadding*2
-	if h < 0 {
-		h = 0
-	}
-	iconSize := h
-	if iconSize > dtToolbarMaxIconSize {
-		iconSize = dtToolbarMaxIconSize
-	}
+func dtToolbarIconBounds(itemBounds geometry.Rect, showLabel bool, maxSize float32) geometry.Rect {
+	iconSize := max(0, min(maxSize, itemBounds.Width(), itemBounds.Height()-dtToolbarIconPadding*2))
 	if showLabel {
 		x := itemBounds.Min.X + dtToolbarIconPadding
 		y := itemBounds.Min.Y + (itemBounds.Height()-iconSize)/2

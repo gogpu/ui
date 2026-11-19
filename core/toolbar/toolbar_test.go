@@ -239,6 +239,38 @@ func TestLayout_ButtonWidthOverride(t *testing.T) {
 	}
 }
 
+func TestButtonHeight_ExpandsHitAreaIntoPaddingAndGap(t *testing.T) {
+	var clicks []int
+	tb := New(
+		Items(
+			IconButton("Pull", icon.Add, func() { clicks = append(clicks, 0) }),
+			IconButton("Options", icon.ExpChevronDown, func() { clicks = append(clicks, 1) }),
+			Spacer(),
+		),
+		Height(42), ButtonHeight(32), ButtonSize(32), Gap(6),
+	)
+	ctx := widget.NewContext()
+	tb.Layout(ctx, geometry.Loose(geometry.Sz(200, 42)))
+	if got := tb.ItemBounds(0); got != geometry.NewRect(0, 5, 32, 32) {
+		t.Fatalf("painted bounds = %v, want 32×32 centered in row", got)
+	}
+
+	// Both points are outside the painted buttons vertically and in the gap horizontally.
+	for want, point := range []geometry.Point{geometry.Pt(34, 1), geometry.Pt(36, 40)} {
+		if got := tb.HitTestItem(point); got != want || !tb.HitTestPoint(point) {
+			t.Fatalf("hit test at %v = %d, want %d", point, got, want)
+		}
+		tb.Event(ctx, event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft, point, point, event.ModNone))
+		tb.Event(ctx, event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0, point, point, event.ModNone))
+		if len(clicks) != want+1 || clicks[want] != want {
+			t.Fatalf("clicks = %v, want button %d activated", clicks, want)
+		}
+	}
+	if tb.HitTestPoint(geometry.Pt(120, 20)) {
+		t.Error("spacer should remain available for window dragging")
+	}
+}
+
 func TestLayout_SpacerDistribution(t *testing.T) {
 	tb := New(Items(
 		IconButton("A", icon.Add, nil),

@@ -13,11 +13,12 @@ type Option func(*config)
 
 // config holds the toolbar's configuration, set at construction time via options.
 type config struct {
-	items      []Item
-	height     float32
-	buttonSize float32 // 0 = use default (36px)
-	gap        float32 // 0 = use default (2px); -1 = explicitly 0
-	painter    Painter
+	items        []Item
+	height       float32
+	buttonSize   float32 // 0 = use default (36px)
+	buttonHeight float32
+	gap          float32 // 0 = use default (2px); -1 = explicitly 0
+	painter      Painter
 }
 
 // Items sets the toolbar's items.
@@ -38,6 +39,13 @@ func Height(h float32) Option {
 // Default is 36px. JetBrains IDE uses 30px for main toolbar.
 func ButtonSize(px float32) Option {
 	return func(c *config) { c.buttonSize = px }
+}
+
+// ButtonHeight sets the painted button height independently of the toolbar height.
+// The button remains clickable over the full row height and halfway across
+// each gap shared with another button. Zero keeps the default layout and hit areas.
+func ButtonHeight(px float32) Option {
+	return func(c *config) { c.buttonHeight = px }
 }
 
 // Gap sets the spacing between toolbar items in logical pixels.
@@ -66,6 +74,7 @@ const (
 type itemState struct {
 	interaction interactionState
 	bounds      geometry.Rect
+	hitBounds   geometry.Rect
 }
 
 // Widget implements a horizontal toolbar with icon buttons, separators,
@@ -279,6 +288,17 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 
 		bounds := geometry.NewRect(x, 0, itemW, available.Height)
 		w.itemStates[i].bounds = bounds
+		w.itemStates[i].hitBounds = bounds
+		if item.Kind == ItemButton && w.cfg.buttonHeight > 0 {
+			height := min(w.cfg.buttonHeight, available.Height)
+			w.itemStates[i].bounds = geometry.NewRect(x, (available.Height-height)/2, itemW, height)
+			if i > 0 && w.cfg.items[i-1].Kind == ItemButton {
+				w.itemStates[i].hitBounds.Min.X -= gap / 2
+			}
+			if i+1 < len(w.cfg.items) && w.cfg.items[i+1].Kind == ItemButton {
+				w.itemStates[i].hitBounds.Max.X += gap / 2
+			}
+		}
 
 		// Position custom widgets.
 		if item.Kind == ItemCustom && item.Widget != nil {
@@ -625,9 +645,18 @@ func (w *Widget) handleActivationKey(_ widget.Context, e *event.KeyEvent) bool {
 // hitTest returns the index of the item at the given local point, or -1.
 func (w *Widget) hitTest(local geometry.Point) int {
 	for i := range w.itemStates {
-		if w.itemStates[i].bounds.Contains(local) {
+		if w.itemStates[i].hitBounds.Contains(local) {
 			return i
 		}
+	}
+	return noFocusIndex
+}
+
+// HitTestItem returns the index at local, or -1 for a spacer or unoccupied space.
+func (w *Widget) HitTestItem(local geometry.Point) int {
+	i := w.hitTest(local)
+	if i >= 0 && w.cfg.items[i].Kind != ItemSpacer {
+		return i
 	}
 	return noFocusIndex
 }
@@ -636,15 +665,7 @@ func (w *Widget) hitTest(local geometry.Point) int {
 // (button, separator, or custom widget). Returns false for empty gaps
 // between items and spacers — allowing the parent to treat gaps as drag area.
 func (w *Widget) HitTestPoint(local geometry.Point) bool {
-	for i, item := range w.cfg.items { //nolint:gocritic
-		if item.Kind == ItemSpacer {
-			continue // spacers are not interactive
-		}
-		if w.itemStates[i].bounds.Contains(local) {
-			return true
-		}
-	}
-	return false
+	return w.HitTestItem(local) >= 0
 }
 
 // dispatchToCustomItems dispatches events to custom widget items.
