@@ -66,6 +66,10 @@ type Item struct {
 	// Separators and spacers ignore this field.
 	Enabled bool
 
+	// Width overrides the default width of a button, in logical pixels.
+	// Zero uses the toolbar's usual sizing.
+	Width float32
+
 	// ShowLabel controls whether the text label is displayed next to the icon.
 	// When false (default for IconButton), only the icon is shown.
 	ShowLabel bool

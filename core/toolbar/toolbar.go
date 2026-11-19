@@ -190,6 +190,15 @@ func (w *Widget) ItemAt(idx int) Item {
 	return w.cfg.items[idx]
 }
 
+// ItemBounds returns an item's bounds in the toolbar's local coordinates.
+// An invalid index returns an empty rectangle.
+func (w *Widget) ItemBounds(idx int) geometry.Rect {
+	if idx < 0 || idx >= len(w.itemStates) {
+		return geometry.Rect{}
+	}
+	return w.itemStates[idx].bounds
+}
+
 // --- widget.Widget interface ---
 
 // Layout calculates the toolbar's preferred size within the given constraints.
@@ -286,6 +295,9 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 
 // buttonItemWidth calculates the width for a button item.
 func (w *Widget) buttonItemWidth(item Item) float32 {
+	if item.Width > 0 {
+		return item.Width
+	}
 	if item.ShowLabel && item.Label != "" {
 		textW := float32(len(item.Label)) * defaultFontSize * charWidthRatio
 		width := iconPadding + maxIconSize + textIconGap + textW + iconPadding

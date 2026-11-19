@@ -223,6 +223,22 @@ func TestLayout_ItemBounds(t *testing.T) {
 	}
 }
 
+func TestLayout_ButtonWidthOverride(t *testing.T) {
+	button := IconButton("Options", icon.ExpChevronDown, nil)
+	button.Width = 16
+	tb := New(Items(IconButton("Pull", icon.Add, nil), button, Spacer()), ButtonSize(30), Gap(2))
+	tb.Layout(widget.NewContext(), geometry.Loose(geometry.Sz(200, 50)))
+	if got := tb.ItemBounds(1); got != geometry.NewRect(32, 0, 16, defaultHeight) {
+		t.Errorf("options bounds = %v, want x=32 and width=16", got)
+	}
+	if got := tb.ItemBounds(2).Min.X; got != 50 {
+		t.Errorf("spacer starts at %v, want 50", got)
+	}
+	if !tb.ItemBounds(-1).IsEmpty() || !tb.ItemBounds(3).IsEmpty() {
+		t.Error("invalid item index should return empty bounds")
+	}
+}
+
 func TestLayout_SpacerDistribution(t *testing.T) {
 	tb := New(Items(
 		IconButton("A", icon.Add, nil),
