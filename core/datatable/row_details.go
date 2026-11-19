@@ -37,6 +37,22 @@ func (w *Widget) detailsBounds(width float32) geometry.Rect {
 	return geometry.NewRect(0, float32(d.row+1)*w.cfg.rowHeight, width, d.height)
 }
 
+func (w *Widget) detailsContentBounds() geometry.Rect {
+	return w.detailsBounds(max(0, w.viewportWidth-w.scroll.ScrollbarInset()))
+}
+
+func (w *Widget) layoutRowDetails(ctx widget.Context) {
+	bounds := w.detailsContentBounds()
+	if bounds.IsEmpty() {
+		return
+	}
+	detail := w.details.content
+	widget.LayoutChild(detail, ctx, geometry.Tight(bounds.Size()))
+	if setter, ok := detail.(interface{ SetBounds(geometry.Rect) }); ok {
+		setter.SetBounds(bounds)
+	}
+}
+
 func (w *Widget) rowTop(row int) float32 {
 	y := float32(row) * w.cfg.rowHeight
 	if w.details.content != nil && row > w.details.row {

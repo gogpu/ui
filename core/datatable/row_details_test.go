@@ -23,7 +23,7 @@ func TestRowDetailsGeometryAndInput(t *testing.T) {
 	widget.LayoutChild(dt, ctx, geometry.Tight(size))
 	dt.Draw(ctx, &uitest.MockCanvas{})
 
-	if want := geometry.NewRect(0, 48, 400, 100); control.Bounds() != want || !control.IsMounted() {
+	if want := geometry.NewRect(0, 48, 400-dt.scroll.ScrollbarInset(), 100); control.Bounds() != want || !control.IsMounted() {
 		t.Fatalf("detail widget bounds = %v, want %v", control.Bounds(), want)
 	}
 	if dt.GetRowCount() != 10 || dt.totalDataHeight() != 340 || dt.rowAtY(48) != -1 || dt.rowAtY(148) != 2 {

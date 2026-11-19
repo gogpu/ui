@@ -426,6 +426,7 @@ func (w *Widget) Layout(ctx widget.Context, constraints geometry.Constraints) ge
 	}
 	svConstraints := geometry.Tight(geometry.Sz(size.Width, scrollH))
 	widget.LayoutChild(w.scroll, ctx, svConstraints)
+	w.layoutRowDetails(ctx)
 	if w.currentScrollY() > max(0, w.totalDataHeight()-scrollH) {
 		w.setScrollY(max(0, w.totalDataHeight()-scrollH))
 	}
@@ -565,7 +566,7 @@ func (w *Widget) GestureHitTest(pos geometry.Point) []gesture.Recognizer {
 		return nil
 	}
 	contentPos := pos.Add(geometry.Pt(0, w.currentScrollY()-defaultHeaderHeight))
-	if w.detailsBounds(w.viewportWidth).Contains(contentPos) {
+	if w.detailsContentBounds().Contains(contentPos) {
 		return nil // embedded controls own gestures in the detail panel
 	}
 	return []gesture.Recognizer{w.clickRec}
@@ -1294,7 +1295,7 @@ type virtualContent struct {
 }
 
 // Layout returns the total content size (all rows).
-func (vc *virtualContent) Layout(ctx widget.Context, c geometry.Constraints) geometry.Size {
+func (vc *virtualContent) Layout(_ widget.Context, c geometry.Constraints) geometry.Size {
 	if vc.table == nil {
 		return geometry.Size{}
 	}
@@ -1306,13 +1307,6 @@ func (vc *virtualContent) Layout(ctx widget.Context, c geometry.Constraints) geo
 	if width < c.MinWidth {
 		width = c.MinWidth
 	}
-	if bounds := vc.table.detailsBounds(width); !bounds.IsEmpty() {
-		detail := vc.table.details.content
-		widget.LayoutChild(detail, ctx, geometry.Tight(bounds.Size()))
-		if setter, ok := detail.(interface{ SetBounds(geometry.Rect) }); ok {
-			setter.SetBounds(bounds)
-		}
-	}
 	return geometry.Sz(width, totalHeight)
 }
 
@@ -1322,7 +1316,7 @@ func (vc *virtualContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 	vc.table.drawVisibleRows(ctx, canvas)
-	if detail := vc.table.details.content; detail != nil && !vc.table.detailsBounds(vc.table.viewportWidth).IsEmpty() {
+	if detail := vc.table.details.content; detail != nil && !vc.table.detailsContentBounds().IsEmpty() {
 		widget.StampScreenOrigin(detail, canvas)
 		widget.DrawChild(detail, ctx, canvas)
 	}
@@ -1334,7 +1328,7 @@ func (vc *virtualContent) Event(ctx widget.Context, e event.Event) bool {
 		return false
 	}
 	if detail := vc.table.details.content; detail != nil {
-		bounds := vc.table.detailsBounds(vc.table.viewportWidth)
+		bounds := vc.table.detailsContentBounds()
 		if !bounds.IsEmpty() {
 			switch ev := e.(type) {
 			case *event.MouseEvent:
