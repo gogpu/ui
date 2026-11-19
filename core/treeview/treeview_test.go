@@ -405,6 +405,35 @@ func TestDraw_WithRows(t *testing.T) {
 	}
 }
 
+type labelRecorder struct {
+	DefaultPainter
+	labels []LabelState
+}
+
+func (p *labelRecorder) PaintLabel(_ widget.Canvas, label LabelState) {
+	p.labels = append(p.labels, label)
+}
+
+func TestDraw_LabelClearsExpandIconWithNarrowIndent(t *testing.T) {
+	root := makeTestTree()
+	painter := &labelRecorder{}
+	w := New(Root(root), PainterOpt(painter), IndentWidth(12))
+	ctx := makeCtx()
+	layoutAndBounds(w, ctx, 250, 400)
+	w.Draw(ctx, &mockCanvas{})
+
+	for i, want := range []*TreeNode{root, root.Children[0]} {
+		label := painter.labels[i]
+		if label.Node != want {
+			t.Errorf("label %d received node %v, want %v", i, label.Node, want)
+		}
+		icon := w.expandIconBounds(i, w.rowBounds(i, w.Bounds()))
+		if gap := label.Bounds.Min.X - icon.Max.X; gap < 4 {
+			t.Errorf("label %d gap = %v, want at least 4", i, gap)
+		}
+	}
+}
+
 func TestDraw_InvisibleWidget(t *testing.T) {
 	w := New(Root(makeTestTree()))
 	w.SetVisible(false)

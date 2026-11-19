@@ -203,6 +203,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		// Paint label.
 		labelBounds := w.labelBounds(row.depth, rowBounds)
 		w.painter.PaintLabel(canvas, LabelState{
+			Node:     row.node,
 			Bounds:   labelBounds,
 			Text:     row.node.Label,
 			Selected: isSelected,
@@ -423,8 +424,9 @@ func (w *Widget) expandIconBounds(depth int, rowBounds geometry.Rect) geometry.R
 
 // labelBounds returns the bounding rectangle for the label text.
 func (w *Widget) labelBounds(depth int, rowBounds geometry.Rect) geometry.Rect {
-	x := rowBounds.Min.X + float32(depth+1)*w.cfg.indentWidth
-	return geometry.NewRect(x, rowBounds.Min.Y, rowBounds.Max.X-x, w.cfg.itemHeight)
+	const labelGap = 4
+	x := w.expandIconBounds(depth, rowBounds).Min.X + max(w.cfg.indentWidth, expandIconSize+labelGap)
+	return geometry.NewRect(x, rowBounds.Min.Y, max(0, rowBounds.Max.X-x), w.cfg.itemHeight)
 }
 
 // findRowIndex returns the index of the row with the given node ID, or -1.

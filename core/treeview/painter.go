@@ -102,6 +102,9 @@ type ConnectorState struct {
 
 // LabelState provides context for drawing the node label.
 type LabelState struct {
+	// Node is the tree node for this label, including its application data.
+	Node *TreeNode
+
 	// Bounds is the bounding rectangle for the label text.
 	Bounds geometry.Rect
 
