@@ -16,6 +16,8 @@ type config struct {
 	itemHeight  float32
 	indentWidth float32
 	showLines   bool
+	hideRoot    bool
+	fitContent  bool
 
 	// Selection.
 	selectionMode              SelectionMode

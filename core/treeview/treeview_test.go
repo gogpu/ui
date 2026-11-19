@@ -313,6 +313,23 @@ func TestNew_NilRoot(t *testing.T) {
 	}
 }
 
+func TestTreeFitsVisibleRowsWithoutRoot(t *testing.T) {
+	root := makeTestTree()
+	w := New(Root(root), HideRoot(true), FitContent(true), ItemHeight(20))
+	ctx := makeCtx()
+	constraints := geometry.Loose(geometry.Sz(200, 100))
+	if size := w.Layout(ctx, constraints); size.Height != 80 {
+		t.Fatalf("expanded tree height = %v, want 80", size.Height)
+	}
+	if w.RowCount() != 4 || w.rows[0].node != root.Children[0] || w.rows[0].depth != 0 {
+		t.Fatalf("root's first child should become the first top-level row: %+v", w.rows)
+	}
+	w.CollapseAll()
+	if size := w.Layout(ctx, constraints); size.Height != 40 || w.RowCount() != 2 {
+		t.Fatalf("collapsed tree height = %v for %d rows", size.Height, w.RowCount())
+	}
+}
+
 // --- IsFocusable Tests ---
 
 func TestIsFocusable(t *testing.T) {

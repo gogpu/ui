@@ -139,6 +139,9 @@ func (w *Widget) Layout(ctx widget.Context, constraints geometry.Constraints) ge
 	if size.Height <= 0 {
 		size.Height = defaultViewportHeight
 	}
+	if w.cfg.fitContent {
+		size.Height = constraints.Constrain(geometry.Sz(size.Width, w.contentHeight())).Height
+	}
 
 	w.viewportWidth = size.Width
 	w.viewportHeight = size.Height
@@ -389,7 +392,16 @@ func (w *Widget) AccessibilityActions() []a11y.Action {
 func (w *Widget) rebuildRows() {
 	previousCount := len(w.rows)
 	root := w.cfg.ResolvedRoot()
-	w.rows = flattenTree(root)
+	if w.cfg.hideRoot {
+		w.rows = nil
+		if root != nil {
+			for _, child := range root.Children {
+				w.rows = flattenNode(w.rows, child, 0)
+			}
+		}
+	} else {
+		w.rows = flattenTree(root)
+	}
 	if len(w.rows) != previousCount {
 		w.content.MarkNeedsLayout()
 		w.clampScroll()

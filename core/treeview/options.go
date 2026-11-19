@@ -59,6 +59,20 @@ func ShowLines(enabled bool) Option {
 	}
 }
 
+// HideRoot displays the root's children as the top-level rows.
+func HideRoot(enabled bool) Option {
+	return func(c *config) {
+		c.hideRoot = enabled
+	}
+}
+
+// FitContent sizes the viewport to the visible rows, capped by its constraints.
+func FitContent(enabled bool) Option {
+	return func(c *config) {
+		c.fitContent = enabled
+	}
+}
+
 // ScrollbarPainterOpt sets the painter for the vertical scrollbar.
 func ScrollbarPainterOpt(p scrollview.Painter) Option {
 	return func(c *config) {
