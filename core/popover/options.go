@@ -3,6 +3,7 @@ package popover
 import (
 	"time"
 
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -13,6 +14,7 @@ type Option func(*config)
 // config holds the popover/tooltip configuration set at construction time.
 type config struct {
 	trigger           widget.Widget
+	anchorBounds      func() geometry.Rect
 	content           widget.Widget
 	tooltipText       string
 	placement         Placement
@@ -61,6 +63,12 @@ func TriggerWidget(w widget.Widget) Option {
 	return func(c *config) {
 		c.trigger = w
 	}
+}
+
+// AnchorBounds positions a popover shown programmatically at a custom
+// window-space rectangle, such as an item painted inside a toolbar.
+func AnchorBounds(bounds func() geometry.Rect) Option {
+	return func(c *config) { c.anchorBounds = bounds }
 }
 
 // Content sets the widget displayed inside the popover.

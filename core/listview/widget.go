@@ -341,6 +341,10 @@ func (w *Widget) InvalidateData() {
 	if w.heights.mode == heightLazy {
 		w.heights.initLazy()
 	}
+	w.virtual.InvalidateLayoutCache()
+	w.scroll.InvalidateLayoutCache()
+	w.MarkNeedsLayout()
+	w.SetNeedsRedraw(true)
 }
 
 // GetItemCount returns the current item count.

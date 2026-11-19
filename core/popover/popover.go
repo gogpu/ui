@@ -168,6 +168,9 @@ func (p *Popover) Show(ctx widget.Context) {
 	// Position relative to trigger using screen-space bounds.
 	// ScreenBounds accounts for all parent transforms (scroll offsets, etc.).
 	anchor := triggerScreenBoundsOf(p.cfg.trigger)
+	if p.cfg.anchorBounds != nil {
+		anchor = p.cfg.anchorBounds()
+	}
 	if anchor.IsEmpty() {
 		anchor = p.ScreenBounds()
 	}
@@ -175,6 +178,7 @@ func (p *Popover) Show(ctx widget.Context) {
 	pos := CalculatePosition(p.cfg.placement, anchor, contentSize, windowSize, p.cfg.gap)
 
 	p.overlayWidget.SetBounds(geometry.FromPointSize(pos, contentSize))
+	widget.LayoutChild(p.overlayWidget, ctx, geometry.Tight(contentSize))
 
 	// Push to overlay stack.
 	om.PushOverlay(p.overlayWidget, func() {
@@ -344,6 +348,9 @@ func newOverlayContent(content widget.Widget, painter Painter, placement Placeme
 	}
 	oc.SetVisible(true)
 	oc.SetEnabled(true)
+	if child, ok := content.(interface{ SetParent(widget.Widget) }); ok {
+		child.SetParent(oc)
+	}
 	return oc
 }
 
@@ -375,7 +382,8 @@ func (oc *overlayContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 	})
 
 	if oc.content != nil {
-		oc.content.Draw(ctx, canvas)
+		widget.StampScreenOrigin(oc.content, canvas)
+		widget.DrawChild(oc.content, ctx, canvas)
 	}
 }
 
