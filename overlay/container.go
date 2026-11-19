@@ -19,6 +19,7 @@ type Container struct {
 
 	onDismiss  func()
 	modal      bool
+	passive    bool
 	windowSize geometry.Size
 }
 
@@ -40,6 +41,14 @@ func WithModal(modal bool) ContainerOption {
 		c.modal = modal
 	}
 }
+
+// WithPassive makes the container transparent to input.
+func WithPassive() ContainerOption {
+	return func(c *Container) { c.passive = true }
+}
+
+// Passive reports whether this overlay is transparent to input.
+func (c *Container) Passive() bool { return c.passive }
 
 // NewContainer creates a new overlay container wrapping the given content.
 // The windowSize is used to size the backdrop to fill the entire window.
@@ -80,7 +89,7 @@ func (c *Container) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if canvas == nil {
 		return
 	}
-	if c.modal {
+	if c.Modal() {
 		scrim := widget.RGBA(0, 0, 0, scrimAlpha)
 		canvas.DrawRect(c.Bounds(), scrim)
 	}
@@ -94,6 +103,9 @@ func (c *Container) Draw(ctx widget.Context, canvas widget.Canvas) {
 // Escape and mouse presses outside dismiss the overlay. Modal containers
 // consume all remaining events.
 func (c *Container) Event(ctx widget.Context, e event.Event) bool {
+	if c.passive {
+		return false
+	}
 	// Give content first chance at the event.
 	if content := c.Content(); content != nil && content.Event(ctx, e) {
 		return true
@@ -144,7 +156,7 @@ func (c *Container) Dismiss() {
 
 // Modal returns true if this container blocks interaction with content below.
 func (c *Container) Modal() bool {
-	return c.modal
+	return c.modal && !c.passive
 }
 
 // Content returns the wrapped content widget, or nil if there is none.

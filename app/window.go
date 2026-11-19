@@ -450,7 +450,7 @@ func (w *Window) HandleEvent(e event.Event) {
 
 	w.trackInputModality(e)
 
-	top := w.overlays.Top()
+	top := w.overlays.TopInteractive()
 	overlayOwnsMouse := false
 	if me, ok := e.(*event.MouseEvent); ok {
 		owner := w.overlayPress
@@ -1592,7 +1592,7 @@ func (w *Window) GestureArena() *gesture.Arena {
 func (w *Window) hitTestGestureAware(pos geometry.Point) []gesture.Recognizer {
 	var recognizers []gesture.Recognizer
 	root := w.root
-	if top := w.overlays.Top(); top != nil {
+	if top := w.overlays.TopInteractive(); top != nil {
 		root = top
 		if container, ok := top.(*overlay.Container); ok {
 			root = container.Content()
@@ -1658,18 +1658,20 @@ type windowOverlayManager struct {
 // itself becomes the boundary. Clean overlays = texture blit (zero re-render).
 // Dirty overlays (hover) = re-render only content texture.
 func (m *windowOverlayManager) PushOverlay(w widget.Widget, onDismiss func()) {
+	m.pushOverlay(w, overlay.WithOnDismiss(onDismiss))
+}
+
+func (m *windowOverlayManager) PushPassiveOverlay(w widget.Widget) {
+	m.pushOverlay(w, overlay.WithPassive())
+}
+
+func (m *windowOverlayManager) pushOverlay(w widget.Widget, options ...overlay.ContainerOption) {
 	// ADR-024 + ADR-029: promote content to RepaintBoundary for damage isolation.
 	type boundarySetter interface{ SetRepaintBoundary(bool) }
 	if bs, ok := w.(boundarySetter); ok {
 		bs.SetRepaintBoundary(true)
 	}
-	container := overlay.NewContainer(w, m.window.windowSize,
-		overlay.WithOnDismiss(func() {
-			if onDismiss != nil {
-				onDismiss()
-			}
-		}),
-	)
+	container := overlay.NewContainer(w, m.window.windowSize, options...)
 	container.SetOnLayoutDirty(m.window.requestLayout)
 	m.window.overlays.Push(container)
 
@@ -1686,14 +1688,16 @@ func (m *windowOverlayManager) PopOverlay() {
 }
 
 // RemoveOverlay finds and removes the overlay containing the given widget.
-// All overlays above the target are also unmounted (stack semantics).
+// Overlays above an interactive target are also removed and unmounted.
 func (m *windowOverlayManager) RemoveOverlay(w widget.Widget) {
 	for _, o := range m.window.overlays.List() {
 		if c, ok := o.(*overlay.Container); ok {
 			if c.Content() == w {
-				// overlay.Stack.Remove pops everything above 'o' too.
-				// Unmount all overlays at and above the target.
-				m.unmountOverlaysAbove(o)
+				if overlay.IsPassive(o) {
+					widget.UnmountTree(o)
+				} else {
+					m.unmountOverlaysAbove(o)
+				}
 				m.window.overlays.Remove(o)
 				return
 			}
@@ -1830,7 +1834,7 @@ func (w *Window) clearStalePointerRefs() {
 
 // overlayAwareHitTest performs hit-testing that respects the overlay stack.
 //
-// When overlays are open, the topmost overlay's widget tree is tested first.
+// When interactive overlays are open, the topmost interactive overlay is tested first.
 // If a widget inside the overlay content matches, it is returned. If no
 // overlay widget matches (mouse outside overlay content), nil is returned
 // to block hover from reaching background widgets. This is the Flutter
@@ -1839,11 +1843,14 @@ func (w *Window) clearStalePointerRefs() {
 //
 // When no overlays are open, falls through to normal root tree hit-testing.
 func (w *Window) overlayAwareHitTest(pos geometry.Point) widget.Widget {
-	if w.overlays != nil && w.overlays.Len() > 0 {
+	if w.overlays != nil && w.overlays.TopInteractive() != nil {
 		// Walk overlays top-to-bottom (highest z-order first).
 		overlayList := w.overlays.List()
 		for i := len(overlayList) - 1; i >= 0; i-- {
 			o := overlayList[i]
+			if overlay.IsPassive(o) {
+				continue
+			}
 			// Hit-test the overlay widget tree (Container + content).
 			if hit := hitTest(o, pos); hit != nil {
 				// Ignore hits on the Container itself (full-window backdrop).

@@ -140,6 +140,12 @@ type OverlayManager interface {
 	RemoveOverlay(w Widget)
 }
 
+// PassiveOverlayManager displays visual overlays such as tooltips without
+// intercepting pointer or keyboard input.
+type PassiveOverlayManager interface {
+	PushPassiveOverlay(w Widget)
+}
+
 // DirtyTrackerRef is a minimal interface for querying spatial dirty regions
 // during the draw pass. It is defined in the widget package (rather than
 // importing internal/dirty) so that widgets like RepaintBoundary can check

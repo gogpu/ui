@@ -80,3 +80,29 @@ func TestOverlayBlocksPointerEventsAndGestures(t *testing.T) {
 		t.Fatalf("background clicks after dismissal=%d, want 1", backgroundClicks)
 	}
 }
+
+func TestPassiveOverlayAllowsHoverAndLeavesLaterOverlayIntact(t *testing.T) {
+	win := New().Window()
+	var clicks int
+	target := button.New(button.OnClick(func() { clicks++ }))
+	win.SetRoot(target)
+	win.HandleResize(500, 400)
+	win.Frame()
+	manager := win.Context().OverlayManager()
+	tip := primitives.Box().Width(220).Height(100)
+	manager.(widget.PassiveOverlayManager).PushPassiveOverlay(tip)
+	win.Frame()
+	point := geometry.Pt(20, 20)
+	win.HandleEvent(event.NewMouseEvent(event.MouseMove, event.ButtonNone, 0, point, point, event.ModNone))
+	win.HandleEvent(event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft, point, point, event.ModNone))
+	win.HandleEvent(event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0, point, point, event.ModNone))
+	if win.HoveredWidget() != target || clicks != 1 {
+		t.Fatalf("passive overlay intercepted input, hover=%v, clicks=%d", win.HoveredWidget(), clicks)
+	}
+	dialog := primitives.Box().Width(200).Height(120)
+	manager.PushOverlay(dialog, nil)
+	manager.RemoveOverlay(tip)
+	if win.OverlayCount() != 1 || win.OverlayContentWidgets()[0] != dialog {
+		t.Fatal("removing a passive overlay also removed the interactive overlay above it")
+	}
+}

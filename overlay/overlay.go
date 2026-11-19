@@ -13,6 +13,8 @@
 package overlay
 
 import (
+	"slices"
+
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
@@ -33,10 +35,10 @@ type Overlay interface {
 
 // Stack manages a last-in-first-out collection of overlays for a window.
 //
-// The stack supports push, pop, and targeted removal. When an overlay is
-// removed, all overlays above it in the stack are also removed (maintaining
-// stack semantics). An optional onChange callback is invoked whenever the
-// stack is modified, which typically triggers a redraw.
+// The stack supports push, pop, and targeted removal. Removing an interactive
+// overlay also removes everything above it. Passive overlays are removed
+// individually. An optional onChange callback is invoked whenever the stack
+// is modified, which typically triggers a redraw.
 //
 // Stack is NOT safe for concurrent access. All operations must occur on the
 // main/UI thread.
@@ -72,12 +74,18 @@ func (s *Stack) Pop() Overlay {
 	return top
 }
 
-// Remove removes the given overlay and all overlays above it in the stack.
+// Remove removes an interactive overlay and all overlays above it.
+// A passive overlay is removed on its own.
 // This maintains stack semantics: you cannot remove an overlay from the
 // middle without also removing everything on top of it.
 func (s *Stack) Remove(o Overlay) {
 	for i, existing := range s.overlays {
 		if existing == o {
+			if IsPassive(existing) {
+				s.overlays = slices.Delete(s.overlays, i, i+1)
+				s.notify()
+				return
+			}
 			// Clear references for GC.
 			for j := i; j < len(s.overlays); j++ {
 				s.overlays[j] = nil
@@ -97,6 +105,22 @@ func (s *Stack) Top() Overlay {
 	return s.overlays[len(s.overlays)-1]
 }
 
+// IsPassive reports whether an overlay should be skipped for input dispatch.
+func IsPassive(o Overlay) bool {
+	passive, ok := o.(interface{ Passive() bool })
+	return ok && passive.Passive()
+}
+
+// TopInteractive returns the topmost overlay that participates in input.
+func (s *Stack) TopInteractive() Overlay {
+	for i := len(s.overlays) - 1; i >= 0; i-- {
+		if !IsPassive(s.overlays[i]) {
+			return s.overlays[i]
+		}
+	}
+	return nil
+}
+
 // IsEmpty returns true if the stack contains no overlays.
 func (s *Stack) IsEmpty() bool {
 	return len(s.overlays) == 0
@@ -113,16 +137,16 @@ func (s *Stack) List() []Overlay {
 	return s.overlays
 }
 
-// HandleEvent dispatches an event to the overlay stack. Events are sent to
-// the top overlay first. If the top overlay is modal and does not consume
+// HandleEvent dispatches an event to the top interactive overlay.
+// If the top interactive overlay is modal and does not consume
 // the event, the event is still blocked from reaching the normal widget tree.
 //
 // Returns true if the event was consumed or blocked by a modal overlay.
 func (s *Stack) HandleEvent(ctx widget.Context, e event.Event) bool {
-	if len(s.overlays) == 0 {
+	top := s.TopInteractive()
+	if top == nil {
 		return false
 	}
-	top := s.overlays[len(s.overlays)-1]
 	if top.Event(ctx, e) {
 		return true
 	}
