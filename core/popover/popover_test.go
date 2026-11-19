@@ -8,6 +8,7 @@ import (
 	"github.com/gogpu/ui/core/popover"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 )
@@ -1600,6 +1601,46 @@ func TestPopover_OverlayWidgetMethods(t *testing.T) {
 	children := overlay.Children()
 	if len(children) != 1 {
 		t.Errorf("expected 1 child, got %d", len(children))
+	}
+}
+
+func TestPopover_ResizesAndRepositionsWhileOpen(t *testing.T) {
+	ctx := widget.NewContext()
+	om := setupOverlayManager(ctx)
+	anchor := geometry.NewRect(40, 510, 100, 20)
+	extra := primitives.Box().Height(50)
+	content := primitives.VBox(primitives.Box().Height(50))
+	pop := popover.NewPopover(
+		popover.AnchorBounds(func() geometry.Rect { return anchor }),
+		popover.PlacementOpt(popover.BottomStart),
+		popover.ContentSize(140, 0),
+		popover.Content(content),
+	)
+	pop.Show(ctx)
+
+	overlay := om.lastWidget
+	bounds := overlay.(interface{ Bounds() geometry.Rect }).Bounds
+	initial := geometry.NewRect(40, 534, 140, 50)
+	if got := bounds(); got != initial {
+		t.Fatalf("initial bounds = %v, want %v", got, initial)
+	}
+
+	content.AddChild(extra)
+	constraints := geometry.Loose(ctx.WindowSize())
+	widget.LayoutChild(overlay, ctx, constraints)
+	grown := geometry.NewRect(40, 406, 140, 100)
+	if got := bounds(); got != grown || content.Bounds() != grown {
+		t.Fatalf("grown overlay = %v, content = %v, want %v", got, content.Bounds(), grown)
+	}
+
+	ctx.ClearInvalidation()
+	content.RemoveChild(extra)
+	widget.LayoutChild(overlay, ctx, constraints)
+	if got := bounds(); got != initial || !pop.IsOpen() || om.pushCount != 1 {
+		t.Fatalf("shrunk bounds = %v, want %v, open = %v, pushes = %d", got, initial, pop.IsOpen(), om.pushCount)
+	}
+	if got, want := ctx.InvalidatedRect(), grown.Union(initial); got != want {
+		t.Errorf("damage = %v, want %v", got, want)
 	}
 }
 

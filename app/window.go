@@ -373,12 +373,7 @@ func (w *Window) SetRoot(root widget.Widget) {
 		SetOnLayoutDirty(func())
 	}
 	if lw, ok := root.(layoutDirtyWirer); ok {
-		lw.SetOnLayoutDirty(func() {
-			w.needsLayout = true
-			if w.wp != nil {
-				w.wp.RequestRedraw()
-			}
-		})
+		lw.SetOnLayoutDirty(w.requestLayout)
 	}
 
 	w.needsLayout = true
@@ -1076,6 +1071,13 @@ func tickAnimationsInTree(w widget.Widget, ctx widget.Context) {
 	}
 }
 
+func (w *Window) requestLayout() {
+	w.needsLayout = true
+	if w.wp != nil {
+		w.wp.RequestRedraw()
+	}
+}
+
 // layout performs the layout pass on the widget tree and overlays.
 func (w *Window) layout() {
 	if w.root == nil {
@@ -1668,6 +1670,7 @@ func (m *windowOverlayManager) PushOverlay(w widget.Widget, onDismiss func()) {
 			}
 		}),
 	)
+	container.SetOnLayoutDirty(m.window.requestLayout)
 	m.window.overlays.Push(container)
 
 	// Mount the overlay container tree so signal bindings activate (#171).

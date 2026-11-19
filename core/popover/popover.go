@@ -154,16 +154,9 @@ func (p *Popover) Show(ctx widget.Context) {
 		p.cfg.visibleSignal.Set(true)
 	}
 
-	// Create the overlay content wrapper.
-	contentWidget := p.cfg.content
-	if contentWidget == nil {
+	if p.cfg.content == nil {
 		return
 	}
-
-	p.overlayWidget = newOverlayContent(contentWidget, p.painter, p.cfg.placement)
-
-	// Lay out the content to get its natural size.
-	contentSize := p.resolveContentSize(ctx)
 
 	// Position relative to trigger using screen-space bounds.
 	// ScreenBounds accounts for all parent transforms (scroll offsets, etc.).
@@ -174,11 +167,8 @@ func (p *Popover) Show(ctx widget.Context) {
 	if anchor.IsEmpty() {
 		anchor = p.ScreenBounds()
 	}
-	windowSize := ctx.WindowSize()
-	pos := CalculatePosition(p.cfg.placement, anchor, contentSize, windowSize, p.cfg.gap)
-
-	p.overlayWidget.SetBounds(geometry.FromPointSize(pos, contentSize))
-	widget.LayoutChild(p.overlayWidget, ctx, geometry.Tight(contentSize))
+	p.overlayWidget = newOverlayContent(p, anchor)
+	widget.LayoutChild(p.overlayWidget, ctx, geometry.Loose(ctx.WindowSize()))
 
 	// Push to overlay stack.
 	om.PushOverlay(p.overlayWidget, func() {
@@ -334,37 +324,33 @@ func (p *Popover) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
 type overlayContent struct {
 	widget.WidgetBase
 
-	content   widget.Widget
-	painter   Painter
-	placement Placement
+	popover *Popover
+	content widget.Widget
+	anchor  geometry.Rect
 }
 
 // newOverlayContent creates a new overlay content wrapper.
-func newOverlayContent(content widget.Widget, painter Painter, placement Placement) *overlayContent {
-	oc := &overlayContent{
-		content:   content,
-		painter:   painter,
-		placement: placement,
-	}
+func newOverlayContent(p *Popover, anchor geometry.Rect) *overlayContent {
+	oc := &overlayContent{popover: p, content: p.cfg.content, anchor: anchor}
 	oc.SetVisible(true)
 	oc.SetEnabled(true)
-	if child, ok := content.(interface{ SetParent(widget.Widget) }); ok {
+	if child, ok := oc.content.(interface{ SetParent(widget.Widget) }); ok {
 		child.SetParent(oc)
 	}
 	return oc
 }
 
-// Layout lays out the overlay content within its bounds.
+// Layout remeasures content and positions the resized overlay at the anchor.
 func (oc *overlayContent) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
-	size := constraints.Constrain(oc.Bounds().Size())
-	oc.SetBounds(geometry.FromPointSize(oc.Bounds().Min, size))
-
-	if oc.content != nil {
-		contentConstraints := geometry.Tight(size)
-		widget.LayoutChild(oc.content, ctx, contentConstraints)
-		if setter, ok := oc.content.(interface{ SetBounds(geometry.Rect) }); ok {
-			setter.SetBounds(geometry.FromPointSize(oc.Bounds().Min, size))
-		}
+	p := oc.popover
+	size := constraints.Constrain(p.resolveContentSize(ctx))
+	pos := CalculatePosition(p.cfg.placement, oc.anchor, size, ctx.WindowSize(), p.cfg.gap)
+	oldBounds := oc.Bounds()
+	bounds := geometry.FromPointSize(pos, size)
+	widget.LayoutChild(oc.content, ctx, geometry.Tight(size))
+	oc.SetBounds(bounds)
+	if !oldBounds.IsEmpty() && oldBounds != bounds {
+		ctx.InvalidateRect(oldBounds.Union(bounds))
 	}
 
 	return size
@@ -376,9 +362,9 @@ func (oc *overlayContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 
-	oc.painter.PaintPopover(canvas, &PopoverPaintState{
+	oc.popover.painter.PaintPopover(canvas, &PopoverPaintState{
 		Bounds:    oc.Bounds(),
-		Placement: oc.placement,
+		Placement: oc.popover.cfg.placement,
 	})
 
 	if oc.content != nil {
