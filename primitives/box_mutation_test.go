@@ -85,6 +85,27 @@ func TestBox_AddChildAppearsInLayout(t *testing.T) {
 	}
 }
 
+func TestBox_RemountAfterChangingDetachedDescendant(t *testing.T) {
+	ctx := widget.NewContext()
+	constraints := geometry.Loose(geometry.Sz(100, 100))
+	body := primitives.VBox(newRecordLeaf("old", geometry.Sz(10, 10)))
+	group := primitives.VBox(body)
+	root := primitives.VBox(group)
+	widget.MountTree(root, ctx)
+	widget.LayoutChild(root, ctx, constraints)
+
+	root.RemoveChild(group)
+	row := newRecordLeaf("new", geometry.Sz(10, 20))
+	body.ClearChildren()
+	body.AddChild(row)
+	root.AddChild(group)
+	size := widget.LayoutChild(root, ctx, constraints)
+
+	if size.Height != 20 || row.Bounds().Height() != 20 {
+		t.Fatalf("remounted height = %v, new row bounds = %v", size.Height, row.Bounds())
+	}
+}
+
 func TestBox_InsertChildPreservesOrder(t *testing.T) {
 	a := newRecordLeaf("A", geometry.Sz(10, 10))
 	b := newRecordLeaf("B", geometry.Sz(10, 10))

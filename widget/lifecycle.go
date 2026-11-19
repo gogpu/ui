@@ -98,6 +98,12 @@ func UnmountTree(w Widget) {
 		sc.ClearCachedScene()
 	}
 
+	// Mutations while detached cannot invalidate ancestors through the
+	// cleared parent links. Remeasure the subtree after it is attached again.
+	if lc, ok := w.(interface{ InvalidateLayoutCache() }); ok {
+		lc.InvalidateLayoutCache()
+	}
+
 	// Clear mounted state and mark the widget as removed from the tree.
 	if base, ok := w.(interface{ SetMounted(bool) }); ok {
 		base.SetMounted(false)
