@@ -58,6 +58,14 @@ order). Check it with:
 GOWORK=off go -C tools run ./apigolden -out /tmp/g1.txt && cmp apigolden/testdata/api_windows.txt /tmp/g1.txt && echo identical
 ```
 
+## Toolchain
+
+The header records the toolchain the tool binary was built with (`# toolchain: go1.27.4`, from
+`runtime.Version()`) — the same toolchain that runs `go list -export` for the load. **A Go upgrade is a
+golden-refresh event:** regenerate, review the delta, and commit the regenerated baselines in the same change.
+Without the line, a toolchain-induced rendering change would show up as an unexplained API delta or be
+re-baselined silently (practice taken from gg's golden tool).
+
 ## Floors
 
 A partial or empty load must fail loudly instead of writing a short golden that still looks valid. Each supported
