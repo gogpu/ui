@@ -49,9 +49,12 @@ func (vc *virtualContent) Draw(ctx widget.Context, canvas widget.Canvas) {
 	lv := vc.list
 	itemCount := lv.cfg.ResolvedItemCount()
 
-	// Handle empty state.
 	if itemCount == 0 {
+		// Cached rows are separate compositor layers. Drop them before
+		// painting the empty state so they no longer appear in Children.
+		lv.cache.clear()
 		lv.painter.PaintEmptyState(canvas, lv.viewportBounds())
+		vc.ClearRedraw()
 		return
 	}
 
