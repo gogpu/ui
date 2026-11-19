@@ -6,7 +6,8 @@ regeneration that differs from the baseline is a reviewed delta, not a surprise 
 
 Adapted from wgpu's `tools/apigolden` (the wgpu v0.35.0 window tooling, `d921c9e`), which is the reference
 implementation of the ecosystem's checklist. The output format is deliberately identical so both repos' goldens are
-reviewed the same way.
+reviewed the same way. The loader is stdlib-only (see the module note); wgpu's original imports `x/tools`, which the
+ecosystem replaced after gogpu found its export-data reader lags the toolchain.
 
 ## What it records
 
@@ -105,5 +106,10 @@ The formatter tests build packages in memory (`go/types`), so they need no modul
 
 ## Module note
 
-`tools/` is its own module (`go 1.26.0`, `golang.org/x/tools v0.52.0`). The main module's `go.mod` and `go.sum` are
+`tools/` is its own module with **no external dependencies**. The loader uses `go list -export` and `go/importer`
+from the running toolchain, so the golden cannot drift out of step with the Go version that invokes it
+(`golang.org/x/tools` bundles its own export-data reader, which lags a new Go release — on a cold build cache it
+fails outright, exactly when this gate has no other proof). The analysed packages are type-checked from source, so
+parameter names survive into the golden; their dependencies come from export data. The stdlib loader is adapted from
+gogpu's fix (gogpu PR #575, commit `a0d90ca`; first port: gogpu PR #574). The main module's `go.mod`/`go.sum` are
 untouched, and CI's root-level `./...` does not build this module — the commands above are the way to run it.

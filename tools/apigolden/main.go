@@ -18,12 +18,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/types"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"golang.org/x/tools/go/packages"
 )
 
 const modulePath = "github.com/gogpu/ui"
@@ -169,52 +168,8 @@ func modulePathOf(gomod string) string {
 	return ""
 }
 
-// load type-checks the module's public packages for one build context.
-func load(root string, c config) ([]*packages.Package, error) {
-	env := contextEnv(c)
-
-	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesSizes,
-		Dir:  root,
-		Env:  env,
-	}
-	pkgs, err := packages.Load(cfg, "./...")
-	if err != nil {
-		return nil, fmt.Errorf("load: %w", err)
-	}
-
-	var keep []*packages.Package
-	for _, p := range pkgs {
-		if !include(p.PkgPath) {
-			continue
-		}
-		if len(p.Errors) > 0 {
-			if excludedByConstraints(p.Errors) {
-				// The package has no files for this context. It is absent from
-				// this context's API, not broken.
-				continue
-			}
-			return nil, fmt.Errorf("package %s did not load: %v", p.PkgPath, p.Errors[0])
-		}
-		if p.Types == nil {
-			return nil, fmt.Errorf("package %s has no type information", p.PkgPath)
-		}
-		keep = append(keep, p)
-	}
-	sort.Slice(keep, func(i, j int) bool { return keep[i].PkgPath < keep[j].PkgPath })
-	return keep, nil
-}
-
-// excludedByConstraints reports whether every error is Go's "no files for this
-// build context" message. Anything else is a real load failure.
-func excludedByConstraints(errs []packages.Error) bool {
-	for _, e := range errs {
-		if !strings.Contains(e.Msg, "build constraints exclude all Go files") {
-			return false
-		}
-	}
-	return true
-}
+// load type-checks the module's public packages for one build context; the
+// stdlib-only implementation lives in load.go.
 
 // contextEnv is os.Environ with the context forced and the workspace disabled.
 // Duplicate keys are dropped so the child cannot see two GOOS values.
@@ -276,11 +231,11 @@ func include(path string) bool {
 
 // render assembles the golden text: a deterministic header, then one block per
 // package in path order.
-func render(c config, pkgs []*packages.Package) (string, stats, error) {
+func render(c config, pkgs []*types.Package) (string, stats, error) {
 	var st stats
 	blocks := make([]string, 0, len(pkgs))
 	for _, p := range pkgs {
-		block := FormatPackage(p.Types)
+		block := FormatPackage(p)
 		st.identifiers += countIdentifiers(p)
 		blocks = append(blocks, block)
 	}
@@ -309,10 +264,10 @@ func render(c config, pkgs []*packages.Package) (string, stats, error) {
 	return b.String(), st, nil
 }
 
-func countIdentifiers(p *packages.Package) int {
+func countIdentifiers(p *types.Package) int {
 	n := 0
-	for _, name := range p.Types.Scope().Names() {
-		if obj := p.Types.Scope().Lookup(name); obj != nil && obj.Exported() {
+	for _, name := range p.Scope().Names() {
+		if obj := p.Scope().Lookup(name); obj != nil && obj.Exported() {
 			n++
 		}
 	}
