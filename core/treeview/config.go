@@ -1,6 +1,7 @@
 package treeview
 
 import (
+	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/state"
 )
 
@@ -31,7 +32,8 @@ type config struct {
 	readonlyDisabledSignal state.ReadonlySignal[bool]
 
 	// Painter.
-	painter Painter
+	painter          Painter
+	scrollbarPainter scrollview.Painter
 
 	// Accessibility.
 	a11yLabel string

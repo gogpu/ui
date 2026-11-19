@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gogpu/ui/a11y"
+	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/state"
@@ -932,7 +933,7 @@ func TestWheelEvent_Scrolls(t *testing.T) {
 	layoutAndBounds(w, ctx, 300, 56) // Only 2 rows visible.
 
 	e := event.NewWheelEvent(
-		geometry.Pt(0, -10), // Scroll down.
+		geometry.Pt(0, 1), // Scroll down one wheel tick.
 		geometry.Pt(150, 28),
 		geometry.Pt(150, 28),
 		0,
@@ -942,8 +943,8 @@ func TestWheelEvent_Scrolls(t *testing.T) {
 	if !consumed {
 		t.Error("expected wheel to be consumed")
 	}
-	if w.scrollY <= 0 {
-		t.Errorf("scrollY = %v, expected > 0", w.scrollY)
+	if got := w.scrollY.Get(); got != 40 {
+		t.Errorf("scrollY = %v, want the shared scroll view's 40 px step", got)
 	}
 }
 
@@ -953,15 +954,15 @@ func TestWheelEvent_ClampsToZero(t *testing.T) {
 	layoutAndBounds(w, ctx, 300, 56)
 
 	e := event.NewWheelEvent(
-		geometry.Pt(0, 100), // Scroll up past start.
+		geometry.Pt(0, -100), // Scroll up past start.
 		geometry.Pt(150, 28),
 		geometry.Pt(150, 28),
 		0,
 	)
 	w.Event(ctx, e)
 
-	if w.scrollY != 0 {
-		t.Errorf("scrollY = %v, expected 0", w.scrollY)
+	if w.scrollY.Get() != 0 {
+		t.Errorf("scrollY = %v, expected 0", w.scrollY.Get())
 	}
 }
 
@@ -971,7 +972,7 @@ func TestWheelEvent_ClampsToMax(t *testing.T) {
 	layoutAndBounds(w, ctx, 300, 56) // viewport=56, total=5*28=140, maxScroll=84
 
 	e := event.NewWheelEvent(
-		geometry.Pt(0, -1000), // Way past end.
+		geometry.Pt(0, 1000), // Way past end.
 		geometry.Pt(150, 28),
 		geometry.Pt(150, 28),
 		0,
@@ -979,8 +980,8 @@ func TestWheelEvent_ClampsToMax(t *testing.T) {
 	w.Event(ctx, e)
 
 	maxScroll := float32(5*28) - 56
-	if w.scrollY != maxScroll {
-		t.Errorf("scrollY = %v, expected %v", w.scrollY, maxScroll)
+	if w.scrollY.Get() != maxScroll {
+		t.Errorf("scrollY = %v, expected %v", w.scrollY.Get(), maxScroll)
 	}
 
 	// At the bottom edge a further scroll down cannot move, so it stays
@@ -988,8 +989,8 @@ func TestWheelEvent_ClampsToMax(t *testing.T) {
 	if w.Event(ctx, e) {
 		t.Error("wheel at the bottom edge should not be consumed")
 	}
-	if w.scrollY != maxScroll {
-		t.Errorf("scrollY = %v after scrolling at the edge, expected %v", w.scrollY, maxScroll)
+	if w.scrollY.Get() != maxScroll {
+		t.Errorf("scrollY = %v after scrolling at the edge, expected %v", w.scrollY.Get(), maxScroll)
 	}
 }
 
@@ -1214,8 +1215,8 @@ func TestScrollToNode(t *testing.T) {
 	w.ScrollToNode("child2")
 
 	// It should scroll so child2 is visible.
-	if w.scrollY <= 0 {
-		t.Errorf("scrollY = %v, expected > 0 after ScrollToNode", w.scrollY)
+	if w.scrollY.Get() <= 0 {
+		t.Errorf("scrollY = %v, expected > 0 after ScrollToNode", w.scrollY.Get())
 	}
 }
 
@@ -1225,8 +1226,8 @@ func TestScrollToNode_AlreadyVisible(t *testing.T) {
 	layoutAndBounds(w, ctx, 300, 400) // All rows visible.
 
 	w.ScrollToNode("root")
-	if w.scrollY != 0 {
-		t.Errorf("scrollY = %v, expected 0 (already visible)", w.scrollY)
+	if w.scrollY.Get() != 0 {
+		t.Errorf("scrollY = %v, expected 0 (already visible)", w.scrollY.Get())
 	}
 }
 
@@ -1236,7 +1237,7 @@ func TestScrollToNode_NotFound(t *testing.T) {
 	layoutAndBounds(w, ctx, 300, 56)
 
 	w.ScrollToNode("nonexistent")
-	if w.scrollY != 0 {
+	if w.scrollY.Get() != 0 {
 		t.Error("scrollY should not change for nonexistent node")
 	}
 }
@@ -1350,10 +1351,51 @@ func TestUnmount(t *testing.T) {
 
 // --- Children Tests ---
 
-func TestChildren_ReturnsNil(t *testing.T) {
+func TestChildren_ReturnsScrollView(t *testing.T) {
 	w := New(Root(makeTestTree()))
-	if w.Children() != nil {
-		t.Error("expected nil children (tree renders internally)")
+	if children := w.Children(); len(children) != 1 || children[0] != w.scroll {
+		t.Error("expected the tree's scroll view as its only child")
+	}
+}
+
+type scrollbarRecorder struct {
+	state scrollview.PaintState
+}
+
+func (p *scrollbarRecorder) PaintScrollbar(_ widget.Canvas, state scrollview.PaintState) {
+	p.state = state
+}
+
+func TestScrollbarDragAndCollapse(t *testing.T) {
+	painter := &scrollbarRecorder{}
+	w := New(Root(makeTestTree()), ScrollbarPainterOpt(painter))
+	ctx := makeCtx()
+	layoutAndBounds(w, ctx, 300, 56)
+	w.Draw(ctx, &mockCanvas{})
+	if !painter.state.VScrollVisible || painter.state.VThumbRect.IsEmpty() {
+		t.Fatal("overflowing tree should paint a vertical scrollbar")
+	}
+	thumb := painter.state.VThumbRect.Center()
+	w.Event(ctx, event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft, thumb, thumb, event.ModNone))
+	end := thumb.Add(geometry.Pt(0, 44))
+	w.Event(ctx, event.NewMouseEvent(event.MouseMove, event.ButtonNone, event.ButtonStateLeft, end, end, event.ModNone))
+	w.Event(ctx, event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0, end, end, event.ModNone))
+	if y := w.scrollY.Get(); y <= 0 {
+		t.Fatalf("thumb drag left the scroll offset at %v", y)
+	}
+
+	w.CollapseAll()
+	layoutAndBounds(w, ctx, 300, 56)
+	w.Draw(ctx, &mockCanvas{})
+	if w.scrollY.Get() != 0 || painter.state.VScrollVisible {
+		t.Fatal("collapsed tree fits in the viewport and should reset the offset and hide the scrollbar")
+	}
+
+	w.ExpandAll()
+	layoutAndBounds(w, ctx, 300, 56)
+	w.Draw(ctx, &mockCanvas{})
+	if !painter.state.VScrollVisible {
+		t.Fatal("expanding the tree should restore its scrollbar")
 	}
 }
 
@@ -1881,8 +1923,8 @@ func TestScrollToIndex_BelowViewport(t *testing.T) {
 
 	w.scrollToIndex(4)                      // Last row.
 	expectedScroll := float32(4*28+28) - 56 // itemBottom - viewport.
-	if w.scrollY != expectedScroll {
-		t.Errorf("scrollY = %v, want %v", w.scrollY, expectedScroll)
+	if w.scrollY.Get() != expectedScroll {
+		t.Errorf("scrollY = %v, want %v", w.scrollY.Get(), expectedScroll)
 	}
 }
 
@@ -1891,11 +1933,11 @@ func TestScrollToIndex_AboveViewport(t *testing.T) {
 	ctx := makeCtx()
 	layoutAndBounds(w, ctx, 300, 56)
 
-	w.scrollY = 100
+	w.scrollY.Set(100)
 	w.scrollToIndex(0)
 
-	if w.scrollY != 0 {
-		t.Errorf("scrollY = %v, want 0", w.scrollY)
+	if w.scrollY.Get() != 0 {
+		t.Errorf("scrollY = %v, want 0", w.scrollY.Get())
 	}
 }
 

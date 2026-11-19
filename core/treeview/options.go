@@ -1,6 +1,7 @@
 package treeview
 
 import (
+	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/state"
 )
 
@@ -55,6 +56,13 @@ func IndentWidth(w float32) Option {
 func ShowLines(enabled bool) Option {
 	return func(c *config) {
 		c.showLines = enabled
+	}
+}
+
+// ScrollbarPainterOpt sets the painter for the vertical scrollbar.
+func ScrollbarPainterOpt(p scrollview.Painter) Option {
+	return func(c *config) {
+		c.scrollbarPainter = p
 	}
 }
 

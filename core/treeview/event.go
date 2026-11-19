@@ -10,11 +10,22 @@ import (
 func handleEvent(w *Widget, ctx widget.Context, e event.Event) bool {
 	switch ev := e.(type) {
 	case *event.MouseEvent:
+		if w.scroll.Event(ctx, ev) {
+			if capture, ok := ctx.(widget.PointerCapturer); ok {
+				switch ev.MouseType {
+				case event.MousePress:
+					capture.CapturePointer(w)
+				case event.MouseRelease:
+					capture.ReleasePointer(w)
+				}
+			}
+			return true
+		}
 		return handleMouseEvent(w, ctx, ev)
 	case *event.KeyEvent:
-		return handleKeyEvent(w, ctx, ev)
+		return handleKeyEvent(w, ctx, ev) || w.scroll.Event(ctx, ev)
 	case *event.WheelEvent:
-		return handleWheelEvent(w, ctx, ev)
+		return w.scroll.Event(ctx, ev)
 	default:
 		return false
 	}
@@ -220,49 +231,14 @@ func (w *Widget) moveSelection(ctx widget.Context, newIndex int) bool {
 	return true
 }
 
-// handleWheelEvent processes wheel events for scrolling.
-func handleWheelEvent(w *Widget, ctx widget.Context, e *event.WheelEvent) bool {
-	bounds := w.Bounds()
-	if !bounds.Contains(e.Position) {
-		return false
-	}
-
-	totalHeight := float32(len(w.rows)) * w.cfg.itemHeight
-	maxScroll := totalHeight - w.viewportHeight
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-
-	// Apply scroll delta (DeltaY() is a method on WheelEvent).
-	previous := w.scrollY
-	w.scrollY -= e.DeltaY() * wheelScrollMultiplier
-	if w.scrollY < 0 {
-		w.scrollY = 0
-	}
-	if w.scrollY > maxScroll {
-		w.scrollY = maxScroll
-	}
-
-	// Scroll chaining: at the edge in the wheel's direction leave the event
-	// unconsumed so an enclosing scroll container scrolls instead.
-	if w.scrollY == previous {
-		return false
-	}
-
-	w.SetNeedsRedraw(true)
-	// ADR-028: visual only — scroll offset changed.
-	ctx.InvalidateRect(w.Bounds())
-	return true
-}
-
 // hitTestRow returns the index of the row at the given point, or -1.
 func (w *Widget) hitTestRow(pos geometry.Point) int {
 	bounds := w.Bounds()
-	if !bounds.Contains(pos) {
+	if !bounds.Contains(pos) || pos.X >= bounds.Max.X-w.scroll.ScrollbarInset() {
 		return noHoveredIndex
 	}
 
-	localY := pos.Y - bounds.Min.Y + w.scrollY
+	localY := pos.Y - bounds.Min.Y + w.scrollY.Get()
 	if w.cfg.itemHeight <= 0 {
 		return noHoveredIndex
 	}
@@ -273,6 +249,3 @@ func (w *Widget) hitTestRow(pos geometry.Point) int {
 	}
 	return idx
 }
-
-// wheelScrollMultiplier controls scroll speed for mouse wheel events.
-const wheelScrollMultiplier float32 = 3

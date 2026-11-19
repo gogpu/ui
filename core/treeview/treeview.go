@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gogpu/ui/a11y"
+	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/gesture"
@@ -34,8 +35,10 @@ type Widget struct {
 	// Flattened visible rows (rebuilt on expand/collapse).
 	rows []flatRow
 
-	// Viewport state for virtualization.
-	scrollY        float32
+	// ScrollView handles scrolling and draws the scrollbar over virtual rows.
+	scroll         *scrollview.Widget
+	content        *treeContent
+	scrollY        state.Signal[float32]
 	viewportWidth  float32
 	viewportHeight float32
 
@@ -63,6 +66,13 @@ func New(opts ...Option) *Widget {
 	if w.cfg.painter != nil {
 		w.painter = w.cfg.painter
 	}
+
+	w.scrollY = state.NewSignal[float32](0)
+	w.content = &treeContent{tree: w}
+	w.content.SetVisible(true)
+	w.scroll = scrollview.New(w.content, scrollview.ScrollYSignal(w.scrollY),
+		scrollview.PainterOpt(w.cfg.scrollbarPainter))
+	w.scroll.SetParent(w)
 
 	// Build initial flattened rows.
 	w.rebuildRows()
@@ -105,7 +115,7 @@ func (w *Widget) IsFocusable() bool {
 }
 
 // Layout calculates the tree view's size within the given constraints.
-func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+func (w *Widget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
 	// Rebuild rows in case root changed via signal.
 	w.rebuildRows()
 
@@ -132,29 +142,28 @@ func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geom
 
 	w.viewportWidth = size.Width
 	w.viewportHeight = size.Height
+	w.clampScroll()
+	widget.LayoutChild(w.scroll, ctx, geometry.Tight(size))
 
 	return size
 }
 
 // Draw renders the tree view to the canvas.
 func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
-	if !w.IsVisible() {
+	if !w.IsVisible() || w.Bounds().IsEmpty() {
 		return
 	}
+	w.scroll.SetBounds(w.Bounds())
+	widget.StampScreenOrigin(w.scroll, canvas)
+	w.scroll.Draw(ctx, canvas)
+}
 
-	bounds := w.Bounds()
-	if bounds.IsEmpty() {
-		return
-	}
-
+func (w *Widget) drawRows(canvas widget.Canvas, bounds geometry.Rect) {
 	// Empty state.
 	if len(w.rows) == 0 {
 		w.painter.PaintEmptyState(canvas, bounds)
 		return
 	}
-
-	// Clip to bounds.
-	canvas.PushClip(bounds)
 
 	// Determine visible range.
 	startIdx, endIdx := w.visibleRange()
@@ -210,8 +219,6 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 			Disabled: isDisabled,
 		})
 	}
-
-	canvas.PopClip()
 }
 
 // Event handles an input event and returns true if consumed.
@@ -219,12 +226,13 @@ func (w *Widget) Event(ctx widget.Context, e event.Event) bool {
 	if !w.IsVisible() || !w.IsEnabled() {
 		return false
 	}
+	w.scroll.SetBounds(w.Bounds())
 	return handleEvent(w, ctx, e)
 }
 
-// Children returns nil (tree view is a leaf widget with internal rendering).
+// Children returns the viewport used to render and scroll the tree.
 func (w *Widget) Children() []widget.Widget {
-	return nil
+	return []widget.Widget{w.scroll}
 }
 
 // Mount creates signal bindings for push-based invalidation.
@@ -274,10 +282,8 @@ func (w *Widget) Unmount() {
 
 // GestureHitTest returns the gesture recognizers for a pointer event at pos.
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-// TreeView is a leaf widget — always returns recognizers (hit-test already
-// confirmed bounds containment).
-func (w *Widget) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
-	if w.clickRec == nil {
+func (w *Widget) GestureHitTest(pos geometry.Point) []gesture.Recognizer {
+	if w.clickRec == nil || w.hitTestRow(pos) == noHoveredIndex {
 		return nil
 	}
 	return []gesture.Recognizer{w.clickRec}
@@ -309,6 +315,7 @@ func (w *Widget) RowCount() int {
 // Rebuilds the flattened row list.
 func (w *Widget) InvalidateData() {
 	w.rebuildRows()
+	w.MarkNeedsLayout()
 	w.SetNeedsRedraw(true)
 }
 
@@ -319,8 +326,7 @@ func (w *Widget) ExpandAll() {
 		return
 	}
 	setExpandedAll(root, true)
-	w.rebuildRows()
-	w.SetNeedsRedraw(true)
+	w.InvalidateData()
 }
 
 // CollapseAll collapses all branch nodes in the tree.
@@ -330,8 +336,7 @@ func (w *Widget) CollapseAll() {
 		return
 	}
 	setExpandedAll(root, false)
-	w.rebuildRows()
-	w.SetNeedsRedraw(true)
+	w.InvalidateData()
 }
 
 // --- Accessibility ---
@@ -382,8 +387,21 @@ func (w *Widget) AccessibilityActions() []a11y.Action {
 
 // rebuildRows flattens the tree into visible rows.
 func (w *Widget) rebuildRows() {
+	previousCount := len(w.rows)
 	root := w.cfg.ResolvedRoot()
 	w.rows = flattenTree(root)
+	if len(w.rows) != previousCount {
+		w.content.MarkNeedsLayout()
+		w.clampScroll()
+	}
+}
+
+func (w *Widget) contentHeight() float32 {
+	return float32(len(w.rows)) * w.cfg.itemHeight
+}
+
+func (w *Widget) clampScroll() {
+	w.scrollY.Set(min(w.scrollY.Get(), max(0, w.contentHeight()-w.viewportHeight)))
 }
 
 // visibleRange returns the [start, end) indices of rows visible in the viewport.
@@ -392,7 +410,7 @@ func (w *Widget) visibleRange() (int, int) {
 		return 0, 0
 	}
 
-	startIdx := int(w.scrollY / w.cfg.itemHeight)
+	startIdx := int(w.scrollY.Get() / w.cfg.itemHeight)
 	if startIdx < 0 {
 		startIdx = 0
 	}
@@ -408,10 +426,10 @@ func (w *Widget) visibleRange() (int, int) {
 
 // rowBounds returns the bounding rectangle for the row at index i.
 func (w *Widget) rowBounds(i int, treeBounds geometry.Rect) geometry.Rect {
-	y := treeBounds.Min.Y + float32(i)*w.cfg.itemHeight - w.scrollY
+	y := treeBounds.Min.Y + float32(i)*w.cfg.itemHeight - w.scrollY.Get()
 	return geometry.NewRect(
 		treeBounds.Min.X, y,
-		w.viewportWidth, w.cfg.itemHeight,
+		treeBounds.Width(), w.cfg.itemHeight,
 	)
 }
 
@@ -447,20 +465,19 @@ func (w *Widget) scrollToIndex(index int) {
 
 	itemTop := float32(index) * w.cfg.itemHeight
 	itemBottom := itemTop + w.cfg.itemHeight
+	scrollY := w.scrollY.Get()
 
 	// Already visible: no-op.
-	if itemTop >= w.scrollY && itemBottom <= w.scrollY+w.viewportHeight {
+	if itemTop >= scrollY && itemBottom <= scrollY+w.viewportHeight {
 		return
 	}
 
-	if itemTop < w.scrollY {
-		w.scrollY = itemTop
+	if itemTop < scrollY {
+		w.scrollY.Set(itemTop)
 	} else {
-		w.scrollY = itemBottom - w.viewportHeight
-		if w.scrollY < 0 {
-			w.scrollY = 0
-		}
+		w.scrollY.Set(max(0, itemBottom-w.viewportHeight))
 	}
+	w.SetNeedsRedraw(true)
 }
 
 // setSelectedNodeID updates the selected node, writing back to signal if bound.
@@ -525,15 +542,11 @@ func (w *Widget) toggleNode(node *TreeNode) {
 	}
 
 	node.Expanded = !node.Expanded
-	w.rebuildRows()
-	w.SetNeedsRedraw(true)
+	w.InvalidateData()
 
 	if w.cfg.onToggle != nil {
 		w.cfg.onToggle(node, node.Expanded)
 	}
-
-	// ADR-032: layout change — expand/collapse changes row count and tree height.
-	w.MarkNeedsLayout()
 }
 
 // buildConnectorState builds the connector state for the row at index i.
