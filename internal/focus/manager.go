@@ -77,6 +77,11 @@ func (m *Manager) SetRoot(root widget.Widget) {
 	}
 }
 
+// Root returns the widget tree used for focus traversal.
+func (m *Manager) Root() widget.Widget {
+	return m.root
+}
+
 // Focus sets keyboard focus to the given widget.
 //
 // If another widget currently has focus, it is blurred first.

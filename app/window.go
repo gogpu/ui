@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -396,7 +397,7 @@ func (w *Window) SetRoot(root widget.Widget) {
 
 	// Update focus manager with new root so Tab navigation
 	// traverses the correct widget tree.
-	w.focusMgr.SetRoot(root)
+	w.focusMgr.SetRoot(w.focusTree())
 
 	// Mount new tree and mark all widgets as needing redraw.
 	if w.root != nil {
@@ -1018,6 +1019,9 @@ func (w *Window) setFocusVisible(visible bool) {
 // from the widget that received focus via mouse click or programmatic
 // ctx.RequestFocus.
 func (w *Window) syncContextFocusToManager() {
+	if root := w.focusTree(); root != w.focusMgr.Root() {
+		w.focusMgr.SetRoot(root)
+	}
 	ctxFocused := w.ctx.FocusedWidget()
 	mgrFocused := w.focusMgr.Focused()
 
@@ -1040,6 +1044,20 @@ func (w *Window) syncContextFocusToManager() {
 	if mgrFocused != nil {
 		w.focusMgr.Blur()
 	}
+}
+
+// focusTree returns the active overlay's tree when it owns keyboard focus.
+// Overlays live outside the main widget tree but can host focusable controls.
+func (w *Window) focusTree() widget.Widget {
+	if !w.overlays.IsEmpty() {
+		layers := w.overlays.List()
+		for ancestor := w.ctx.FocusedWidget(); ancestor != nil; ancestor = parentOf(ancestor) {
+			if layer, ok := ancestor.(overlay.Overlay); ok && slices.Contains(layers, layer) {
+				return layer
+			}
+		}
+	}
+	return w.root
 }
 
 // tickAnimationsInTree walks the widget tree and calls TickAnimation on
@@ -1086,7 +1104,7 @@ func (w *Window) layout() {
 	// Refresh focus manager's root after layout so the focusable
 	// widget list reflects any tree changes (widgets added/removed,
 	// visibility/enabled state changes).
-	w.focusMgr.SetRoot(w.root)
+	w.focusMgr.SetRoot(w.focusTree())
 }
 
 // draw performs the draw pass on the widget tree in headless mode.

@@ -114,12 +114,16 @@ func TestRedrawTimers_TimerWakesTheRenderLoop(t *testing.T) {
 // caretRecorder is a text field painter that records the caret it paints.
 type caretRecorder struct {
 	paints     int
+	focused    bool
 	showCursor bool
+	cursorPos  int
 }
 
 func (p *caretRecorder) PaintTextField(_ widget.Canvas, st *textfield.PaintState) {
 	p.paints++
+	p.focused = st.Focused
 	p.showCursor = st.ShowCursor
+	p.cursorPos = st.CursorPos
 }
 
 // newCaretWindow returns a hosted window showing a focused text field whose
@@ -209,6 +213,51 @@ func TestWindow_CaretHidesWhenWindowLosesFocus(t *testing.T) {
 	w.DrawTo(&trackingCanvas{})
 	if !rec.showCursor {
 		t.Error("caret hidden after the window became active again")
+	}
+}
+
+func TestWindow_OverlayCaretSurvivesTextRelayout(t *testing.T) {
+	const step = 500 * time.Millisecond
+	w := New(WithWindowProvider(&mockWindowProvider{width: 500, height: 400, scale: 1})).Window()
+	t.Cleanup(w.Close)
+	w.SetRoot(primitives.Box())
+	rec := &caretRecorder{}
+	field := textfield.New(
+		textfield.PainterOpt(rec),
+		textfield.CaretBlinkOpt(textfield.HardCaretBlink(step)),
+		textfield.OnChange(func(string) { w.Context().Invalidate() }),
+	)
+	panel := primitives.VBox(field).Width(260).Height(48)
+	panel.SetBounds(geometry.NewRect(80, 60, 260, 48))
+	w.Context().OverlayManager().PushOverlay(panel, nil)
+	w.Context().RequestFocus(field)
+	w.Frame()
+	PaintOverlayBoundaries(w.OverlayContentWidgets(), w.Context())
+	if !rec.focused || !rec.showCursor {
+		t.Fatal("precondition: popup has a focused field with a visible caret")
+	}
+
+	w.HandleEvent(event.NewKeyEvent(event.KeyPress, event.KeyA, 'a', event.ModNone))
+	w.HandleEvent(event.NewKeyEvent(event.KeyRelease, event.KeyA, 'a', event.ModNone))
+	w.Frame()
+	overlays := w.OverlayContentWidgets()
+	PaintOverlayBoundaries(overlays, w.Context())
+	if field.Text() != "a" || !rec.focused || !rec.showCursor || rec.cursorPos != 1 {
+		t.Fatalf("after typing: text=%q, focus=%t, caret visible=%t, position=%d",
+			field.Text(), rec.focused, rec.showCursor, rec.cursorPos)
+	}
+
+	// Advance the repaint scheduler through one blink cycle without sleeping.
+	start := w.Context().Now()
+	for i, wantVisible := range []bool{false, true} {
+		now := start.Add(time.Duration(i+1) * step)
+		w.Context().SetNow(now)
+		w.redrawTimers.flush(now)
+		PaintOverlayBoundaries(overlays, w.Context())
+		if !rec.focused || rec.showCursor != wantVisible || rec.cursorPos != 1 {
+			t.Errorf("blink step %d: focus=%t, caret visible=%t, position=%d",
+				i+1, rec.focused, rec.showCursor, rec.cursorPos)
+		}
 	}
 }
 
