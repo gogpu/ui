@@ -387,10 +387,18 @@ func TestPaintButtonFocused(t *testing.T) {
 		Focused: true,
 	})
 
-	// Fluent focus ring = inner StrokeRoundRect.
+	// Fluent focus ring = outer StrokeRoundRect, offset outside the bounds
+	// so filled variants keep it visible.
 	strokes := canvas.methodCalls(methodStrokeRoundRect)
 	if len(strokes) != 1 {
 		t.Errorf("focused should draw 1 StrokeRoundRect (focus ring), got %d", len(strokes))
+	}
+	if len(strokes) == 1 {
+		r := strokes[0].bounds
+		b := testBounds()
+		if r.Min.X >= b.Min.X || r.Max.X <= b.Max.X {
+			t.Errorf("focus ring %v must be offset outside bounds %v", r, b)
+		}
 	}
 }
 
@@ -436,6 +444,28 @@ func TestPaintCheckboxChecked(t *testing.T) {
 	}
 	if texts[0].text != "Accept" {
 		t.Errorf("label = %q, want 'Accept'", texts[0].text)
+	}
+}
+
+func TestPaintCheckboxCheckedFocusRingOutsideBox(t *testing.T) {
+	canvas := &recordCanvas{}
+	painter := fluent.CheckboxPainter{}
+	painter.PaintCheckbox(canvas, checkbox.PaintState{
+		Label:   "Accept",
+		Checked: true,
+		Focused: true,
+		Bounds:  testBounds(),
+	})
+
+	fills := canvas.methodCalls(methodDrawRoundRect)
+	strokes := canvas.methodCalls(methodStrokeRoundRect)
+	if len(fills) == 0 || len(strokes) == 0 {
+		t.Fatalf("want a filled box and a focus ring, got %d fills and %d strokes", len(fills), len(strokes))
+	}
+	box := fills[0].bounds
+	ring := strokes[len(strokes)-1].bounds
+	if ring.Min.X >= box.Min.X || ring.Min.Y >= box.Min.Y || ring.Max.X <= box.Max.X || ring.Max.Y <= box.Max.Y {
+		t.Errorf("focus ring %v must surround the filled box %v, not sit on top of its accent fill", ring, box)
 	}
 }
 
