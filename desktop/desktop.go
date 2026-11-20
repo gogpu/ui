@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"log"
@@ -149,6 +150,10 @@ type renderLoop struct {
 	frameCounter int // monotonic frame counter for diagnostic logging
 	renderCount  int // boundaries rendered (FlushGPUWithView) this frame
 	blitCount    int // boundaries blitted (DrawGPUTexture) this frame
+
+	// cpuFallbackLogged is set once gg.ErrFallbackToCPU from a boundary flush
+	// has been logged. Without a usable GPU accelerator every flush returns it.
+	cpuFallbackLogged bool
 }
 
 // boundaryTexEntry holds an offscreen GPU texture for a RepaintBoundary.
@@ -804,9 +809,26 @@ func (rl *renderLoop) flushBoundaryToTexture(pic *compositor.PictureLayerImpl, e
 	pw, ph := scaleToPhysical(bw, bh, cc.DeviceScale())
 	w, h := uint32(max(pw, 0)), uint32(max(ph, 0)) //nolint:gosec // pw/ph derived from bw/bh checked > 0 above
 	if err := cc.FlushGPUWithView(entry.texture, w, h); err != nil {
-		log.Printf("desktop: FlushGPUWithView boundary %d: %v", pic.BoundaryCacheKey(), err)
+		rl.logBoundaryFlushError(pic.BoundaryCacheKey(), err)
 	}
 	entry.sceneVersion = pic.SceneVersion()
+}
+
+// logBoundaryFlushError reports a failed boundary flush. gg.ErrFallbackToCPU
+// means no GPU accelerator is usable (usually github.com/gogpu/gg/gpu is not
+// imported); it comes back on every flush of every dirty boundary, so it is
+// logged once. Any other error is logged each time.
+func (rl *renderLoop) logBoundaryFlushError(key uint64, err error) {
+	if errors.Is(err, gg.ErrFallbackToCPU) {
+		if rl.cpuFallbackLogged {
+			return
+		}
+		rl.cpuFallbackLogged = true
+		log.Printf("desktop: FlushGPUWithView boundary %d: %v; no usable GPU accelerator "+
+			"(import _ \"github.com/gogpu/gg/gpu\"), further fallbacks are not logged", key, err)
+		return
+	}
+	log.Printf("desktop: FlushGPUWithView boundary %d: %v", key, err)
 }
 
 // updateClipRect stores the compositor clip rect in the texture entry.
