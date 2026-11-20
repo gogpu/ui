@@ -416,6 +416,14 @@ func (w *Widget) handleMouseEvent(ctx widget.Context, me *event.MouseEvent) bool
 		return true
 	}
 
+	// MouseEnter/MouseLeave come from the window's hover tracker and are
+	// meant for the SplitView itself (divider hover, handled above). The
+	// panes get their own; forwarding would hover a pane while the pointer
+	// is on the divider, with no Leave ever following.
+	if me.MouseType == event.MouseEnter || me.MouseType == event.MouseLeave {
+		return false
+	}
+
 	// Then dispatch to children.
 	if w.cfg.first != nil {
 		if w.cfg.first.Event(ctx, me) {
