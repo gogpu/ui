@@ -434,6 +434,8 @@ func (w *Window) HandleEvent(e event.Event) {
 
 	w.trackMouseButtonOwnership(e)
 
+	w.trackInputModality(e)
+
 	// Overlays get priority.
 	if w.overlays.HandleEvent(w.ctx, e) {
 		return
@@ -892,6 +894,34 @@ func (w *Window) syncManagerFocusToContext() {
 			w.wp.RequestRedraw()
 		}
 	}
+}
+
+// trackInputModality records the input modality for focus indication, the
+// analog of the browser :focus-visible heuristic. Focus granted while the
+// user drives with the keyboard shows the focus indicator; focus granted by
+// a mouse press hides it (the pressed/checked state is feedback enough).
+// Only a press counts as pointer interaction: moving the mouse or scrolling
+// grants no focus, so it leaves the modality alone, as in browsers. This
+// only affects future focus grants; an indicator already shown on the
+// focused widget stays until focus moves.
+func (w *Window) trackInputModality(e event.Event) {
+	switch ev := e.(type) {
+	case *event.KeyEvent:
+		w.setFocusVisible(true)
+	case *event.MouseEvent:
+		if ev.MouseType == event.MousePress {
+			w.setFocusVisible(false)
+		}
+	}
+}
+
+// setFocusVisible propagates the current input modality to the widget
+// context and the focus manager so that whichever of them grants focus
+// next — ctx.RequestFocus from a widget's pointer/key handler, or the
+// manager's Tab traversal — applies the same :focus-visible decision.
+func (w *Window) setFocusVisible(visible bool) {
+	w.ctx.SetFocusVisible(visible)
+	w.focusMgr.SetFocusVisible(visible)
 }
 
 // syncContextFocusToManager updates the focus manager's state to match

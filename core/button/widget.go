@@ -155,7 +155,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		Size:       w.cfg.size,
 		Hovered:    w.state == stateHover,
 		Pressed:    w.state == statePressed,
-		Focused:    w.IsFocused(),
+		Focused:    w.IsFocusVisible(),
 		Disabled:   w.cfg.ResolvedDisabled(),
 		Bounds:     w.Bounds(),
 		Background: w.cfg.background,

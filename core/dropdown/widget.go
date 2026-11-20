@@ -116,7 +116,7 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		SelectedText:  text,
 		IsPlaceholder: isPlaceholder,
 		Open:          w.open,
-		Focused:       w.IsFocused(),
+		Focused:       w.IsFocusVisible(),
 		Hovered:       w.state == stateHover,
 		Disabled:      w.cfg.ResolvedDisabled(),
 	})

@@ -120,7 +120,7 @@ func (b *Bar) Draw(ctx widget.Context, canvas widget.Canvas) {
 		MenuRects:    b.toAbsoluteRects(),
 		OpenIndex:    b.openIndex,
 		HoveredIndex: b.hoveredIndex,
-		Focused:      b.IsFocused(),
+		Focused:      b.IsFocusVisible(),
 	})
 }
 
