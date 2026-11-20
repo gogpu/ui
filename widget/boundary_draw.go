@@ -44,6 +44,21 @@ func GetSceneRecorderFactory() SceneRecorder {
 	return sceneRecorderFactory
 }
 
+// ConfigureSceneRecorder applies window-specific drawing options.
+func ConfigureSceneRecorder(recorder Canvas, ctx Context) {
+	if ctx == nil {
+		return
+	}
+	if ds, ok := recorder.(DeviceScaler); ok {
+		ds.SetDeviceScale(ctx.Scale())
+	}
+	if setter, ok := recorder.(interface{ SetTextRasterizer(TextRasterizer) }); ok {
+		if provider, ok := ctx.(interface{ TextRasterizer() TextRasterizer }); ok {
+			setter.SetTextRasterizer(provider.TextRasterizer())
+		}
+	}
+}
+
 // boundaryWidget is the interface that widgets with WidgetBase boundary
 // support must satisfy. All methods are provided by WidgetBase embedding.
 type boundaryWidget interface {
@@ -152,12 +167,7 @@ func drawBoundaryWidget(w Widget, ctx Context, canvas Canvas, stats *DrawStats) 
 	if sbs, ok := recorder.(screenBaseSetter); ok {
 		sbs.SetScreenOriginBase(screenBase)
 	}
-	// Propagate device scale for HiDPI-aware SVG icon rasterization (ADR-026).
-	if ctx != nil {
-		if ds, ok := recorder.(DeviceScaler); ok {
-			ds.SetDeviceScale(ctx.Scale())
-		}
-	}
+	ConfigureSceneRecorder(recorder, ctx)
 	StampScreenOrigin(w, canvas)
 	recorder.PushTransform(geometry.Pt(-bounds.Min.X, -bounds.Min.Y))
 

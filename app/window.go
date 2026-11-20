@@ -610,7 +610,7 @@ func (w *Window) HandleScaleChange(scale float64) {
 		return
 	}
 
-	w.ctx.SetScale(float32(scale))
+	w.setContextScale(float32(scale))
 	invalidateScenesInTree(w.root)
 	for _, overlayContent := range w.OverlayContentWidgets() {
 		invalidateScenesInTree(overlayContent)
@@ -1416,7 +1416,30 @@ func (w *Window) updateScale() {
 	if w.wp != nil {
 		scale = float32(w.wp.ScaleFactor())
 	}
+	w.setContextScale(scale)
+}
+
+func (w *Window) setContextScale(scale float32) {
+	if scale == w.ctx.Scale() {
+		return
+	}
 	w.ctx.SetScale(scale)
+	if w.ctx.TextRasterizer() == nil {
+		return
+	}
+	// Grid-fitted text advances may change when a window moves to a display
+	// with a different scale, even if the logical window size stays the same.
+	invalidate := func(root widget.Widget) {
+		if c, ok := root.(interface{ InvalidateLayoutCache() }); ok {
+			c.InvalidateLayoutCache()
+		}
+		widget.InvalidateLayoutTree(root)
+	}
+	invalidate(w.root)
+	for _, overlay := range w.overlays.List() {
+		invalidate(overlay)
+	}
+	w.needsLayout = true
 }
 
 // updateWindowSize reads the window size from the WindowProvider.

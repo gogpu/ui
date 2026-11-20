@@ -31,6 +31,7 @@ type appConfig struct {
 	es         gpucontext.EventSource
 	theme      *theme.Theme
 	renderMode RenderMode
+	rasterizer widget.TextRasterizer
 }
 
 // WithWindowProvider sets the window provider for the App.
@@ -71,6 +72,13 @@ func WithEventSource(es gpucontext.EventSource) Option {
 func WithTheme(t *theme.Theme) Option {
 	return func(c *appConfig) {
 		c.theme = t
+	}
+}
+
+// WithTextRasterizer supplies an optional platform text renderer for this app.
+func WithTextRasterizer(r widget.TextRasterizer) Option {
+	return func(c *appConfig) {
+		c.rasterizer = r
 	}
 }
 
@@ -129,6 +137,7 @@ func New(opts ...Option) *App {
 
 	// Create the window.
 	a.window = newWindow(cfg.wp, cfg.pp, a.scheduler, t, cfg.renderMode)
+	a.window.Context().SetTextRasterizer(cfg.rasterizer)
 
 	// Attach event bridge if event source is provided.
 	if cfg.es != nil {

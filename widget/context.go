@@ -439,6 +439,9 @@ type ContextImpl struct {
 	// Display scale
 	scale float32
 
+	// Optional platform text for scene recorders and layout.
+	textRasterizer TextRasterizer
+
 	// Theme provider
 	themeProvider ThemeProvider
 
@@ -733,6 +736,20 @@ func (c *ContextImpl) SetScale(scale float32) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.scale = scale
+}
+
+// SetTextRasterizer configures platform text before the window's first layout.
+func (c *ContextImpl) SetTextRasterizer(r TextRasterizer) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.textRasterizer = r
+}
+
+// TextRasterizer returns the renderer configured for this window, if any.
+func (c *ContextImpl) TextRasterizer() TextRasterizer {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.textRasterizer
 }
 
 // ThemeProvider returns the current theme for this context.

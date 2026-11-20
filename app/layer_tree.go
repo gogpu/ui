@@ -528,12 +528,7 @@ func recordBoundary(bi boundaryInfo, ctx widget.Context) {
 
 	recorder, cleanup := widget.GetSceneRecorderFactory()(cachedScene, width, height)
 
-	// Propagate device scale for HiDPI-aware SVG icon rasterization (ADR-026).
-	if ctx != nil {
-		if ds, ok := recorder.(widget.DeviceScaler); ok {
-			ds.SetDeviceScale(ctx.Scale())
-		}
-	}
+	widget.ConfigureSceneRecorder(recorder, ctx)
 
 	// Clear dirty BEFORE Draw (Flutter pattern: detect re-dirtying during Draw).
 	bi.ClearSceneDirty()

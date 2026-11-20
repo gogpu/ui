@@ -18,9 +18,8 @@ import (
 // rendering of widget subtrees.
 //
 // Shape drawing (rect, round rect, circle, line) is recorded directly into
-// the scene's encoding as scene shapes. Text rendering uses
-// scene.DrawText which converts glyph outlines to vector Fill paths —
-// scalable and resolution-independent. No bitmap capture needed.
+// the scene's encoding as scene shapes. Text uses vector glyph outlines by
+// default. An optional platform rasterizer can record text at device scale.
 //
 // SceneCanvas is NOT thread-safe. All drawing operations must occur on the
 // main/UI thread during the Draw phase.
@@ -50,7 +49,8 @@ type SceneCanvas struct {
 	// correct logical size but with crisp, HiDPI-quality rendering.
 	// Follows the Qt6/Chromium/IntelliJ pattern (ADR-026).
 	// A value <= 0 is treated as 1.0.
-	deviceScale float32
+	deviceScale    float32
+	textRasterizer widget.TextRasterizer
 }
 
 // NewSceneCanvas creates a new SceneCanvas that records drawing commands
@@ -72,7 +72,7 @@ func NewSceneCanvas(sc *scene.Scene, width, height int) *SceneCanvas {
 // Currently a no-op since vector text rendering does not hold persistent
 // resources, but retained for lifecycle symmetry with NewSceneCanvas.
 func (c *SceneCanvas) Close() {
-	// No resources to release — vector text uses no persistent state.
+	// No resources to release — the canvas does not own the text rasterizer.
 }
 
 // Scene returns the underlying scene.Scene.
@@ -308,14 +308,8 @@ func (c *SceneCanvas) DrawLine(from, to geometry.Point, color widget.Color, stro
 	c.sc.Stroke(style, scene.IdentityAffine(), brush, shape)
 }
 
-// DrawText draws text within the given bounding rectangle using vector paths.
-//
-// Text is rendered via scene.DrawText which converts glyph outlines to vector
-// Fill paths in the scene — scalable, resolution-independent, and enterprise-
-// quality. No bitmap capture or temporary gg.Context needed.
-//
-// Alignment is handled by measuring the text advance and computing the x offset
-// before calling scene.DrawText with the final position.
+// DrawText aligns a line in the bounding rectangle using its measured advance.
+// It records vector outlines when a platform rasterizer does not supply a bitmap.
 func (c *SceneCanvas) DrawText(s string, bounds geometry.Rect, fontSize float32, color widget.Color, bold bool, align widget.TextAlign) {
 	if s == "" {
 		return
@@ -327,6 +321,9 @@ func (c *SceneCanvas) DrawText(s string, bounds geometry.Rect, fontSize float32,
 	}
 
 	if bounds.Width() <= 0 || bounds.Height() <= 0 {
+		return
+	}
+	if c.drawRasterText(s, bounds, widget.TextStyle{FontSize: fontSize, Color: color, Bold: bold, Align: align}) {
 		return
 	}
 
@@ -372,6 +369,9 @@ func (c *SceneCanvas) MeasureText(s string, fontSize float32, bold bool) float32
 	if s == "" {
 		return 0
 	}
+	if metrics, ok := c.measureRasterText(s, widget.TextStyle{FontSize: fontSize, Bold: bold}); ok {
+		return float32(metrics.Advance) / c.DeviceScale()
+	}
 
 	ensureDefaultFonts()
 	source := defaultRegular
@@ -393,6 +393,14 @@ func (c *SceneCanvas) MeasureText(s string, fontSize float32, bold bool) float32
 // from the shaped form of the whole string — the same [text.Shape] run
 // [scene.Scene.DrawText] positions the recorded glyphs from.
 func (c *SceneCanvas) CaretOffsets(s string, fontSize float32, bold bool) []float32 {
+	if metrics, ok := c.measureRasterText(s, widget.TextStyle{FontSize: fontSize, Bold: bold}); ok {
+		scale := c.DeviceScale()
+		offsets := make([]float32, len(metrics.CaretOffsets))
+		for i, offset := range metrics.CaretOffsets {
+			offsets[i] = float32(offset) / scale
+		}
+		return offsets
+	}
 	return caretOffsets(defaultCaretFace(fontSize, bold), s, fontSize)
 }
 
@@ -412,6 +420,9 @@ func (c *SceneCanvas) DrawStyledText(s string, bounds geometry.Rect, style widge
 	}
 
 	if bounds.Width() <= 0 || bounds.Height() <= 0 {
+		return
+	}
+	if c.drawRasterText(s, bounds, style) {
 		return
 	}
 
@@ -447,6 +458,9 @@ func (c *SceneCanvas) DrawStyledText(s string, bounds geometry.Rect, style widge
 func (c *SceneCanvas) MeasureStyledText(s string, style widget.TextStyle) float32 {
 	if s == "" {
 		return 0
+	}
+	if metrics, ok := c.measureRasterText(s, style); ok {
+		return float32(metrics.Advance) / c.DeviceScale()
 	}
 
 	source := resolveStyledFontSource(style)

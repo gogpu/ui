@@ -215,11 +215,17 @@ func (t *TextWidget) IsReactive() bool {
 
 // Layout measures the text and returns the constrained size.
 //
-// Text measurement uses a simple character-width heuristic. Real font
-// measurement is delegated to the Canvas implementation in production.
-func (t *TextWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+// Single lines use the window's text renderer when available. The fallback
+// estimates character widths and wraps text within the available width.
+func (t *TextWidget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
 	text := t.Content()
-	size := t.measureText(text, constraints.MaxWidth)
+	var size geometry.Size
+	if width, ok := t.rasterLineWidth(ctx, text); ok && width <= constraints.MaxWidth {
+		// Leave room for the last glyph's antialiased fringe at the clip edge.
+		size = geometry.Sz(width+2, t.lineHeight())
+	} else {
+		size = t.measureText(text, constraints.MaxWidth)
+	}
 	resultSize := constraints.Constrain(size)
 	t.SetBounds(geometry.FromPointSize(t.Position(), resultSize))
 	return resultSize
@@ -252,9 +258,13 @@ func (t *TextWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	}
 
 	color := t.resolveColor(ctx)
-	lines, _ := t.lines(text, bounds.Width())
 	canvas.PushClip(bounds)
 	defer canvas.PopClip()
+	if width, ok := t.rasterLineWidth(ctx, text); ok && width <= bounds.Width() {
+		t.drawLine(canvas, text, bounds, color)
+		return
+	}
+	lines, _ := t.lines(text, bounds.Width())
 	if len(lines) == 1 {
 		t.drawLine(canvas, lines[0], bounds, color)
 		return
@@ -267,6 +277,24 @@ func (t *TextWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		}
 		t.drawLine(canvas, line, geometry.NewRect(bounds.Min.X, y, bounds.Width(), height), color)
 	}
+}
+
+func (t *TextWidget) rasterLineWidth(ctx widget.Context, text string) (float32, bool) {
+	provider, ok := ctx.(interface{ TextRasterizer() widget.TextRasterizer })
+	if !ok || text == "" || strings.ContainsRune(text, '\n') {
+		return 0, false
+	}
+	rasterizer := provider.TextRasterizer()
+	if rasterizer == nil {
+		return 0, false
+	}
+	scale := ctx.Scale()
+	if scale <= 0 {
+		scale = 1
+	}
+	style := widget.TextStyle{FontFamily: t.style.FontFamily, FontSize: t.fontSize(), Bold: t.style.Bold, Italic: t.style.Italic}
+	metrics, ok := rasterizer.Measure(text, style, scale)
+	return float32(metrics.Advance) / scale, ok
 }
 
 func (t *TextWidget) drawLine(canvas widget.Canvas, text string, bounds geometry.Rect, color widget.Color) {
