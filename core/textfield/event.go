@@ -2,6 +2,7 @@ package textfield
 
 import (
 	"github.com/gogpu/ui/event"
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -11,6 +12,7 @@ func handleEvent(w *Widget, ctx widget.Context, e event.Event) bool {
 	if w.cfg.ResolvedDisabled() {
 		return false
 	}
+	w.syncExternalText()
 
 	switch ev := e.(type) {
 	case *event.MouseEvent:
@@ -60,6 +62,9 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 // the correctly-translated position from the derived event, ensuring accurate
 // cursor placement on single clicks.
 func handleMousePress(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
+	if e.Button == event.ButtonRight {
+		return w.showEditMenu(ctx, e.GlobalPosition, &e.Position)
+	}
 	if e.Button != event.ButtonLeft {
 		return false
 	}
@@ -104,6 +109,13 @@ func handleKeyEvent(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 	ctrl := e.Modifiers().IsCtrl()
 
 	switch {
+	case e.KeyType == event.KeyPress && (e.Key == event.KeyMenu || shift && e.Key == event.KeyF10):
+		bounds := w.ScreenBounds()
+		return w.showEditMenu(ctx, geometry.Pt(bounds.Min.X, bounds.Max.Y), nil)
+	case ctrl && (e.Key == event.KeyY || shift && e.Key == event.KeyZ):
+		return w.restoreEdit(ctx, &w.redo, &w.undo)
+	case ctrl && e.Key == event.KeyZ:
+		return w.restoreEdit(ctx, &w.undo, &w.redo)
 	case ctrl && e.Key == event.KeyA:
 		return handleSelectAll(w, ctx)
 	case ctrl && e.Key == event.KeyC:
@@ -145,7 +157,7 @@ func handleSelectAll(w *Widget, ctx widget.Context) bool {
 
 // handleCopy copies selected text to the clipboard.
 func handleCopy(w *Widget) bool {
-	if !w.sel.HasSelection() {
+	if !w.canCopy() {
 		return true
 	}
 	runes := w.textRunes()
@@ -156,7 +168,7 @@ func handleCopy(w *Widget) bool {
 
 // handleCut cuts selected text to the clipboard.
 func handleCut(w *Widget, ctx widget.Context) bool {
-	if !w.sel.HasSelection() {
+	if !w.canCopy() {
 		return true
 	}
 	runes := w.textRunes()
@@ -174,9 +186,9 @@ func handlePaste(w *Widget, ctx widget.Context) bool {
 		return true
 	}
 
-	w.deleteSelection()
-	w.insertText(text)
-	w.notifyChange(ctx)
+	if w.insertText(text) {
+		w.notifyChange(ctx)
+	}
 	return true
 }
 
@@ -330,15 +342,8 @@ func handleCharInput(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 		return false
 	}
 
-	w.deleteSelection()
-
-	// Check max length.
-	runes := w.textRunes()
-	if w.cfg.maxLength > 0 && len(runes) >= w.cfg.maxLength {
-		return true
+	if w.insertText(string(r)) {
+		w.notifyChange(ctx)
 	}
-
-	w.insertText(string(r))
-	w.notifyChange(ctx)
 	return true
 }

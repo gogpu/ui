@@ -1,6 +1,9 @@
 package textfield
 
-import "github.com/gogpu/ui/state"
+import (
+	"github.com/gogpu/ui/core/menu"
+	"github.com/gogpu/ui/state"
+)
 
 // Option configures a text field during construction.
 type Option func(*config)
@@ -112,5 +115,12 @@ func CaretBlinkOpt(b CaretBlink) Option {
 func PainterOpt(p Painter) Option {
 	return func(c *config) {
 		c.painter = p
+	}
+}
+
+// ContextMenuPainterOpt sets the painter used for the editing context menu.
+func ContextMenuPainterOpt(p menu.Painter) Option {
+	return func(c *config) {
+		c.menuPainter = p
 	}
 }

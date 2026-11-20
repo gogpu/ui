@@ -12,10 +12,11 @@ import (
 //
 // Create with [NewContextMenu].
 type ContextMenu struct {
-	items   []MenuItem
-	painter Painter
-	panel   *menuPanel
-	open    bool
+	items       []MenuItem
+	painter     Painter
+	panel       *menuPanel
+	open        bool
+	captureKeys bool
 }
 
 // ContextMenuOption configures a ContextMenu during construction.
@@ -26,6 +27,11 @@ func ContextPainterOpt(p Painter) ContextMenuOption {
 	return func(cm *ContextMenu) {
 		cm.painter = p
 	}
+}
+
+// ContextCaptureKeys keeps keys in the menu when it overlays an editing control.
+func ContextCaptureKeys() ContextMenuOption {
+	return func(cm *ContextMenu) { cm.captureKeys = true }
 }
 
 // NewContextMenu creates a new context menu with the given items and options.
@@ -62,6 +68,7 @@ func (cm *ContextMenu) Show(ctx widget.Context, position geometry.Point) {
 	}, func() {
 		cm.Hide(ctx)
 	})
+	panel.captureKeys = cm.captureKeys
 
 	// Position at the given point, clamping to viewport.
 	menuSz := menuSize(cm.items)

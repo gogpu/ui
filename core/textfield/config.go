@@ -1,6 +1,9 @@
 package textfield
 
-import "github.com/gogpu/ui/state"
+import (
+	"github.com/gogpu/ui/core/menu"
+	"github.com/gogpu/ui/state"
+)
 
 // config holds the text field's configuration, set at construction time via options.
 type config struct {
@@ -16,6 +19,7 @@ type config struct {
 	disabledFn  func() bool
 	a11yLabel   string
 	painter     Painter
+	menuPainter menu.Painter
 	caretBlink  *CaretBlink
 }
 

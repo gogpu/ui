@@ -37,7 +37,9 @@
 //   - Backspace and Delete for character removal
 //   - Shift+arrows for text selection
 //   - Ctrl+A to select all text
-//   - Ctrl+C/X/V for clipboard copy/cut/paste (placeholder implementation)
+//   - Ctrl+C/X/V for clipboard copy/cut/paste
+//   - Ctrl+Z to undo and Ctrl+Y or Ctrl+Shift+Z to redo
+//   - Right click, Menu key, or Shift+F10 to open the editing context menu
 //
 // # Validation
 //

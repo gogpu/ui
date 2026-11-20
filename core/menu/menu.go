@@ -29,6 +29,7 @@ type menuPanel struct {
 	painter          Painter
 	onSelect         func(item *MenuItem)
 	onClose          func()
+	captureKeys      bool
 
 	// Submenu state.
 	subMenuPanel *menuPanel
@@ -111,7 +112,7 @@ func (m *menuPanel) Event(ctx widget.Context, e event.Event) bool {
 
 	switch ev := e.(type) {
 	case *event.KeyEvent:
-		return m.handleKeyEvent(ctx, ev)
+		return m.handleKeyEvent(ctx, ev) || m.captureKeys
 	case *event.MouseEvent:
 		return m.handleMouseEvent(ctx, ev)
 	default:

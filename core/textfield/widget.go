@@ -26,9 +26,11 @@ import (
 //	field.Padding(12)
 type Widget struct {
 	widget.WidgetBase
-	cfg     config
-	sel     selection
-	painter Painter
+	cfg           config
+	sel           selection
+	painter       Painter
+	undo, redo    []editSnapshot
+	closeEditMenu func()
 
 	// Gesture recognizer for tap/drag/multi-click text selection.
 	// Handles single-click (cursor placement), double-click (word selection),
@@ -137,15 +139,7 @@ func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geom
 
 // Draw renders the text field to the canvas.
 func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
-	// Sync from signal if bound.
-	if w.cfg.signal != nil {
-		current := w.cfg.signal.Get()
-		if current != w.cfg.value {
-			w.cfg.value = current
-			runes := []rune(current)
-			w.sel.SetCursor(clampPos(w.sel.cursor, len(runes)))
-		}
-	}
+	w.syncExternalText()
 
 	// Query LayoutMetrics from painter (type assert with default fallback).
 	lm := resolveLayoutMetrics(w.painter)
@@ -321,6 +315,10 @@ func (w *Widget) Text() string {
 
 // SetText sets the text value programmatically and revalidates.
 func (w *Widget) SetText(text string) {
+	w.syncExternalText()
+	if w.resolvedText() != text {
+		w.undo, w.redo = nil, nil
+	}
 	w.setText(text)
 	runes := []rune(text)
 	w.sel.SetCursor(clampPos(w.sel.cursor, len(runes)))
@@ -369,29 +367,29 @@ func (w *Widget) textRunes() []rune {
 	return []rune(w.resolvedText())
 }
 
-// insertText inserts text at the current cursor position.
-func (w *Widget) insertText(text string) {
+// insertText inserts text at the cursor or replaces the selection as one edit.
+func (w *Widget) insertText(text string) bool {
 	runes := w.textRunes()
-	pos := w.sel.cursor
+	start, end := w.sel.OrderedRange()
 	insertRunes := []rune(text)
 
 	// Check max length.
 	if w.cfg.maxLength > 0 {
-		remaining := w.cfg.maxLength - len(runes)
+		remaining := w.cfg.maxLength - (len(runes) - (end - start))
 		if remaining <= 0 {
-			return
+			return false
 		}
 		if len(insertRunes) > remaining {
 			insertRunes = insertRunes[:remaining]
 		}
 	}
 
-	newRunes := make([]rune, 0, len(runes)+len(insertRunes))
-	newRunes = append(newRunes, runes[:pos]...)
+	newRunes := make([]rune, 0, len(runes)-(end-start)+len(insertRunes))
+	newRunes = append(newRunes, runes[:start]...)
 	newRunes = append(newRunes, insertRunes...)
-	newRunes = append(newRunes, runes[pos:]...)
-	w.setText(string(newRunes))
-	w.sel.SetCursor(pos + len(insertRunes))
+	newRunes = append(newRunes, runes[end:]...)
+	w.applyEdit(string(newRunes), start+len(insertRunes))
+	return true
 }
 
 // deleteSelection deletes the selected text and places cursor at selection start.
@@ -405,8 +403,7 @@ func (w *Widget) deleteSelection() {
 }
 
 func (w *Widget) deleteRange(runes []rune, start, end int) {
-	w.setText(string(append(runes[:start], runes[end:]...)))
-	w.sel.SetCursor(start)
+	w.applyEdit(string(append(runes[:start], runes[end:]...)), start)
 }
 
 // notifyChange fires the onChange callback and runs validation.
@@ -448,6 +445,10 @@ func (w *Widget) Mount(ctx widget.Context) {
 // Unmount is called when the text field is removed from the widget tree.
 // Implements [widget.Lifecycle].
 func (w *Widget) Unmount() {
+	if w.closeEditMenu != nil {
+		w.closeEditMenu()
+		w.closeEditMenu = nil
+	}
 	// Dispose recognizer to release arena references.
 	if w.tapDrag != nil {
 		w.tapDrag.Dispose()
