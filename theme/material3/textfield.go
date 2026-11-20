@@ -129,6 +129,7 @@ func m3PaintTextFieldContent(canvas widget.Canvas, st *textfield.PaintState, col
 	}
 
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, m3TFTextAlignLeft)
+	textfield.PaintComposition(canvas, st, colors)
 }
 
 // m3PaintTextFieldCursorFromState draws the cursor using pre-computed CursorRect.

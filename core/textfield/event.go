@@ -1,6 +1,7 @@
 package textfield
 
 import (
+	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/widget"
 )
@@ -8,18 +9,176 @@ import (
 // handleEvent processes input events for the text field widget.
 // It manages hover, focus, text editing, and selection states.
 func handleEvent(w *Widget, ctx widget.Context, e event.Event) bool {
-	if w.cfg.ResolvedDisabled() {
-		return false
-	}
-
 	switch ev := e.(type) {
 	case *event.MouseEvent:
+		if w.cfg.ResolvedDisabled() {
+			return false
+		}
 		return handleMouseEvent(w, ctx, ev)
 	case *event.KeyEvent:
+		if w.cfg.ResolvedDisabled() {
+			return false
+		}
 		return handleKeyEvent(w, ctx, ev)
+	case *event.FocusEvent:
+		if ev.IsLost() {
+			w.clearComposition()
+			w.cachedIMEAreaSet = false
+			w.SetNeedsRedraw(true)
+			ctx.InvalidateRect(w.Bounds())
+			return false
+		}
+		return false
+	case *event.IMEEvent:
+		// A disabled/hidden field can still be the context's focused widget
+		// until the next focus pass. Clear any transient preedit immediately so
+		// it cannot reappear when the field is re-enabled, and consume the
+		// lifecycle event rather than letting it reach another text field.
+		if !w.IsFocused() {
+			if w.composing {
+				w.clearComposition()
+				w.SetNeedsRedraw(true)
+				ctx.InvalidateRect(w.Bounds())
+			}
+			return false
+		}
+		if w.cfg.ResolvedDisabled() || !w.IsEnabled() || !w.IsVisible() {
+			w.clearComposition()
+			w.SetNeedsRedraw(true)
+			ctx.InvalidateRect(w.Bounds())
+			return true
+		}
+		return handleIMEEvent(w, ctx, ev)
 	default:
 		return false
 	}
+}
+
+// handleIMEEvent applies platform composition events to the focused field.
+// Preedit updates never mutate the committed value; only an accepted end
+// event invokes onChange, preserving exactly-once commit semantics at the
+// widget boundary.
+func handleIMEEvent(w *Widget, ctx widget.Context, e *event.IMEEvent) bool {
+	if !w.IsFocused() || w.cfg.ResolvedDisabled() || !w.IsEnabled() {
+		return false
+	}
+
+	switch e.IMEType {
+	case event.IMECompositionStart:
+		if w.cfg.inputType == TypePassword {
+			w.clearComposition()
+			return true
+		}
+		w.composing = true
+		w.composition = gpucontext.IMEComposition{}
+		w.SetNeedsRedraw(true)
+		ctx.InvalidateRect(w.Bounds())
+		return true
+
+	case event.IMECompositionUpdate:
+		if w.cfg.inputType == TypePassword || !e.Composition.IsValid() {
+			w.clearComposition()
+			w.SetNeedsRedraw(true)
+			ctx.InvalidateRect(w.Bounds())
+			return true
+		}
+		w.composing = true
+		w.composition = e.Composition
+		w.SetNeedsRedraw(true)
+		ctx.InvalidateRect(w.Bounds())
+		return true
+
+	case event.IMECompositionEnd:
+		w.clearComposition()
+		if w.cfg.inputType == TypePassword {
+			// A disabled native password session may still queue its end
+			// callback after focus/content-type changes. Never commit that stale
+			// payload into a password field.
+			w.SetNeedsRedraw(true)
+			ctx.InvalidateRect(w.Bounds())
+			return true
+		}
+		if e.Committed != "" {
+			w.deleteSelection()
+			w.insertText(e.Committed)
+			w.notifyChange(ctx)
+		} else {
+			w.SetNeedsRedraw(true)
+			ctx.InvalidateRect(w.Bounds())
+		}
+		return true
+
+	case event.IMECanceled, event.IMEDisabled:
+		w.clearComposition()
+		w.SetNeedsRedraw(true)
+		ctx.InvalidateRect(w.Bounds())
+		return true
+
+	case event.IMEDeleteSurrounding:
+		if w.cfg.inputType == TypePassword {
+			return true
+		}
+		if !e.Delete.IsValid() {
+			return true
+		}
+		if w.deleteSurrounding(e.Delete.Before, e.Delete.After) {
+			w.notifyChange(ctx)
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func (w *Widget) clearComposition() {
+	w.composing = false
+	w.composition = gpucontext.IMEComposition{}
+}
+
+// CancelIMEComposition clears transient preedit state when focus moves to a
+// different widget without a platform FocusEvent reaching this field.
+func (w *Widget) CancelIMEComposition() {
+	if !w.composing {
+		return
+	}
+	w.clearComposition()
+	w.cachedIMEAreaSet = false
+	w.SetNeedsRedraw(true)
+}
+
+// deleteSurrounding applies byte-counted deletion around the current cursor.
+// Requests that split a UTF-8 sequence are rejected instead of corrupting the
+// committed string.
+func (w *Widget) deleteSurrounding(before, after int) bool {
+	runes := w.textRunes()
+	if len(runes) == 0 {
+		return false
+	}
+	cursor := clampPos(w.sel.cursor, len(runes))
+	cursorByte := runeToByteOffset(runes, cursor)
+	text := string(runes)
+	startByte := cursorByte - before
+	endByte := cursorByte + after
+	if startByte < 0 || endByte > len(text) {
+		return false
+	}
+	start, ok := byteOffsetToRune(text, startByte)
+	if !ok {
+		return false
+	}
+	end, ok := byteOffsetToRune(text, endByte)
+	if !ok || start > end {
+		return false
+	}
+	if start == end {
+		return false
+	}
+	newRunes := make([]rune, 0, len(runes)-(end-start))
+	newRunes = append(newRunes, runes[:start]...)
+	newRunes = append(newRunes, runes[end:]...)
+	w.setText(string(newRunes))
+	w.sel.SetCursor(start)
+	return true
 }
 
 // handleMouseEvent processes mouse events for focus and hover state.

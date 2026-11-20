@@ -128,6 +128,7 @@ func cupPaintTFContent(canvas widget.Canvas, st *textfield.PaintState, colors te
 	}
 
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, cupTFTextAlignLeft)
+	textfield.PaintComposition(canvas, st, colors)
 }
 
 // cupPaintTFCursorFromState draws the cursor using pre-computed CursorRect.

@@ -1,6 +1,9 @@
 package app
 
 import (
+	"strings"
+	"unicode/utf8"
+
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -67,6 +70,9 @@ func (s *eventBridgeState) scrollAllowed() bool {
 // application's event loop.
 func attachEventBridge(es gpucontext.EventSource, w *Window) {
 	st := &eventBridgeState{}
+	ime := &imeBridgeState{}
+	w.imeBridge = ime
+	w.setIMEController(es)
 
 	_, hasPointerSource := es.(gpucontext.PointerEventSource)
 
@@ -134,7 +140,8 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		})
 	}
 
-	attachKeyboardBridge(es, w, &st.mods)
+	attachKeyboardBridge(es, w, &st.mods, ime)
+	attachIMEBridge(es, w, ime)
 	attachScrollBridge(es, w, st)
 
 	es.OnResize(func(width, height int) {
@@ -147,6 +154,11 @@ func attachEventBridge(es gpucontext.EventSource, w *Window) {
 		// somewhere else and this window never saw it.
 		st.mods = event.ModNone
 		if !focused {
+			// Native focus loss invalidates the current IME session. Backends can
+			// queue a final end/echo after this callback; cancel the bridge state
+			// before dispatching FocusLost so that stale text cannot commit when
+			// the platform callback arrives later.
+			ime.invalidate()
 			// The cursor may leave the window while focus is switching to
 			// another application. Without a PointerLeave, the bridge
 			// would continue to believe the cursor is inside, allowing
@@ -239,8 +251,12 @@ func attachScrollBridge(es gpucontext.EventSource, w *Window, st *eventBridgeSta
 }
 
 // attachKeyboardBridge wires keyboard and text input callbacks.
-func attachKeyboardBridge(es gpucontext.EventSource, w *Window, mods *event.Modifiers) {
+func attachKeyboardBridge(es gpucontext.EventSource, w *Window, mods *event.Modifiers, ime *imeBridgeState) {
 	es.OnKeyPress(func(key gpucontext.Key, platMods gpucontext.Modifiers) {
+		if !w.prepareIMEInput(ime) {
+			return
+		}
+		ime.noteKeyPress()
 		uiKey := translateKey(key)
 		uiMods := translateModifiers(platMods)
 		// A key event reports the modifiers held BEFORE it, so pressing Shift
@@ -275,15 +291,301 @@ func attachKeyboardBridge(es gpucontext.EventSource, w *Window, mods *event.Modi
 	})
 
 	es.OnTextInput(func(text string) {
-		for _, r := range text {
-			e := event.NewKeyEvent(
-				event.KeyPress,
-				event.KeyUnknown,
-				r,
-				event.ModNone,
-			)
-			w.HandleEvent(e)
+		if !w.prepareIMEInput(ime) {
+			return
 		}
+		if ime.dropTextInput(text) {
+			return
+		}
+		dispatchTextInput(w, text)
+	})
+}
+
+// imeBridgeState keeps the small amount of ordering state needed to make
+// legacy OnTextInput and the versioned IME commit callback exactly-once. The
+// native P3 bridge already suppresses WM_CHAR echoes, but retaining this guard
+// at the UI boundary protects other backends and test doubles as well.
+type imeBridgeState struct {
+	active bool
+	// hasComposition distinguishes a native preedit lifecycle from standalone
+	// text callbacks. Both feed the same exactly-once window, but a later
+	// composition update must reset any ordinary text accumulated beforehand.
+	hasComposition bool
+	lastText       string
+	suppressNext   string
+	// suppressPartial covers a suffix returned by commitWithoutEcho when a
+	// backend delivered only a prefix through OnTextInput before composition
+	// end. Hosts may echo either the full result or that suffix afterward.
+	suppressPartial string
+	// ended makes a repeated end callback for one native session idempotent.
+	// Backends normally emit one end, but queued teardown messages can otherwise
+	// commit the same result twice at the UI boundary.
+	ended bool
+	// canceled remains set until a new explicit composition start. This closes
+	// the teardown race where a backend queues IME end after focus loss or
+	// disabled/canceled notification.
+	canceled bool
+}
+
+func (s *imeBridgeState) noteKeyPress() {
+	// A new key gesture cannot be an echo of the previous IME result.
+	s.suppressNext = ""
+	s.suppressPartial = ""
+	if s.canceled {
+		// A key press establishes a fresh input gesture after cancellation. Keep
+		// ended set so a queued end from the canceled session remains blocked
+		// until explicit composition start or a new text payload arrives.
+		s.canceled = false
+		s.ended = true
+	}
+}
+
+func (s *imeBridgeState) dropTextInput(text string) bool {
+	if s.canceled {
+		// Cancellation invalidates all text already queued by the native session.
+		// A subsequent key press clears this state; until then, do not leak a
+		// stale result into the focused field.
+		return true
+	}
+	matchesFull := s.suppressNext != "" && text == s.suppressNext
+	matchesPartial := s.suppressPartial != "" && text == s.suppressPartial
+	if !matchesFull && !matchesPartial {
+		// A different payload is not the armed echo; expire the old guard before
+		// opening a possible new direct-input session.
+		s.suppressNext = ""
+		s.suppressPartial = ""
+		if !s.active && !s.ended {
+			s.active = true
+			s.hasComposition = false
+			s.lastText = ""
+		}
+		if s.ended {
+			// A text callback after a completed session can be the first signal of
+			// a new direct-input gesture on hosts that omit composition start. It
+			// establishes a new deduplication window; a queued duplicate end with
+			// no such text remains blocked by ended.
+			s.active = true
+			s.hasComposition = false
+			s.lastText = ""
+			s.ended = false
+		}
+		if s.active {
+			s.lastText += text
+		}
+		return false
+	}
+	// Keep suppressing the same post-END echo until a new key gesture or
+	// composition start establishes a new session. Some backends queue the
+	// same result through more than one text-input callback; clearing after the
+	// first callback would reinsert the duplicate.
+	if !s.ended {
+		if matchesFull {
+			s.suppressNext = ""
+		}
+		if matchesPartial {
+			s.suppressPartial = ""
+		}
+	}
+	return true
+}
+
+func (s *imeBridgeState) begin() {
+	s.active = true
+	s.hasComposition = true
+	s.lastText = ""
+	s.suppressNext = ""
+	s.suppressPartial = ""
+	s.ended = false
+	s.canceled = false
+}
+
+// update establishes (or continues) a native preedit lifecycle. A provider
+// may omit the explicit start callback; in that case reset any standalone
+// text that was already routed before the first update.
+func (s *imeBridgeState) update() {
+	if !s.hasComposition {
+		s.lastText = ""
+		s.suppressNext = ""
+		s.suppressPartial = ""
+	}
+	s.active = true
+	s.hasComposition = true
+	s.ended = false
+	s.canceled = false
+}
+
+func (s *imeBridgeState) end(committed string) string {
+	if s.canceled && !s.active {
+		// A queued end after cancellation/disabled/focus loss belongs to the
+		// invalidated session and must not commit into a replacement focus.
+		return ""
+	}
+	if !s.active && s.ended {
+		// A second native end before a new composition start belongs to the
+		// already-finished session, even if a stale callback carries a
+		// different payload. Do not let a queued teardown message commit into a
+		// subsequent key gesture.
+		return ""
+	}
+	accepted := commitWithoutEcho(s.lastText, committed)
+	s.active = false
+	s.hasComposition = false
+	s.lastText = ""
+	s.ended = true
+	s.suppressPartial = ""
+	if accepted == "" && committed != "" {
+		// The text callback already delivered the commit. Keep the same echo
+		// guard armed for a post-END duplicate from a backend that reports both
+		// callback forms.
+		s.suppressNext = committed
+		return ""
+	}
+	s.suppressNext = committed
+	if accepted != "" && accepted != committed {
+		s.suppressPartial = accepted
+	}
+	return accepted
+}
+
+// commitWithoutEcho removes text that was already delivered through the
+// legacy text-input callback before the explicit composition-end callback.
+// Native adapters usually avoid this ordering, but a few hosts can expose a
+// partial commit (for example "候" followed by end("候補")); inserting the
+// complete end payload would duplicate the prefix. Only UTF-8 boundary-aligned
+// prefixes are considered, so unrelated text is never discarded.
+func commitWithoutEcho(already, committed string) string {
+	if already == "" || committed == "" ||
+		!utf8.ValidString(already) || !utf8.ValidString(committed) {
+		return committed
+	}
+	if already == committed || strings.HasPrefix(committed, already) {
+		return committed[len(already):]
+	}
+	if strings.HasPrefix(already, committed) {
+		return ""
+	}
+
+	return committed
+}
+
+func (s *imeBridgeState) cancel() {
+	hadSession := s.active || s.ended || s.lastText != "" || s.suppressNext != "" || s.suppressPartial != ""
+	s.active = false
+	s.hasComposition = false
+	s.lastText = ""
+	s.suppressNext = ""
+	s.suppressPartial = ""
+	s.ended = false
+	s.canceled = hadSession
+}
+
+// invalidate marks the current native session unusable even when no start or
+// update callback has reached the UI yet. This is required for disabled,
+// focus-loss, and teardown notifications: a queued text/end callback must not
+// become the first event in a replacement field.
+func (s *imeBridgeState) invalidate() {
+	s.cancel()
+	s.canceled = true
+}
+
+func dispatchTextInput(w *Window, text string) {
+	for _, r := range text {
+		e := event.NewKeyEvent(
+			event.KeyPress,
+			event.KeyUnknown,
+			r,
+			event.ModNone,
+		)
+		w.HandleEvent(e)
+	}
+}
+
+// attachIMEBridge subscribes to the optional versioned IME event extension
+// when the host provides it. Legacy update callbacks are used only when the
+// extension is absent; the P3 adapter emits both forms, so subscribing to both
+// would render every preedit twice.
+func attachIMEBridge(es gpucontext.EventSource, w *Window, bridgeState *imeBridgeState) {
+	// A v2 event source is only useful when the host advertises composition
+	// support. Capability providers may live on either the WindowProvider or
+	// EventSource, so discover them through Window rather than assuming both
+	// interfaces are implemented by the same object. Legacy update callbacks
+	// remain the fallback for a versioned host that lacks v2 composition.
+	capabilityProvider := w.resolveIMECapabilities()
+	capabilities := gpucontext.IMECapabilities{}
+	capabilitiesKnown := capabilityProvider != nil
+	if capabilitiesKnown {
+		capabilities = capabilityProvider.IMECapabilities()
+	}
+	supports := func(feature gpucontext.IMECapability) bool {
+		return !capabilitiesKnown ||
+			(capabilities.Version >= gpucontext.IMEContractVersion && capabilities.Supports(feature))
+	}
+
+	es.OnIMECompositionStart(func() {
+		if !w.prepareIMEInput(bridgeState) {
+			return
+		}
+		bridgeState.begin()
+		w.HandleEvent(event.NewIMECompositionStartEvent())
+	})
+
+	v2, hasV2 := es.(gpucontext.IMEEventSourceV2)
+	if hasV2 && supports(gpucontext.IMECapabilityComposition) {
+		v2.OnIMECompositionUpdateV2(func(composition gpucontext.IMEComposition) {
+			if !w.prepareIMEInput(bridgeState) {
+				return
+			}
+			bridgeState.update()
+			w.HandleEvent(event.NewIMECompositionUpdateEvent(composition))
+		})
+	} else {
+		es.OnIMECompositionUpdate(func(state gpucontext.IMEState) {
+			if !w.prepareIMEInput(bridgeState) {
+				return
+			}
+			state.Composing = true
+			// Legacy providers are allowed to omit the explicit start callback;
+			// an update still establishes the duplicate-suppression window.
+			bridgeState.update()
+			w.HandleEvent(event.NewIMECompositionUpdateEvent(state.Composition()))
+		})
+	}
+	if hasV2 && supports(gpucontext.IMECapabilityCancel) {
+		v2.OnIMECanceled(func() {
+			bridgeState.invalidate()
+			if !w.prepareIMEInput(bridgeState) {
+				return
+			}
+			w.HandleEvent(event.NewIMECanceledEvent())
+		})
+	}
+	if hasV2 && supports(gpucontext.IMECapabilityDisabled) {
+		v2.OnIMEDisabled(func() {
+			bridgeState.invalidate()
+			if !w.prepareIMEInput(bridgeState) {
+				return
+			}
+			w.HandleEvent(event.NewIMEDisabledEvent())
+		})
+	}
+	if hasV2 && supports(gpucontext.IMECapabilityDeleteSurrounding) {
+		v2.OnIMEDeleteSurrounding(func(request gpucontext.IMEDeleteSurroundingEvent) {
+			if !w.prepareIMEInput(bridgeState) {
+				return
+			}
+			w.HandleEvent(event.NewIMEDeleteSurroundingEvent(request))
+		})
+	}
+
+	es.OnIMECompositionEnd(func(committed string) {
+		if !w.prepareIMEInput(bridgeState) {
+			return
+		}
+		accepted := bridgeState.end(committed)
+		// Always send an end event so the widget clears its preedit. If the
+		// legacy text callback already delivered the result, the payload is
+		// intentionally empty and cannot commit it twice.
+		w.HandleEvent(event.NewIMECompositionEndEvent(accepted))
 	})
 }
 
