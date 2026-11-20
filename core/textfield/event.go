@@ -121,9 +121,9 @@ func handleKeyEvent(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 	case e.Key == event.KeyEnd:
 		return handleEnd(w, ctx, shift)
 	case e.Key == event.KeyBackspace:
-		return handleBackspace(w, ctx)
+		return handleBackspace(w, ctx, ctrl)
 	case e.Key == event.KeyDelete:
-		return handleDelete(w, ctx)
+		return handleDelete(w, ctx, ctrl)
 	case e.Key == event.KeyEnter, e.Key == event.KeyNumpadEnter:
 		return handleEnter(w)
 	case e.Key == event.KeyTab:
@@ -259,8 +259,8 @@ func handleEnd(w *Widget, ctx widget.Context, shift bool) bool {
 	return true
 }
 
-// handleBackspace deletes the character before the cursor or the selection.
-func handleBackspace(w *Widget, ctx widget.Context) bool {
+// handleBackspace deletes the selection or text before the cursor.
+func handleBackspace(w *Widget, ctx widget.Context, ctrl bool) bool {
 	if w.sel.HasSelection() {
 		w.deleteSelection()
 		w.notifyChange(ctx)
@@ -273,17 +273,17 @@ func handleBackspace(w *Widget, ctx widget.Context) bool {
 
 	runes := w.textRunes()
 	pos := w.sel.cursor
-	newRunes := make([]rune, 0, len(runes)-1)
-	newRunes = append(newRunes, runes[:pos-1]...)
-	newRunes = append(newRunes, runes[pos:]...)
-	w.setText(string(newRunes))
-	w.sel.SetCursor(pos - 1)
+	start := pos - 1
+	if ctrl {
+		start = prevWordBoundary(runes, pos)
+	}
+	w.deleteRange(runes, start, pos)
 	w.notifyChange(ctx)
 	return true
 }
 
-// handleDelete deletes the character after the cursor or the selection.
-func handleDelete(w *Widget, ctx widget.Context) bool {
+// handleDelete deletes the selection or text after the cursor.
+func handleDelete(w *Widget, ctx widget.Context, ctrl bool) bool {
 	if w.sel.HasSelection() {
 		w.deleteSelection()
 		w.notifyChange(ctx)
@@ -296,10 +296,16 @@ func handleDelete(w *Widget, ctx widget.Context) bool {
 	}
 
 	pos := w.sel.cursor
-	newRunes := make([]rune, 0, len(runes)-1)
-	newRunes = append(newRunes, runes[:pos]...)
-	newRunes = append(newRunes, runes[pos+1:]...)
-	w.setText(string(newRunes))
+	end := pos + 1
+	if ctrl {
+		// From between words, delete through the end of the next word.
+		end = pos
+		for end < len(runes) && !isWordChar(runes[end]) {
+			end++
+		}
+		end = nextWordBoundary(runes, end)
+	}
+	w.deleteRange(runes, pos, end)
 	w.notifyChange(ctx)
 	return true
 }

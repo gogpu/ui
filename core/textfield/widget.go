@@ -400,12 +400,12 @@ func (w *Widget) deleteSelection() {
 		return
 	}
 
-	runes := w.textRunes()
 	start, end := w.sel.OrderedRange()
-	newRunes := make([]rune, 0, len(runes)-(end-start))
-	newRunes = append(newRunes, runes[:start]...)
-	newRunes = append(newRunes, runes[end:]...)
-	w.setText(string(newRunes))
+	w.deleteRange(w.textRunes(), start, end)
+}
+
+func (w *Widget) deleteRange(runes []rune, start, end int) {
+	w.setText(string(append(runes[:start], runes[end:]...)))
 	w.sel.SetCursor(start)
 }
 

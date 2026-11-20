@@ -323,6 +323,45 @@ func TestEdit_BackspaceAtStart(t *testing.T) {
 	}
 }
 
+func TestEdit_ControlDeletesWords(t *testing.T) {
+	for _, test := range []struct {
+		name, initial, want string
+		key                 event.Key
+		left, cursor        int
+	}{
+		{"word before cursor", "поиск ветки", "поиск ", event.KeyBackspace, 0, 6},
+		{"word and separators before cursor", "fix/ветка / ", "fix/", event.KeyBackspace, 0, 4},
+		{"word after cursor", "ветка fix", " fix", event.KeyDelete, 9, 0},
+		{"separators and word after cursor", "fix / ветка two", "fix two", event.KeyDelete, 12, 3},
+		{"part of word after cursor", "ветка fix", "ве fix", event.KeyDelete, 7, 2},
+		{"at start", "ветка", "ветка", event.KeyBackspace, 5, 0},
+		{"at end", "ветка", "ветка", event.KeyDelete, 0, 5},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			changes := 0
+			tf := textfield.New(textfield.InitialValue(test.initial), textfield.OnChange(func(string) { changes++ }))
+			tf.SetFocused(true)
+			ctx := widget.NewContext()
+			for range test.left {
+				pressKey(tf, ctx, event.KeyLeft, event.ModNone)
+			}
+			if !pressKey(tf, ctx, test.key, event.ModCtrl) {
+				t.Fatal("Ctrl+delete key was not handled")
+			}
+			if tf.Text() != test.want || tf.CursorPosition() != test.cursor {
+				t.Errorf("text=%q cursor=%d, want %q at %d", tf.Text(), tf.CursorPosition(), test.want, test.cursor)
+			}
+			wantChanges := 0
+			if test.initial != test.want {
+				wantChanges = 1
+			}
+			if changes != wantChanges {
+				t.Errorf("OnChange calls=%d, want %d", changes, wantChanges)
+			}
+		})
+	}
+}
+
 func TestEdit_Delete(t *testing.T) {
 	tf := textfield.New(textfield.InitialValue("abc"))
 	tf.SetBounds(geometry.NewRect(0, 0, 300, 48))
@@ -504,6 +543,20 @@ func TestSelection_BackspaceDeletesSelection(t *testing.T) {
 
 	if tf.Text() != "hel" {
 		t.Errorf("text = %q, want %q", tf.Text(), "hel")
+	}
+}
+
+func TestSelection_ControlDeleteKeysDeleteOnlySelection(t *testing.T) {
+	for _, key := range []event.Key{event.KeyBackspace, event.KeyDelete} {
+		tf := textfield.New(textfield.InitialValue("hello"))
+		tf.SetFocused(true)
+		ctx := widget.NewContext()
+		pressKey(tf, ctx, event.KeyLeft, event.ModShift)
+		pressKey(tf, ctx, key, event.ModCtrl)
+		from, to := tf.Selection()
+		if tf.Text() != "hell" || from != 4 || to != 4 {
+			t.Errorf("%v: text=%q selection=(%d, %d), want hell at (4, 4)", key, tf.Text(), from, to)
+		}
 	}
 }
 
