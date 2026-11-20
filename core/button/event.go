@@ -17,7 +17,7 @@ func handleEvent(w *Widget, ctx widget.Context, e event.Event) bool {
 	case *event.MouseEvent:
 		return handleMouseEvent(w, ctx, ev)
 	case *event.KeyEvent:
-		return handleKeyEvent(w, ev)
+		return handleKeyEvent(w, ctx, ev)
 	default:
 		return false
 	}
@@ -74,28 +74,34 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 }
 
 // handleKeyEvent processes keyboard events for Enter/Space activation.
-func handleKeyEvent(w *Widget, e *event.KeyEvent) bool {
+func handleKeyEvent(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 	if !w.IsFocused() {
 		return false
 	}
 
 	switch e.Key {
 	case event.KeyEnter, event.KeySpace:
-		return handleActivationKey(w, e)
+		return handleActivationKey(w, ctx, e)
 	default:
 		return false
 	}
 }
 
 // handleActivationKey processes Enter/Space key press and release for button activation.
-func handleActivationKey(w *Widget, e *event.KeyEvent) bool {
+//
+// Both edges change the pressed visual, and nothing else repaints the button
+// in between (no mouse event, no signal), so each one invalidates exactly
+// like the mouse path does.
+func handleActivationKey(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 	switch e.KeyType {
 	case event.KeyPress:
 		w.state = statePressed
+		invalidate(w, ctx)
 		return true
 	case event.KeyRelease:
 		wasPressed := w.state == statePressed
 		w.state = stateNormal
+		invalidate(w, ctx)
 		if wasPressed {
 			fireOnClick(w)
 		}
@@ -103,6 +109,12 @@ func handleActivationKey(w *Widget, e *event.KeyEvent) bool {
 	default:
 		return false
 	}
+}
+
+// invalidate schedules a repaint of the button after a visual state change.
+func invalidate(w *Widget, ctx widget.Context) {
+	w.SetNeedsRedraw(true)
+	ctx.InvalidateRect(w.Bounds())
 }
 
 // fireOnClick plays the click sound and calls the configured onClick handler.

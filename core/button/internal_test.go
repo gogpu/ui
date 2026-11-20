@@ -1383,3 +1383,32 @@ func TestGranularInvalidation_ReleaseOutside_StillGranular(t *testing.T) {
 		t.Errorf("state = %v, want stateNormal", w.state)
 	}
 }
+
+func TestKeyboard_ActivationRepaints(t *testing.T) {
+	for _, key := range []event.Key{event.KeyEnter, event.KeySpace} {
+		w := New(TextOpt("Test"))
+		w.SetBounds(geometry.NewRect(10, 10, 120, 32))
+		w.SetFocused(true)
+		ctx := widget.NewContext()
+
+		// Enter/Space change the pressed visual with no mouse events in
+		// between, so the keyboard path must invalidate like the mouse path.
+		handleEvent(w, ctx, event.NewKeyEvent(event.KeyPress, key, 0, event.ModNone))
+		if !w.NeedsRedraw() {
+			t.Errorf("%v press should mark the button for redraw", key)
+		}
+		if ctx.InvalidatedRect().IsEmpty() {
+			t.Errorf("%v press should invalidate the button bounds", key)
+		}
+
+		w.ClearRedraw()
+		ctx.ClearInvalidation()
+		handleEvent(w, ctx, event.NewKeyEvent(event.KeyRelease, key, 0, event.ModNone))
+		if !w.NeedsRedraw() {
+			t.Errorf("%v release should mark the button for redraw", key)
+		}
+		if ctx.InvalidatedRect().IsEmpty() {
+			t.Errorf("%v release should invalidate the button bounds", key)
+		}
+	}
+}

@@ -1486,3 +1486,33 @@ func TestGranularInvalidation_Checkbox_PressRelease(t *testing.T) {
 		t.Error("onToggle should still fire on release inside bounds")
 	}
 }
+
+func TestKeyboard_ToggleRepaints(t *testing.T) {
+	w := New(LabelOpt("Test"))
+	w.SetBounds(geometry.NewRect(10, 10, 120, 24))
+	w.SetFocused(true)
+	ctx := widget.NewContext()
+
+	// Space toggles the checked state with no mouse events in between and,
+	// without a bound signal, nothing else would repaint the widget.
+	handleEvent(w, ctx, event.NewKeyEvent(event.KeyPress, event.KeySpace, 0, event.ModNone))
+	if !w.NeedsRedraw() {
+		t.Error("Space press should mark the checkbox for redraw")
+	}
+	if ctx.InvalidatedRect().IsEmpty() {
+		t.Error("Space press should invalidate the checkbox bounds")
+	}
+
+	w.ClearRedraw()
+	ctx.ClearInvalidation()
+	handleEvent(w, ctx, event.NewKeyEvent(event.KeyRelease, event.KeySpace, 0, event.ModNone))
+	if !w.cfg.ResolvedChecked() {
+		t.Error("Space release should toggle the checkbox")
+	}
+	if !w.NeedsRedraw() {
+		t.Error("Space release should mark the checkbox for redraw")
+	}
+	if ctx.InvalidatedRect().IsEmpty() {
+		t.Error("Space release should invalidate the checkbox bounds")
+	}
+}

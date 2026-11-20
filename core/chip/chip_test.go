@@ -404,6 +404,27 @@ func TestKeyboard_ActivatesWhenFocused(t *testing.T) {
 	}
 }
 
+func TestKeyboard_ActivationInvalidates(t *testing.T) {
+	for _, key := range []event.Key{event.KeyEnter, event.KeySpace} {
+		c := chip.New(chip.Selectable(true))
+		c.SetBounds(geometry.NewRect(10, 10, 80, 32))
+		c.SetFocused(true)
+
+		// Each key edge changes the pressed visual with no mouse event in
+		// between, so it must invalidate like the mouse path does.
+		for _, ev := range []*event.KeyEvent{
+			uitest.KeyPress(key, event.ModNone),
+			uitest.KeyRelease(key, event.ModNone),
+		} {
+			ctx := uitest.NewMockContext()
+			c.Event(ctx, ev)
+			if len(ctx.InvalidatedRects) == 0 {
+				t.Errorf("%v %v should invalidate the chip bounds", key, ev.KeyType)
+			}
+		}
+	}
+}
+
 func TestKeyboard_IgnoredWhenNotFocused(t *testing.T) {
 	clicked := false
 	c := chip.New(chip.OnClick(func() { clicked = true }))

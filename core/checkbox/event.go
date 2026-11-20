@@ -17,7 +17,7 @@ func handleEvent(w *Widget, ctx widget.Context, e event.Event) bool {
 	case *event.MouseEvent:
 		return handleMouseEvent(w, ctx, ev)
 	case *event.KeyEvent:
-		return handleKeyEvent(w, ev)
+		return handleKeyEvent(w, ctx, ev)
 	default:
 		return false
 	}
@@ -74,7 +74,7 @@ func handleMouseEvent(w *Widget, ctx widget.Context, e *event.MouseEvent) bool {
 }
 
 // handleKeyEvent processes keyboard events for Space activation.
-func handleKeyEvent(w *Widget, e *event.KeyEvent) bool {
+func handleKeyEvent(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 	if !w.IsFocused() {
 		return false
 	}
@@ -83,18 +83,24 @@ func handleKeyEvent(w *Widget, e *event.KeyEvent) bool {
 		return false
 	}
 
-	return handleActivationKey(w, e)
+	return handleActivationKey(w, ctx, e)
 }
 
 // handleActivationKey processes Space key press and release for checkbox toggling.
-func handleActivationKey(w *Widget, e *event.KeyEvent) bool {
+//
+// Both edges change what is drawn (pressed visual, then the checked state),
+// and a checkbox without a bound signal has nothing else to repaint it, so
+// each one invalidates exactly like the mouse path does.
+func handleActivationKey(w *Widget, ctx widget.Context, e *event.KeyEvent) bool {
 	switch e.KeyType {
 	case event.KeyPress:
 		w.state = statePressed
+		invalidate(w, ctx)
 		return true
 	case event.KeyRelease:
 		wasPressed := w.state == statePressed
 		w.state = stateNormal
+		invalidate(w, ctx)
 		if wasPressed {
 			fireToggle(w)
 		}
@@ -102,6 +108,12 @@ func handleActivationKey(w *Widget, e *event.KeyEvent) bool {
 	default:
 		return false
 	}
+}
+
+// invalidate schedules a repaint of the checkbox after a visual state change.
+func invalidate(w *Widget, ctx widget.Context) {
+	w.SetNeedsRedraw(true)
+	ctx.InvalidateRect(w.Bounds())
 }
 
 // fireToggle plays the click sound, toggles the checked state, and calls the
