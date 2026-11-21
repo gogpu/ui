@@ -138,8 +138,8 @@ func (s *Stack) List() []Overlay {
 }
 
 // HandleEvent dispatches an event to the top interactive overlay.
-// If the top interactive overlay is modal and does not consume
-// the event, the event is still blocked from reaching the normal widget tree.
+// A modal overlay anywhere in the stack blocks unhandled events from
+// reaching the normal widget tree.
 //
 // Returns true if the event was consumed or blocked by a modal overlay.
 func (s *Stack) HandleEvent(ctx widget.Context, e event.Event) bool {
@@ -150,9 +150,12 @@ func (s *Stack) HandleEvent(ctx widget.Context, e event.Event) bool {
 	if top.Event(ctx, e) {
 		return true
 	}
-	// Modal overlays block all events from reaching the widget tree,
-	// even if they did not explicitly consume the event.
-	return top.Modal()
+	for _, o := range s.overlays {
+		if !IsPassive(o) && o.Modal() {
+			return true
+		}
+	}
+	return false
 }
 
 // Layout lays out all overlays with the given window-sized constraints.

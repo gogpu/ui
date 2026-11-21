@@ -789,7 +789,13 @@ func (b *BoxWidget) dispatchMouseEvent(ctx widget.Context, e *event.MouseEvent) 
 	for i := len(children) - 1; i >= 0; i-- {
 		child := children[i]
 		if bw, ok := child.(interface{ Bounds() geometry.Rect }); ok {
-			if !bw.Bounds().Contains(local.Position) {
+			bounds := bw.Bounds()
+			if !bounds.Contains(local.Position) {
+				continue
+			}
+			// A shared edge belongs to the next sibling for hover tracking.
+			// Don't send a move back to the previous child after MouseLeave.
+			if e.MouseType == event.MouseMove && (local.Position.X == bounds.Max.X || local.Position.Y == bounds.Max.Y) {
 				continue
 			}
 		}

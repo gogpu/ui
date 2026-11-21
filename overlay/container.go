@@ -89,7 +89,7 @@ func (c *Container) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if canvas == nil {
 		return
 	}
-	if c.Modal() {
+	if c.modal {
 		scrim := widget.RGBA(0, 0, 0, scrimAlpha)
 		canvas.DrawRect(c.Bounds(), scrim)
 	}
@@ -135,7 +135,7 @@ func (c *Container) Event(ctx widget.Context, e event.Event) bool {
 	}
 
 	// Modal overlays consume all events to prevent interaction with content below.
-	return c.modal
+	return c.Modal()
 }
 
 func (c *Container) containsContent(position geometry.Point) bool {
@@ -156,7 +156,11 @@ func (c *Container) Dismiss() {
 
 // Modal returns true if this container blocks interaction with content below.
 func (c *Container) Modal() bool {
-	return c.modal && !c.passive
+	if c.passive {
+		return false
+	}
+	content, ok := c.Content().(interface{ Modal() bool })
+	return c.modal || (ok && content.Modal())
 }
 
 // Content returns the wrapped content widget, or nil if there is none.

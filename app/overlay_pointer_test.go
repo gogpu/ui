@@ -5,11 +5,52 @@ import (
 
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/core/button"
+	"github.com/gogpu/ui/core/dialog"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 )
+
+func TestPopupAboveModalBlocksBackgroundPointerMove(t *testing.T) {
+	win := New().Window()
+	background := &overlayPointerProbe{Widget: button.New()}
+	win.SetRoot(background)
+	win.HandleResize(500, 400)
+	modal := dialog.New(dialog.Content(primitives.Box().Width(120).Height(80)))
+	modal.Show(win.Context())
+	win.Frame()
+
+	move := func(point geometry.Point) {
+		win.HandleEvent(event.NewMouseEvent(event.MouseMove, event.ButtonNone, 0, point, point, event.ModNone))
+	}
+	outside := geometry.Pt(10, 10)
+	move(outside)
+	if background.pointerEvents != 0 {
+		t.Fatal("modal dialog allowed background mouse move")
+	}
+
+	popup := button.New()
+	manager := win.Context().OverlayManager()
+	manager.PushOverlay(popup, nil)
+	win.Frame()
+	popup.SetBounds(geometry.NewRect(200, 150, 300, 200))
+	move(popup.Bounds().Center())
+	if win.HoveredWidget() != popup {
+		t.Fatal("popup above the dialog did not receive hover")
+	}
+	move(outside)
+	if background.pointerEvents != 0 {
+		t.Fatalf("popup above modal allowed %d background pointer events", background.pointerEvents)
+	}
+
+	manager.RemoveOverlay(popup)
+	modal.Close(win.Context())
+	move(outside)
+	if background.pointerEvents != 1 {
+		t.Fatal("background did not receive mouse move after closing overlays")
+	}
+}
 
 type overlayPointerProbe struct {
 	*button.Widget
