@@ -254,7 +254,9 @@ func New(opts ...Option) *Widget {
 			w.dragging = true
 		},
 		OnDragUpdate: func(details gesture.DragUpdateDetails) {
-			w.updateRatioFromDrag(details.LocalPosition)
+			// Match the SplitView-local drag start even outside widget bounds,
+			// where the gesture arena can be the only source of moves.
+			w.updateRatioFromDrag(details.GlobalPosition.Sub(w.ScreenOrigin()))
 		},
 		OnDragEnd: func(_ gesture.DragEndDetails) {
 			w.dragging = false
@@ -782,10 +784,9 @@ func (w *Widget) Unmount() {
 
 // GestureHitTest returns the gesture recognizers for a pointer event at pos.
 // Implements [gesture.GestureAware] for the unified pointer pipeline (ADR-049).
-// SplitView is a leaf widget — always returns recognizers (hit-test already
-// confirmed bounds containment).
-func (w *Widget) GestureHitTest(_ geometry.Point) []gesture.Recognizer {
-	if w.dragRec == nil {
+// A SplitView only starts a drag over the same divider used by mouse presses.
+func (w *Widget) GestureHitTest(pos geometry.Point) []gesture.Recognizer {
+	if w.dragRec == nil || !w.dividerRect().Contains(pos) {
 		return nil
 	}
 	return []gesture.Recognizer{w.dragRec}
