@@ -45,6 +45,13 @@ func (p DialogPainter) PaintDialog(canvas widget.Canvas, ps dialog.PaintState) {
 		colors = p.resolveColors()
 	}
 
+	// Subtle elevation shadow.
+	shadow := geometry.Rect{
+		Min: geometry.Pt(ps.Bounds.Min.X, ps.Bounds.Min.Y+3),
+		Max: geometry.Pt(ps.Bounds.Max.X, ps.Bounds.Max.Y+5),
+	}
+	canvas.DrawRoundRect(shadow, colors.Shadow.WithAlpha(min(colors.Shadow.A, 0.30)), dtDialogRadius)
+
 	// Surface with border.
 	canvas.DrawRoundRect(ps.Bounds, colors.Surface, dtDialogRadius)
 	canvas.StrokeRoundRect(ps.Bounds, colors.Border, dtDialogRadius, dtDialogBorderWidth)
@@ -62,7 +69,7 @@ func (p DialogPainter) PaintDialog(canvas widget.Canvas, ps dialog.PaintState) {
 	p.paintActions(canvas, ps, colors)
 
 	// Focus indicator.
-	if ps.Focused {
+	if ps.Focused && len(ps.Actions) == 0 {
 		dtDrawFocusRing(canvas, ps.Bounds, dtDialogRadius, colors.ActionFg)
 	}
 }
@@ -73,10 +80,47 @@ func (p DialogPainter) paintActions(canvas widget.Canvas, ps dialog.PaintState, 
 		return
 	}
 
+	onPrimary := widget.ColorWhite
+	borderStrong := widget.Hex(0x4E5157)
+	controlHover := widget.Hex(0x43454A)
+	if p.Theme != nil {
+		onPrimary = p.Theme.Colors.OnPrimary
+		borderStrong = p.Theme.Colors.BorderStrong
+		controlHover = p.Theme.Colors.ControlHover
+	}
+
+	drawAction := func(i int, action dialog.Action, rect geometry.Rect) {
+		hovered := ps.HasHoveredAction && ps.HoveredAction == i
+		focused := ps.Focused && ps.FocusedAction == i
+		switch action.Variant {
+		case dialog.VariantFilled:
+			bg := colors.ActionBg
+			if hovered {
+				bg = bg.Lerp(widget.ColorWhite, 0.08)
+			}
+			canvas.DrawRoundRect(rect, bg, dtDialogActionRadius)
+			canvas.DrawText(action.Label, rect, dtDialogActionFontSize, onPrimary, false, dtDialogTextAlignCenter)
+		case dialog.VariantOutlined:
+			if hovered {
+				canvas.DrawRoundRect(rect, controlHover, dtDialogActionRadius)
+			}
+			canvas.StrokeRoundRect(rect, borderStrong, dtDialogActionRadius, dtDialogBorderWidth)
+			canvas.DrawText(action.Label, rect, dtDialogActionFontSize, colors.Title, false, dtDialogTextAlignCenter)
+		default:
+			if hovered {
+				canvas.DrawRoundRect(rect, controlHover, dtDialogActionRadius)
+			}
+			canvas.DrawText(action.Label, rect, dtDialogActionFontSize, colors.Title, false, dtDialogTextAlignCenter)
+		}
+		if focused {
+			dtDrawFocusRing(canvas, rect, dtDialogActionRadius, colors.ActionFg)
+		}
+	}
+
 	// Use pre-computed ActionRects when available (ADR-034 Phase 4).
 	if len(ps.ActionRects) == len(ps.Actions) {
 		for i, action := range ps.Actions {
-			canvas.DrawText(action.Label, ps.ActionRects[i], dtDialogActionFontSize, colors.ActionFg, false, dtDialogTextAlignCenter)
+			drawAction(i, action, ps.ActionRects[i])
 		}
 		return
 	}
@@ -86,12 +130,12 @@ func (p DialogPainter) paintActions(canvas widget.Canvas, ps dialog.PaintState, 
 	y := ps.Bounds.Max.Y - dtDialogPadding - dtDialogActionHeight
 
 	for i := len(ps.Actions) - 1; i >= 0; i-- {
-		label := ps.Actions[i].Label
-		btnWidth := float32(len(label))*dtDialogActionCharWidth + dtDialogActionPaddingX*2
+		action := ps.Actions[i]
+		btnWidth := float32(len(action.Label))*dtDialogActionCharWidth + dtDialogActionPaddingX*2
 		x -= btnWidth
 
 		btnBounds := geometry.NewRect(x, y, btnWidth, dtDialogActionHeight)
-		canvas.DrawText(label, btnBounds, dtDialogActionFontSize, colors.ActionFg, false, dtDialogTextAlignCenter)
+		drawAction(i, action, btnBounds)
 
 		x -= dtDialogActionSpacing
 	}
@@ -105,6 +149,7 @@ const (
 	dtDialogTitleHeight     float32 = 24
 	dtDialogTitleFontSize   float32 = 16
 	dtDialogActionHeight    float32 = 28
+	dtDialogActionRadius    float32 = 4
 	dtDialogActionFontSize  float32 = 13
 	dtDialogActionCharWidth float32 = 7
 	dtDialogActionPaddingX  float32 = 12
@@ -135,8 +180,12 @@ func (DialogPainter) DialogTitleHeight() float32 { return dtDialogTitleHeight }
 // DialogMaxWidth returns the DevTools default maximum dialog width.
 func (DialogPainter) DialogMaxWidth() float32 { return dtDialogMaxWidth }
 
+// DialogActionHeight returns the compact DevTools action button height.
+func (DialogPainter) DialogActionHeight() float32 { return dtDialogActionHeight }
+
 // Compile-time checks.
 var (
-	_ dialog.Painter       = DialogPainter{}
-	_ dialog.LayoutMetrics = DialogPainter{}
+	_ dialog.Painter             = DialogPainter{}
+	_ dialog.LayoutMetrics       = DialogPainter{}
+	_ dialog.ActionLayoutMetrics = DialogPainter{}
 )

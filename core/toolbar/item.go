@@ -73,6 +73,11 @@ type Item struct {
 	// ShowLabel controls whether the text label is displayed next to the icon.
 	// When false (default for IconButton), only the icon is shown.
 	ShowLabel bool
+
+	// Attached joins this item directly to the previous item with zero gap,
+	// forming a split button (for example, an action paired with a narrow
+	// options chevron).
+	Attached bool
 }
 
 // IconButton creates a button item with an icon and label.

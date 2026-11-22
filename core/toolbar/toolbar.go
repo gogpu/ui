@@ -248,7 +248,7 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 				fixedWidth += sz.Width
 			}
 		}
-		if i > 0 {
+		if i > 0 && !item.Attached {
 			gapCount++
 		}
 	}
@@ -268,7 +268,7 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 	// Second pass: assign bounds.
 	var x float32
 	for i, item := range w.cfg.items { //nolint:gocritic // Item is read-only here
-		if i > 0 {
+		if i > 0 && !item.Attached {
 			x += gap
 		}
 
@@ -292,10 +292,10 @@ func (w *Widget) layoutItems(ctx widget.Context, available geometry.Size) {
 		if item.Kind == ItemButton && w.cfg.buttonHeight > 0 {
 			height := min(w.cfg.buttonHeight, available.Height)
 			w.itemStates[i].bounds = geometry.NewRect(x, (available.Height-height)/2, itemW, height)
-			if i > 0 && w.cfg.items[i-1].Kind == ItemButton {
+			if i > 0 && !item.Attached && w.cfg.items[i-1].Kind == ItemButton {
 				w.itemStates[i].hitBounds.Min.X -= gap / 2
 			}
-			if i+1 < len(w.cfg.items) && w.cfg.items[i+1].Kind == ItemButton {
+			if i+1 < len(w.cfg.items) && !w.cfg.items[i+1].Attached && w.cfg.items[i+1].Kind == ItemButton {
 				w.itemStates[i].hitBounds.Max.X += gap / 2
 			}
 		}
@@ -358,17 +358,29 @@ func (w *Widget) Draw(ctx widget.Context, canvas widget.Canvas) {
 			if item.ShowLabel && item.Label != "" {
 				tBounds = textBoundsForItem(itemBounds, iBounds)
 			}
+			joinedLeft := i > 0 && item.Attached && w.cfg.items[i-1].Kind == ItemButton
+			joinedRight := i+1 < len(w.cfg.items) && w.cfg.items[i+1].Attached && w.cfg.items[i+1].Kind == ItemButton
+			groupHovered := w.itemStates[i].interaction != stateNormal
+			if joinedLeft && w.itemStates[i-1].interaction != stateNormal {
+				groupHovered = true
+			}
+			if joinedRight && w.itemStates[i+1].interaction != stateNormal {
+				groupHovered = true
+			}
 			w.painter.PaintButtonItem(canvas, PaintButtonState{
-				Label:      item.Label,
-				Icon:       item.Icon,
-				ShowLabel:  item.ShowLabel,
-				Hovered:    w.itemStates[i].interaction == stateHover,
-				Pressed:    w.itemStates[i].interaction == statePressed,
-				Focused:    w.focusIndex == i,
-				Disabled:   !item.Enabled,
-				Bounds:     itemBounds,
-				IconBounds: iBounds,
-				TextBounds: tBounds,
+				Label:        item.Label,
+				Icon:         item.Icon,
+				ShowLabel:    item.ShowLabel,
+				Hovered:      w.itemStates[i].interaction == stateHover,
+				Pressed:      w.itemStates[i].interaction == statePressed,
+				Focused:      w.IsFocusVisible() && w.focusIndex == i,
+				Disabled:     !item.Enabled,
+				JoinedLeft:   joinedLeft,
+				JoinedRight:  joinedRight,
+				GroupHovered: groupHovered,
+				Bounds:       itemBounds,
+				IconBounds:   iBounds,
+				TextBounds:   tBounds,
 			})
 		case ItemSeparator:
 			w.painter.PaintSeparator(canvas, itemBounds)

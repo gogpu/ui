@@ -6,11 +6,44 @@ import (
 	"github.com/gogpu/gpucontext"
 	"github.com/gogpu/ui/core/button"
 	"github.com/gogpu/ui/core/dialog"
+	"github.com/gogpu/ui/core/dropdown"
+	"github.com/gogpu/ui/core/popover"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 )
+
+func TestDropdownInPopoverBlocksBackgroundPointerEvents(t *testing.T) {
+	win := New().Window()
+	background := &overlayPointerProbe{Widget: button.New()}
+	win.SetRoot(background)
+	win.HandleResize(500, 400)
+	picker := dropdown.New(dropdown.Items("origin", "upstream"))
+	popup := popover.NewPopover(
+		popover.AnchorBounds(func() geometry.Rect { return geometry.NewRect(150, 80, 250, 110) }),
+		popover.Content(primitives.VBox(picker).Width(180)),
+	)
+	ctx := win.Context()
+	popup.Show(ctx)
+	win.Frame()
+	picker.Open(ctx)
+	win.Frame()
+	if win.OverlayCount() != 2 {
+		t.Fatal("expected a dropdown above the popover")
+	}
+
+	outside := geometry.Pt(10, 360)
+	win.HandleEvent(event.NewMouseEvent(event.MouseMove, event.ButtonNone, 0, outside, outside, event.ModNone))
+	win.HandleEvent(event.NewWheelEvent(geometry.Pt(0, 3), outside, outside, event.ModNone))
+	if background.pointerEvents != 0 {
+		t.Errorf("background received %d pointer events while the dropdown was open", background.pointerEvents)
+	}
+	win.HandleEvent(event.NewKeyEvent(event.KeyPress, event.KeyEscape, 0, event.ModNone))
+	if picker.IsOpen() || !popup.IsOpen() {
+		t.Fatal("Escape should dismiss only the dropdown")
+	}
+}
 
 func TestPopupAboveModalBlocksBackgroundPointerMove(t *testing.T) {
 	win := New().Window()

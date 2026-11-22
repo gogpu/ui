@@ -248,20 +248,20 @@ func (w *Widget) computeDialogBounds(ctx widget.Context, windowSize geometry.Siz
 // computeActionRects pre-computes action button rects using MeasureText for
 // accurate text measurement. This is the preferred path when a canvas is
 // available (during Draw). Buttons are laid out right-to-left.
-func computeActionRects(canvas widget.Canvas, dialogBounds geometry.Rect, actions []Action) []geometry.Rect {
+func computeActionRects(canvas widget.Canvas, dialogBounds geometry.Rect, actions []Action, pad, actH float32) []geometry.Rect {
 	if len(actions) == 0 {
 		return nil
 	}
 
 	rects := make([]geometry.Rect, len(actions))
-	x := dialogBounds.Max.X - dialogPadding
-	y := dialogBounds.Max.Y - dialogPadding - actionHeight
+	x := dialogBounds.Max.X - pad
+	y := dialogBounds.Max.Y - pad - actH
 
 	for i := len(actions) - 1; i >= 0; i-- {
 		textW := canvas.MeasureText(actions[i].Label, actionFontSize, false)
 		btnWidth := textW + actionPaddingX*2
 		x -= btnWidth
-		rects[i] = geometry.NewRect(x, y, btnWidth, actionHeight)
+		rects[i] = geometry.NewRect(x, y, btnWidth, actH)
 		x -= actionSpacing
 	}
 	return rects
@@ -269,19 +269,19 @@ func computeActionRects(canvas widget.Canvas, dialogBounds geometry.Rect, action
 
 // computeActionRectsLegacy computes action button rects using the character
 // count estimate. Used for hit-testing when no canvas is available.
-func computeActionRectsLegacy(dialogBounds geometry.Rect, actions []Action) []geometry.Rect {
+func computeActionRectsLegacy(dialogBounds geometry.Rect, actions []Action, pad, actH float32) []geometry.Rect {
 	if len(actions) == 0 {
 		return nil
 	}
 
 	rects := make([]geometry.Rect, len(actions))
-	x := dialogBounds.Max.X - dialogPadding
-	y := dialogBounds.Max.Y - dialogPadding - actionHeight
+	x := dialogBounds.Max.X - pad
+	y := dialogBounds.Max.Y - pad - actH
 
 	for i := len(actions) - 1; i >= 0; i-- {
 		btnWidth := float32(len(actions[i].Label))*actionCharWidth + actionPaddingX*2
 		x -= btnWidth
-		rects[i] = geometry.NewRect(x, y, btnWidth, actionHeight)
+		rects[i] = geometry.NewRect(x, y, btnWidth, actH)
 		x -= actionSpacing
 	}
 	return rects
@@ -297,9 +297,11 @@ var (
 // It implements [overlay.Overlay] to participate in the overlay stack.
 type surfaceWidget struct {
 	widget.WidgetBase
-	dialog     *Widget
-	ctx        widget.Context
-	focusIndex int // index of focused action button (-1 = none)
+	dialog          *Widget
+	ctx             widget.Context
+	focusIndex      int // index of focused action button (-1 = none)
+	hoverIndex      int // index of hovered action button (-1 = none)
+	lastActionRects []geometry.Rect
 }
 
 // newSurfaceWidget creates a new surface widget for rendering the dialog overlay.
@@ -308,6 +310,7 @@ func newSurfaceWidget(d *Widget, ctx widget.Context) *surfaceWidget {
 		dialog:     d,
 		ctx:        ctx,
 		focusIndex: -1,
+		hoverIndex: -1,
 	}
 	s.SetVisible(true)
 	s.SetEnabled(true)
@@ -376,16 +379,22 @@ func (s *surfaceWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if d.cfg.contentOnly {
 		title, actions = "", nil
 	}
-	actionRects := computeActionRects(canvas, dialogBounds, actions)
+	pad := resolveDialogLayoutMetrics(d.painter).DialogPadding()
+	actH := resolveDialogActionHeight(d.painter)
+	actionRects := computeActionRects(canvas, dialogBounds, actions, pad, actH)
+	s.lastActionRects = actionRects
 
 	// Delegate to painter for the dialog surface.
 	d.painter.PaintDialog(canvas, PaintState{
-		Title:       title,
-		HasContent:  d.cfg.content != nil,
-		Actions:     actions,
-		Focused:     s.focusIndex >= 0,
-		Bounds:      dialogBounds,
-		ActionRects: actionRects,
+		Title:            title,
+		HasContent:       d.cfg.content != nil,
+		Actions:          actions,
+		Focused:          s.focusIndex >= 0,
+		FocusedAction:    s.focusIndex,
+		HasHoveredAction: s.hoverIndex >= 0,
+		HoveredAction:    s.hoverIndex,
+		Bounds:           dialogBounds,
+		ActionRects:      actionRects,
 	})
 
 	// Draw content widget if present.
@@ -410,6 +419,12 @@ func (s *surfaceWidget) Event(ctx widget.Context, e event.Event) bool {
 		return s.handleKeyEvent(ctx, ev)
 	case *event.MouseEvent:
 		if s.dispatchContentPointer(ctx, ev.Position, ev) {
+			if ev.MouseType == event.MouseMove && s.hoverIndex >= 0 {
+				s.hoverIndex = -1
+				ctx.SetCursor(widget.CursorDefault)
+				s.SetNeedsRedraw(true)
+				ctx.InvalidateRect(s.Bounds())
+			}
 			return true
 		}
 		return s.handleMouseEvent(ctx, ev)
@@ -488,30 +503,73 @@ func (s *surfaceWidget) cycleFocus(ctx widget.Context, reverse bool) {
 	ctx.InvalidateRect(s.Bounds())
 }
 
+func (s *surfaceWidget) actionRectsForHit(dialogBounds geometry.Rect) []geometry.Rect {
+	actions := s.dialog.cfg.actions
+	if len(s.lastActionRects) == len(actions) {
+		return s.lastActionRects
+	}
+	pad := resolveDialogLayoutMetrics(s.dialog.painter).DialogPadding()
+	actH := resolveDialogActionHeight(s.dialog.painter)
+	return computeActionRectsLegacy(dialogBounds, actions, pad, actH)
+}
+
 // handleMouseEvent processes mouse events.
 func (s *surfaceWidget) handleMouseEvent(ctx widget.Context, e *event.MouseEvent) bool {
 	d := s.dialog
 
-	if e.MouseType != event.MousePress {
-		return true // consume but only act on press
-	}
-
-	// Check if click is outside dialog surface.
-	windowSize := ctx.WindowSize()
-	dialogBounds := d.computeDialogBounds(ctx, windowSize)
-
-	if !dialogBounds.Contains(e.Position) {
-		// Click on backdrop.
-		if d.cfg.dismissible {
-			d.doClose(ctx)
+	switch e.MouseType {
+	case event.MouseMove:
+		if !d.cfg.contentOnly && len(d.cfg.actions) > 0 {
+			dialogBounds := d.computeDialogBounds(ctx, ctx.WindowSize())
+			hovered := -1
+			for i, rect := range s.actionRectsForHit(dialogBounds) {
+				if rect.Contains(e.Position) {
+					hovered = i
+					break
+				}
+			}
+			if hovered != s.hoverIndex {
+				s.hoverIndex = hovered
+				if hovered >= 0 {
+					ctx.SetCursor(widget.CursorPointer)
+				} else {
+					ctx.SetCursor(widget.CursorDefault)
+				}
+				s.SetNeedsRedraw(true)
+				ctx.InvalidateRect(s.Bounds())
+			}
 		}
 		return true
+
+	case event.MouseLeave:
+		if s.hoverIndex >= 0 {
+			s.hoverIndex = -1
+			ctx.SetCursor(widget.CursorDefault)
+			s.SetNeedsRedraw(true)
+			ctx.InvalidateRect(s.Bounds())
+		}
+		return true
+
+	case event.MousePress:
+		// Check if click is outside dialog surface.
+		windowSize := ctx.WindowSize()
+		dialogBounds := d.computeDialogBounds(ctx, windowSize)
+
+		if !dialogBounds.Contains(e.Position) {
+			// Click on backdrop.
+			if d.cfg.dismissible {
+				d.doClose(ctx)
+			}
+			return true
+		}
+
+		// Check if click is on an action button.
+		s.handleActionClick(ctx, e, dialogBounds)
+		return true
+
+	default:
+		return true // consume other mouse events for modality
 	}
-
-	// Check if click is on an action button.
-	s.handleActionClick(ctx, e, dialogBounds)
-
-	return true
 }
 
 // handleActionClick checks if a mouse press hit an action button.
@@ -521,9 +579,7 @@ func (s *surfaceWidget) handleActionClick(ctx widget.Context, e *event.MouseEven
 		return
 	}
 
-	// Use the same pre-computed rects as painting (ADR-034 Phase 4).
-	// Fall back to legacy charWidth estimate if no canvas available.
-	actionRects := computeActionRectsLegacy(dialogBounds, d.cfg.actions)
+	actionRects := s.actionRectsForHit(dialogBounds)
 
 	for i, rect := range actionRects {
 		if rect.Contains(e.Position) {

@@ -328,7 +328,7 @@ func (b *Bar) openMenu(ctx widget.Context, index int) {
 	// Position below the label.
 	absRects := b.toAbsoluteRects()
 	labelRect := absRects[index]
-	menuSz := menuSize(topMenu.Items)
+	menuSz := menuSize(topMenu.Items, b.painter)
 	windowSize := ctx.WindowSize()
 	pos := overlay.Position(overlay.PlacementBelow, labelRect, menuSz, windowSize, 0)
 	panel.SetBounds(geometry.FromPointSize(pos, menuSz))

@@ -90,7 +90,8 @@ func (w *Widget) IsFocusable() bool {
 
 // Layout calculates the dropdown trigger's preferred size.
 func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
-	preferred := geometry.Sz(200, triggerHeight)
+	trigH, _, _ := resolveLayoutMetrics(w.painter)
+	preferred := geometry.Sz(200, trigH)
 	return constraints.Constrain(preferred)
 }
 
@@ -216,6 +217,7 @@ func (w *Widget) Open(ctx widget.Context) {
 	}
 
 	w.open = true
+	w.state = stateNormal
 
 	// Create the menu widget from the items resolved now. The menu keeps this
 	// snapshot; a later items-signal change shows up on the next Open, and a
@@ -235,7 +237,8 @@ func (w *Widget) Open(ctx widget.Context) {
 	// ScreenBounds accounts for all parent transforms (scroll offsets, etc.).
 	triggerBounds := w.ScreenBounds()
 	windowSize := ctx.WindowSize()
-	menuSize := geometry.Sz(triggerBounds.Width(), float32(w.menuWidget.visibleCount())*w.menuWidget.itemHeight)
+	menuHeight := float32(w.menuWidget.visibleCount())*w.menuWidget.itemHeight + w.menuWidget.paddingV*2
+	menuSize := geometry.Sz(triggerBounds.Width(), menuHeight)
 	pos := overlay.Position(overlay.PlacementBelow, triggerBounds, menuSize, windowSize, 2)
 
 	w.menuWidget.SetBounds(geometry.FromPointSize(pos, menuSize))
@@ -262,6 +265,7 @@ func (w *Widget) close(ctx widget.Context) {
 	}
 
 	w.open = false
+	w.state = stateNormal
 
 	if w.menuWidget != nil {
 		om := ctx.OverlayManager()

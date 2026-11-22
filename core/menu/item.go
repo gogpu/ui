@@ -17,6 +17,12 @@ type MenuItem struct {
 	// Disabled prevents this item from being activated.
 	Disabled bool
 
+	// Checkable marks this item as having a checkable state gutter.
+	Checkable bool
+
+	// Checked renders a checkmark beside this item when Checkable is true.
+	Checked bool
+
 	// Children holds submenu items. If non-empty, this item opens a submenu
 	// on hover instead of invoking OnAction.
 	Children []MenuItem
@@ -42,6 +48,17 @@ func Item(label, shortcut string, onAction func()) MenuItem {
 		Label:    label,
 		Shortcut: shortcut,
 		OnAction: onAction,
+	}
+}
+
+// ItemCheck creates a checkable menu item with an optional checkmark indicator.
+func ItemCheck(label, shortcut string, checked bool, onAction func()) MenuItem {
+	return MenuItem{
+		Label:     label,
+		Shortcut:  shortcut,
+		OnAction:  onAction,
+		Checkable: true,
+		Checked:   checked,
 	}
 }
 

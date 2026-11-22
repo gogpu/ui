@@ -131,3 +131,52 @@ func TestVBox_CrossAxisCenter_WithExpanded(t *testing.T) {
 		t.Errorf("narrow child X = %v, want 100 (centered under the 300px child)", x)
 	}
 }
+
+func TestHBox_ExplicitHeightDoesNotStretchNonStretchChildren(t *testing.T) {
+	for _, align := range []primitives.CrossAxisAlignment{
+		primitives.CrossAxisCenter,
+		primitives.CrossAxisStart,
+		primitives.CrossAxisEnd,
+	} {
+		ctx := widget.NewContext()
+		fixed := primitives.Box().Width(14).Height(14)
+		row := primitives.HBox(fixed).Height(44).CrossAlign(align)
+		row.Layout(ctx, geometry.BoxConstraints(0, 200, 0, 200))
+
+		if got := fixed.Bounds().Size(); got.Width != 14 || got.Height != 14 {
+			t.Errorf("align=%v: fixed child stretched to %v, want 14x14", align, got)
+		}
+	}
+
+	t.Run("center/expanded", func(t *testing.T) {
+		ctx := widget.NewContext()
+		leading := primitives.Box().Width(20).Height(20)
+		label := primitives.VBox(primitives.Box().Width(60).Height(16))
+		exp := primitives.Expanded(label)
+		row := primitives.HBox(leading, exp).Height(44).CrossAlign(primitives.CrossAxisCenter)
+		row.Layout(ctx, geometry.BoxConstraints(0, 200, 0, 200))
+
+		if got := leading.Bounds(); got.Height() != 20 || got.Min.Y != 12 {
+			t.Errorf("leading bounds = %v, want height 20 at Y=12", got)
+		}
+		if got := exp.Bounds(); got.Height() != 16 || got.Min.Y != 14 {
+			t.Errorf("expanded wrapper bounds = %v, want height 16 at Y=14", got)
+		}
+	})
+
+	t.Run("stretch/expanded", func(t *testing.T) {
+		ctx := widget.NewContext()
+		leading := primitives.Box().Width(20)
+		label := primitives.VBox(primitives.Box().Width(60).Height(16))
+		exp := primitives.Expanded(label)
+		row := primitives.HBox(leading, exp).Height(44).CrossAlign(primitives.CrossAxisStretch)
+		row.Layout(ctx, geometry.BoxConstraints(0, 200, 0, 200))
+
+		if got := leading.Bounds().Height(); got != 44 {
+			t.Errorf("leading height = %v, want 44 when stretched", got)
+		}
+		if got := exp.Bounds().Height(); got != 44 {
+			t.Errorf("expanded height = %v, want 44 when stretched", got)
+		}
+	})
+}

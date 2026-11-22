@@ -1,6 +1,8 @@
 package menu
 
 import (
+	"unicode/utf8"
+
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/overlay"
@@ -26,6 +28,9 @@ type menuPanel struct {
 
 	items            []MenuItem
 	highlightedIndex int
+	itemHeight       float32
+	separatorHeight  float32
+	paddingV         float32
 	painter          Painter
 	onSelect         func(item *MenuItem)
 	onClose          func()
@@ -40,9 +45,13 @@ type menuPanel struct {
 
 // newMenuPanel creates a popup menu panel with the given items.
 func newMenuPanel(items []MenuItem, painter Painter, onSelect func(item *MenuItem), onClose func()) *menuPanel {
+	itemH, sepH, padV := resolveMenuLayoutMetrics(painter)
 	m := &menuPanel{
 		items:            items,
 		highlightedIndex: -1,
+		itemHeight:       itemH,
+		separatorHeight:  sepH,
+		paddingV:         padV,
 		painter:          painter,
 		onSelect:         onSelect,
 		onClose:          onClose,
@@ -53,19 +62,31 @@ func newMenuPanel(items []MenuItem, painter Painter, onSelect func(item *MenuIte
 	return m
 }
 
-// menuSize calculates the total size of a menu panel given its items.
-func menuSize(items []MenuItem) geometry.Size {
-	height := dfltMenuPaddingV * 2 // top + bottom padding
+// menuSize calculates the total size of a menu panel given its items and painter metrics.
+func menuSize(items []MenuItem, painter Painter) geometry.Size {
+	itemH, sepH, padV := resolveMenuLayoutMetrics(painter)
+	height := padV * 2 // top + bottom padding
 	maxLabelWidth := menuMinWidth
+	var checkGutter float32
+	for _, item := range items {
+		if item.Checkable || item.Checked {
+			checkGutter = 20
+			break
+		}
+	}
 	for _, item := range items {
 		if item.IsSeparator() {
-			height += separatorHeight
+			height += sepH
 		} else {
-			height += itemHeight
+			height += itemH
 			// Estimate width from label + shortcut text.
 			labelWidth := estimateTextWidth(item.Label, dfltFontSize)
 			shortcutWidth := estimateTextWidth(item.Shortcut, dfltShortcutFontSize)
-			totalWidth := dfltMenuItemPaddingH*2 + labelWidth + shortcutWidth + dfltShortcutAreaWidth
+			trailing := dfltShortcutAreaWidth
+			if item.Shortcut == "" && !item.HasChildren() {
+				trailing = 16
+			}
+			totalWidth := dfltMenuItemPaddingH*2 + checkGutter + labelWidth + shortcutWidth + trailing
 			if totalWidth > maxLabelWidth {
 				maxLabelWidth = totalWidth
 			}
@@ -74,16 +95,16 @@ func menuSize(items []MenuItem) geometry.Size {
 	return geometry.Sz(maxLabelWidth, height)
 }
 
-// estimateTextWidth provides a rough character-width estimate for sizing.
+// estimateTextWidth provides a rough rune-width estimate for sizing.
 // This is a heuristic; the real painter may produce different widths.
 func estimateTextWidth(text string, fontSize float32) float32 {
 	const charWidthFactor = 0.55 // approximate ratio of char width to font size
-	return float32(len(text)) * fontSize * charWidthFactor
+	return float32(utf8.RuneCountInString(text)) * fontSize * charWidthFactor
 }
 
 // Layout returns the panel's preferred size.
 func (m *menuPanel) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
-	return constraints.Constrain(menuSize(m.items))
+	return constraints.Constrain(menuSize(m.items, m.painter))
 }
 
 // Draw renders the menu panel.
@@ -95,8 +116,9 @@ func (m *menuPanel) Draw(ctx widget.Context, canvas widget.Canvas) {
 		Bounds:           m.Bounds(),
 		Items:            m.items,
 		HighlightedIndex: m.highlightedIndex,
-		ItemHeight:       itemHeight,
-		SeparatorHeight:  separatorHeight,
+		ItemHeight:       m.itemHeight,
+		SeparatorHeight:  m.separatorHeight,
+		PaddingV:         m.paddingV,
 		SubMenuOpenIndex: m.subMenuIndex,
 	})
 }
@@ -297,12 +319,12 @@ func (m *menuPanel) openSubmenu(ctx widget.Context, index int) {
 	// Position submenu to the right of the parent item.
 	bounds := m.Bounds()
 	itemY := m.yForIndex(index)
-	subSize := menuSize(item.Children)
+	subSize := menuSize(item.Children, m.painter)
 	windowSize := ctx.WindowSize()
 
 	anchor := geometry.Rect{
 		Min: geometry.Pt(bounds.Max.X, itemY),
-		Max: geometry.Pt(bounds.Max.X, itemY+itemHeight),
+		Max: geometry.Pt(bounds.Max.X, itemY+m.itemHeight),
 	}
 	pos := overlay.Position(overlay.PlacementRight, anchor, subSize, windowSize, 0)
 	sub.SetBounds(geometry.FromPointSize(pos, subSize))
@@ -338,16 +360,16 @@ func (m *menuPanel) closeSubmenuOrSelf(ctx widget.Context) bool {
 // indexAtPosition returns the item index at the given mouse position.
 func (m *menuPanel) indexAtPosition(pos geometry.Point) int {
 	bounds := m.Bounds()
-	localY := pos.Y - bounds.Min.Y - dfltMenuPaddingV
+	localY := pos.Y - bounds.Min.Y - m.paddingV
 	if localY < 0 {
 		return -1
 	}
 
 	y := float32(0)
 	for i, item := range m.items {
-		h := itemHeight
+		h := m.itemHeight
 		if item.IsSeparator() {
-			h = separatorHeight
+			h = m.separatorHeight
 		}
 		if localY >= y && localY < y+h {
 			if item.IsSeparator() {
@@ -362,12 +384,12 @@ func (m *menuPanel) indexAtPosition(pos geometry.Point) int {
 
 // yForIndex returns the Y coordinate for the top of the item at the given index.
 func (m *menuPanel) yForIndex(index int) float32 {
-	y := m.Bounds().Min.Y + dfltMenuPaddingV
+	y := m.Bounds().Min.Y + m.paddingV
 	for i := 0; i < index && i < len(m.items); i++ {
 		if m.items[i].IsSeparator() {
-			y += separatorHeight
+			y += m.separatorHeight
 		} else {
-			y += itemHeight
+			y += m.itemHeight
 		}
 	}
 	return y

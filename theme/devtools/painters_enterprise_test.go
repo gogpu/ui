@@ -483,21 +483,35 @@ func TestMenuPaintMenu(t *testing.T) {
 		Bounds: geometry.NewRect(0, 28, 200, 100),
 		Items: []menu.MenuItem{
 			{Label: "New File", Shortcut: "Ctrl+N"},
-			{Label: "Open", Shortcut: "Ctrl+O"},
+			menu.ItemCheck("Show Diff", "", true, nil),
 		},
 		HighlightedIndex: 0,
 		ItemHeight:       28,
 		SeparatorHeight:  8,
+		PaddingV:         4,
 	})
 
 	roundRects := canvas.methodCalls(methodDrawRoundRect)
-	if len(roundRects) < 1 {
-		t.Error("menu should draw at least 1 DrawRoundRect (surface)")
+	if len(roundRects) < 3 { //nolint:mnd // shadow + surface + rounded item highlight
+		t.Errorf("menu should draw shadow, surface, and highlight pill, got %d DrawRoundRect", len(roundRects))
 	}
 
 	texts := canvas.methodCalls(methodDrawText)
 	if len(texts) < 2 { //nolint:mnd // labels
 		t.Errorf("menu should draw at least 2 DrawText (items), got %d", len(texts))
+	}
+}
+
+func TestMenuPainterImplementsLayoutMetrics(t *testing.T) {
+	var lm menu.LayoutMetrics = devtools.MenuPainter{}
+	if lm.MenuItemHeight() != 28 {
+		t.Errorf("MenuItemHeight = %v, want 28", lm.MenuItemHeight())
+	}
+	if lm.MenuSeparatorHeight() != 9 {
+		t.Errorf("MenuSeparatorHeight = %v, want 9", lm.MenuSeparatorHeight())
+	}
+	if lm.MenuPaddingV() != 4 {
+		t.Errorf("MenuPaddingV = %v, want 4", lm.MenuPaddingV())
 	}
 }
 

@@ -39,14 +39,29 @@ var ExpChevronDown = FromSVGXML("exp_chevron_down", []byte(`<svg width="16" heig
 <path d="M11.5 6.25L8 9.75L4.5 6.25" stroke="#818594" stroke-linecap="round"/>
 </svg>`))
 
+// ExpChevronUp is an upward-pointing chevron.
+var ExpChevronUp = FromSVGXML("exp_chevron_up", []byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M11.5 9.75L8 6.25L4.5 9.75" stroke="#818594" stroke-linecap="round"/>
+</svg>`))
+
 // ExpChevronRight is a right-pointing chevron.
 var ExpChevronRight = FromSVGXML("exp_chevron_right", []byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M6 11.5L9.5 8L6 4.5" stroke="#818594" stroke-linecap="round"/>
 </svg>`))
 
+// ExpAdd is the plus/add icon (two perpendicular rounded lines).
+var ExpAdd = FromSVGXML("exp_add", []byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 2.5V13.5M2.5 8H13.5" stroke="#6C707E" stroke-linecap="round"/>
+</svg>`))
+
+// ExpCheck is the checkmark icon.
+var ExpCheck = FromSVGXML("exp_check", []byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M2.5 8.5L6 12L13.5 4.5" stroke="#6C707E" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`))
+
 // ExpFolder is the folder icon (expui project style).
 var ExpFolder = FromSVGXML("exp_folder", []byte(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M8.10584 4.34613L8.25344 4.5H8.46667H13C13.8284 4.5 14.5 5.17157 14.5 6V12.1333C14.5 12.9529 13.932 13.5 13.3667 13.5H2.63333C2.06804 13.5 1.5 12.9529 1.5 12.1333V3.86667C1.5 3.04707 2.06804 2.5 2.63333 2.5H6.1217C6.25792 2.5 6.38824 2.55557 6.48253 2.65387L8.10584 4.34613Z" fill="#EBECF0" stroke="#6C707E"/>
+<path d="M8.10584 4.34613L8.25344 4.5H8.46667H13C13.8284 4.5 14.5 5.17157 14.5 6V12.1333C14.5 12.9529 13.932 13.5 13.3667 13.5H2.63333C2.06804 13.5 1.5 12.9529 1.5 12.1333V3.86667C1.5 3.04707 2.06804 2.5 2.63333 2.5H6.1217C6.25792 2.5 6.38824 2.55557 6.48253 2.65387L8.10584 4.34613Z" stroke="#6C707E"/>
 </svg>`))
 
 // ExpRun is the run/play icon (green play triangle).

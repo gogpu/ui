@@ -71,7 +71,7 @@ func (cm *ContextMenu) Show(ctx widget.Context, position geometry.Point) {
 	panel.captureKeys = cm.captureKeys
 
 	// Position at the given point, clamping to viewport.
-	menuSz := menuSize(cm.items)
+	menuSz := menuSize(cm.items, cm.painter)
 	windowSize := ctx.WindowSize()
 
 	// Create a zero-size anchor at the click position.

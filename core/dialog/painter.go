@@ -23,6 +23,15 @@ type PaintState struct {
 	Bounds      geometry.Rect // dialog surface bounds (not backdrop)
 	ColorScheme DialogColorScheme
 
+	// FocusedAction is the index of the focused action button when Focused is true.
+	FocusedAction int
+
+	// HasHoveredAction reports whether HoveredAction names a hovered action button.
+	HasHoveredAction bool
+
+	// HoveredAction is the index of the currently hovered action button.
+	HoveredAction int
+
 	// ActionRects holds pre-computed button positions (one per action).
 	// The widget computes these using canvas.MeasureText for accurate layout.
 	// Painters should draw action buttons at these positions rather than
@@ -57,6 +66,23 @@ type LayoutMetrics interface {
 
 	// DialogMaxWidth returns the default maximum width for the dialog.
 	DialogMaxWidth() float32
+}
+
+// ActionLayoutMetrics is an optional extension to [LayoutMetrics] allowing theme
+// painters to customize action button height so widget hit-testing matches paint.
+type ActionLayoutMetrics interface {
+	DialogActionHeight() float32
+}
+
+// resolveDialogActionHeight returns the dialog action button height from painter
+// if it implements [ActionLayoutMetrics], or the package default otherwise.
+func resolveDialogActionHeight(p Painter) float32 {
+	if am, ok := p.(ActionLayoutMetrics); ok {
+		if h := am.DialogActionHeight(); h > 0 {
+			return h
+		}
+	}
+	return actionHeight
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.

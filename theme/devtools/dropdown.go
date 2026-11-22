@@ -3,6 +3,7 @@ package devtools
 import (
 	"github.com/gogpu/ui/core/dropdown"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -71,6 +72,17 @@ func (p DropdownPainter) PaintMenu(canvas widget.Canvas, st *dropdown.MenuPaintS
 		colors = p.resolveColors()
 	}
 
+	// Subtle elevation shadow.
+	shadow := geometry.Rect{
+		Min: geometry.Pt(st.Bounds.Min.X, st.Bounds.Min.Y+2),
+		Max: geometry.Pt(st.Bounds.Max.X, st.Bounds.Max.Y+3),
+	}
+	shadowColor := widget.RGBA(0, 0, 0, 0.28)
+	if p.Theme != nil {
+		shadowColor = p.Theme.Colors.Shadow.WithAlpha(min(p.Theme.Colors.Shadow.A, 0.28))
+	}
+	canvas.DrawRoundRect(shadow, shadowColor, dtDDMenuRadius)
+
 	// Menu background with border.
 	canvas.DrawRoundRect(st.Bounds, colors.MenuBg, dtDDMenuRadius)
 	canvas.StrokeRoundRect(st.Bounds, colors.MenuBorder, dtDDMenuRadius, dtDDBorderWidth)
@@ -83,9 +95,10 @@ func (p DropdownPainter) PaintMenu(canvas widget.Canvas, st *dropdown.MenuPaintS
 	for i := st.ScrollOffset; i < endIndex; i++ {
 		item := st.Items[i]
 		row := i - st.ScrollOffset
+		top := st.Bounds.Min.Y + st.MenuPaddingV + float32(row)*st.ItemHeight
 		itemRect := geometry.Rect{
-			Min: geometry.Pt(st.Bounds.Min.X, st.Bounds.Min.Y+float32(row)*st.ItemHeight),
-			Max: geometry.Pt(st.Bounds.Max.X, st.Bounds.Min.Y+float32(row+1)*st.ItemHeight),
+			Min: geometry.Pt(st.Bounds.Min.X, top),
+			Max: geometry.Pt(st.Bounds.Max.X, top+st.ItemHeight),
 		}
 
 		dtDDPaintMenuItem(canvas, itemRect, item, i, st.HighlightedIndex, st.SelectedIndex, colors)
@@ -147,37 +160,13 @@ func dtDDPaintTriggerChevron(canvas widget.Canvas, st *dropdown.TriggerPaintStat
 		chevronColor = colors.DisabledFg
 	}
 
-	chevronX := st.Bounds.Max.X - dtDDChevronWidth - dtDDContentPaddingH/2
-	chevronY := st.Bounds.Center().Y
-	dtDDDrawChevron(canvas, geometry.Pt(chevronX, chevronY), st.Open, chevronColor)
-}
-
-// dtDDDrawChevron draws a DevTools up/down chevron indicator.
-func dtDDDrawChevron(canvas widget.Canvas, center geometry.Point, open bool, color widget.Color) {
-	size := dtDDChevronSize
-	if open {
-		canvas.DrawLine(
-			geometry.Pt(center.X-size, center.Y+size/2),
-			geometry.Pt(center.X, center.Y-size/2),
-			color, dtDDChevronStroke,
-		)
-		canvas.DrawLine(
-			geometry.Pt(center.X, center.Y-size/2),
-			geometry.Pt(center.X+size, center.Y+size/2),
-			color, dtDDChevronStroke,
-		)
-	} else {
-		canvas.DrawLine(
-			geometry.Pt(center.X-size, center.Y-size/2),
-			geometry.Pt(center.X, center.Y+size/2),
-			color, dtDDChevronStroke,
-		)
-		canvas.DrawLine(
-			geometry.Pt(center.X, center.Y+size/2),
-			geometry.Pt(center.X+size, center.Y-size/2),
-			color, dtDDChevronStroke,
-		)
+	glyph := icon.ExpChevronDown
+	if st.Open {
+		glyph = icon.ExpChevronUp
 	}
+	centerY := st.Bounds.Center().Y
+	chevronRect := geometry.NewRect(st.Bounds.Max.X-19, centerY-7, 14, 14)
+	icon.Draw(canvas, glyph, chevronRect, chevronColor)
 }
 
 // dtDDPaintMenuItem draws a single menu item.
@@ -190,11 +179,15 @@ func dtDDPaintMenuItem(
 	selectedIndex int,
 	colors dropdown.DropdownColorScheme,
 ) {
+	fillRect := geometry.Rect{
+		Min: geometry.Pt(itemRect.Min.X+dtDDItemInsetH, itemRect.Min.Y),
+		Max: geometry.Pt(itemRect.Max.X-dtDDItemInsetH, itemRect.Max.Y),
+	}
 	switch index {
 	case highlightedIndex:
-		canvas.DrawRect(itemRect, colors.ItemHover)
+		canvas.DrawRoundRect(fillRect, colors.ItemHover, dtDDItemRadius)
 	case selectedIndex:
-		canvas.DrawRect(itemRect, colors.ItemSelected)
+		canvas.DrawRoundRect(fillRect, colors.ItemSelected, dtDDItemRadius)
 	}
 
 	textColor := colors.TextColor
@@ -206,7 +199,11 @@ func dtDDPaintMenuItem(
 		Min: geometry.Pt(itemRect.Min.X+dtDDContentPaddingH, itemRect.Min.Y),
 		Max: geometry.Pt(itemRect.Max.X-dtDDContentPaddingH, itemRect.Max.Y),
 	}
-	canvas.DrawText(item.DisplayText(), textRect, dtDDFontSize, textColor, false, dtDDTextAlignLeft)
+	if !textRect.IsEmpty() {
+		canvas.PushClip(textRect)
+		canvas.DrawText(item.DisplayText(), textRect, dtDDFontSize, textColor, false, dtDDTextAlignLeft)
+		canvas.PopClip()
+	}
 }
 
 // dtDefaultDropdownColors holds the default DevTools dark dropdown color scheme.
@@ -227,18 +224,33 @@ var dtDefaultDropdownColors = dropdown.DropdownColorScheme{
 	FocusRing:       DefaultAccentColor,
 }
 
+// TriggerHeight returns the compact DevTools dropdown trigger height.
+func (DropdownPainter) TriggerHeight() float32 { return dtDDTriggerHeight }
+
+// MenuItemHeight returns the compact DevTools dropdown menu item height.
+func (DropdownPainter) MenuItemHeight() float32 { return dtDDMenuItemHeight }
+
+// MenuPaddingV returns the top and bottom vertical padding for DevTools dropdown menus.
+func (DropdownPainter) MenuPaddingV() float32 { return dtDDMenuPaddingV }
+
 // DevTools dropdown drawing constants.
 const (
+	dtDDTriggerHeight   float32 = 28
+	dtDDMenuItemHeight  float32 = 28
+	dtDDMenuPaddingV    float32 = 4
 	dtDDTriggerRadius   float32 = 4
-	dtDDMenuRadius      float32 = 4
+	dtDDMenuRadius      float32 = 6
+	dtDDItemRadius      float32 = 5
+	dtDDItemInsetH      float32 = 4
 	dtDDBorderWidth     float32 = 1
 	dtDDContentPaddingH float32 = 8
 	dtDDFontSize        float32 = 13
 	dtDDTextAlignLeft           = widget.TextAlignLeft
 	dtDDChevronWidth    float32 = 20
-	dtDDChevronSize     float32 = 4
-	dtDDChevronStroke   float32 = 1.5
 )
 
-// Compile-time check that DropdownPainter implements Painter.
-var _ dropdown.Painter = DropdownPainter{}
+// Compile-time checks that DropdownPainter implements Painter and LayoutMetrics.
+var (
+	_ dropdown.Painter       = DropdownPainter{}
+	_ dropdown.LayoutMetrics = DropdownPainter{}
+)

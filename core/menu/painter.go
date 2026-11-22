@@ -57,11 +57,48 @@ type MenuPaintState struct {
 	// SeparatorHeight is the height of separator rows.
 	SeparatorHeight float32
 
+	// PaddingV is the vertical padding at the top and bottom of the popup panel.
+	PaddingV float32
+
 	// SubMenuOpenIndex is the index of the item whose submenu is open (-1 for none).
 	SubMenuOpenIndex int
 
 	// ColorScheme provides theme-derived colors. Zero value means use defaults.
 	ColorScheme MenuColorScheme
+}
+
+// LayoutMetrics allows theme painters to customize popup menu spacing and row heights.
+//
+// Painters that do not implement this interface receive the package defaults
+// (36px item height, 9px separator height, 4px vertical padding).
+type LayoutMetrics interface {
+	// MenuItemHeight returns the height of each regular item row.
+	MenuItemHeight() float32
+
+	// MenuSeparatorHeight returns the height of each separator row.
+	MenuSeparatorHeight() float32
+
+	// MenuPaddingV returns the top and bottom padding of the popup menu panel.
+	MenuPaddingV() float32
+}
+
+// resolveMenuLayoutMetrics queries LayoutMetrics from painter with safe defaults.
+func resolveMenuLayoutMetrics(p Painter) (itemH, sepH, padV float32) {
+	itemH = itemHeight
+	sepH = separatorHeight
+	padV = dfltMenuPaddingV
+	if lm, ok := p.(LayoutMetrics); ok {
+		if ih := lm.MenuItemHeight(); ih > 0 {
+			itemH = ih
+		}
+		if sh := lm.MenuSeparatorHeight(); sh > 0 {
+			sepH = sh
+		}
+		if pv := lm.MenuPaddingV(); pv >= 0 {
+			padV = pv
+		}
+	}
+	return itemH, sepH, padV
 }
 
 // MenuColorScheme provides theme-derived colors for menu painting.
@@ -149,7 +186,11 @@ func (p DefaultPainter) PaintMenu(canvas widget.Canvas, st *MenuPaintState) {
 	defer canvas.PopClip()
 
 	// Draw items.
-	y := st.Bounds.Min.Y + dfltMenuPaddingV
+	padV := st.PaddingV
+	if padV <= 0 {
+		padV = dfltMenuPaddingV
+	}
+	y := st.Bounds.Min.Y + padV
 	for i, item := range st.Items {
 		if item.IsSeparator() {
 			paintSeparator(canvas, st.Bounds.Min.X, y, st.Bounds.Width(), st.SeparatorHeight)

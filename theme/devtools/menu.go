@@ -1,8 +1,11 @@
 package devtools
 
 import (
+	"slices"
+
 	"github.com/gogpu/ui/core/menu"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/icon"
 	"github.com/gogpu/ui/widget"
 )
 
@@ -33,7 +36,7 @@ func (p MenuPainter) resolveColors() menu.MenuColorScheme {
 		ItemHover:        cs.ControlHover,
 		ItemDisabledText: cs.OnSurfaceDisabled,
 		ShortcutText:     cs.OnSurfaceSecondary,
-		SeparatorColor:   cs.Border,
+		SeparatorColor:   cs.BorderStrong,
 		SubMenuArrow:     cs.OnSurfaceSecondary,
 	}
 }
@@ -97,7 +100,11 @@ func (p MenuPainter) PaintMenu(canvas widget.Canvas, st *menu.MenuPaintState) {
 		Min: geometry.Pt(st.Bounds.Min.X+dtMenuShadowOffset, st.Bounds.Min.Y+dtMenuShadowOffset),
 		Max: geometry.Pt(st.Bounds.Max.X+dtMenuShadowOffset, st.Bounds.Max.Y+dtMenuShadowOffset),
 	}
-	canvas.DrawRoundRect(shadowRect, dtMenuShadowColor, dtMenuRadius)
+	shadowColor := dtMenuShadowColor
+	if p.Theme != nil {
+		shadowColor = p.Theme.Colors.Shadow.WithAlpha(min(p.Theme.Colors.Shadow.A, 0.28))
+	}
+	canvas.DrawRoundRect(shadowRect, shadowColor, dtMenuRadius)
 
 	// Menu surface.
 	canvas.DrawRoundRect(st.Bounds, colors.MenuBackground, dtMenuRadius)
@@ -108,7 +115,14 @@ func (p MenuPainter) PaintMenu(canvas widget.Canvas, st *menu.MenuPaintState) {
 	defer canvas.PopClip()
 
 	// Draw items.
-	y := st.Bounds.Min.Y + dtMenuPaddingV
+	padV := st.PaddingV
+	if padV <= 0 {
+		padV = dtMenuPaddingV
+	}
+	hasCheck := slices.ContainsFunc(st.Items, func(it menu.MenuItem) bool {
+		return it.Checkable || it.Checked
+	})
+	y := st.Bounds.Min.Y + padV
 	for i, item := range st.Items {
 		if item.IsSeparator() {
 			dtPaintMenuSeparator(canvas, st.Bounds.Min.X, y, st.Bounds.Width(), st.SeparatorHeight, colors.SeparatorColor)
@@ -123,19 +137,39 @@ func (p MenuPainter) PaintMenu(canvas widget.Canvas, st *menu.MenuPaintState) {
 
 		// Highlight.
 		if i == st.HighlightedIndex && !item.Disabled {
-			canvas.DrawRect(itemRect, colors.ItemHover)
+			fillRect := geometry.Rect{
+				Min: geometry.Pt(itemRect.Min.X+dtMenuItemInsetH, itemRect.Min.Y),
+				Max: geometry.Pt(itemRect.Max.X-dtMenuItemInsetH, itemRect.Max.Y),
+			}
+			canvas.DrawRoundRect(fillRect, colors.ItemHover, dtMenuItemRadius)
 		}
 
-		// Label.
+		// Label and optional check indicator.
 		textColor := colors.ItemText
 		if item.Disabled {
 			textColor = colors.ItemDisabledText
 		}
-		labelRect := geometry.Rect{
-			Min: geometry.Pt(itemRect.Min.X+dtMenuItemPaddingH, itemRect.Min.Y),
-			Max: geometry.Pt(itemRect.Max.X-dtMenuShortcutWidth-dtMenuItemPaddingH, itemRect.Max.Y),
+		labelMinX := itemRect.Min.X + dtMenuItemPaddingH
+		if hasCheck {
+			if item.Checked {
+				checkRect := geometry.NewRect(itemRect.Min.X+dtMenuItemPaddingH, itemRect.Center().Y-7, 14, 14)
+				icon.Draw(canvas, icon.ExpCheck, checkRect, textColor)
+			}
+			labelMinX += dtMenuCheckGutter
 		}
-		canvas.DrawText(item.Label, labelRect, dtMenuFontSize, textColor, false, widget.TextAlignLeft)
+		labelMaxX := itemRect.Max.X - dtMenuItemPaddingH
+		if item.HasChildren() || item.Shortcut != "" {
+			labelMaxX -= dtMenuShortcutWidth
+		}
+		labelRect := geometry.Rect{
+			Min: geometry.Pt(labelMinX, itemRect.Min.Y),
+			Max: geometry.Pt(max(labelMinX, labelMaxX), itemRect.Max.Y),
+		}
+		if !labelRect.IsEmpty() {
+			canvas.PushClip(labelRect)
+			canvas.DrawText(item.Label, labelRect, dtMenuFontSize, textColor, false, widget.TextAlignLeft)
+			canvas.PopClip()
+		}
 
 		// Shortcut text or submenu arrow.
 		rightRect := geometry.Rect{
@@ -147,7 +181,8 @@ func (p MenuPainter) PaintMenu(canvas widget.Canvas, st *menu.MenuPaintState) {
 			if item.Disabled {
 				arrowColor = colors.ItemDisabledText
 			}
-			canvas.DrawText(dtMenuRightArrow, rightRect, dtMenuFontSize, arrowColor, false, widget.TextAlignRight)
+			arrowRect := geometry.NewRect(itemRect.Max.X-dtMenuItemPaddingH-12, itemRect.Center().Y-6, 12, 12)
+			icon.Draw(canvas, icon.ExpChevronRight, arrowRect, arrowColor)
 		} else if item.Shortcut != "" {
 			shortcutColor := colors.ShortcutText
 			if item.Disabled {
@@ -198,13 +233,27 @@ var dtDefaultMenuColors = menu.MenuColorScheme{
 	ItemHover:        widget.Hex(0x43454A), // Gray4 (control hover)
 	ItemDisabledText: widget.Hex(0x6F737A), // Gray7 (disabled)
 	ShortcutText:     widget.Hex(0x9DA0A8), // Gray9 (secondary text)
-	SeparatorColor:   widget.Hex(0x393B40), // Gray3 (border)
+	SeparatorColor:   widget.Hex(0x4E5157), // Gray5 (border strong)
 	SubMenuArrow:     widget.Hex(0x9DA0A8), // Gray9 (secondary)
 }
 
+// MenuItemHeight returns the compact DevTools popup menu item height (28px).
+func (MenuPainter) MenuItemHeight() float32 { return dtMenuItemHeight }
+
+// MenuSeparatorHeight returns the DevTools popup menu separator height (9px).
+func (MenuPainter) MenuSeparatorHeight() float32 { return dtMenuSepHeight }
+
+// MenuPaddingV returns the top and bottom popup menu padding (4px).
+func (MenuPainter) MenuPaddingV() float32 { return dtMenuPaddingV }
+
 // DevTools menu drawing constants.
 const (
-	dtMenuRadius           float32 = 8
+	dtMenuItemHeight       float32 = 28
+	dtMenuSepHeight        float32 = 9
+	dtMenuRadius           float32 = 6
+	dtMenuItemRadius       float32 = 5
+	dtMenuItemInsetH       float32 = 4
+	dtMenuCheckGutter      float32 = 20
 	dtMenuBorderWidth      float32 = 1
 	dtMenuFontSize         float32 = 13
 	dtMenuShortcutFontSize float32 = 11
@@ -215,11 +264,13 @@ const (
 	dtMenuSepPaddingH      float32 = 8
 	dtMenuSepWidth         float32 = 1
 	dtMenuShadowOffset     float32 = 2
-	dtMenuRightArrow               = ">"
 )
 
 // dtMenuShadowColor is the DevTools elevation shadow color for popup menus.
-var dtMenuShadowColor = widget.RGBA(0, 0, 0, 0.50)
+var dtMenuShadowColor = widget.RGBA(0, 0, 0, 0.28)
 
-// Compile-time check that MenuPainter implements Painter.
-var _ menu.Painter = MenuPainter{}
+// Compile-time checks that MenuPainter implements Painter and LayoutMetrics.
+var (
+	_ menu.Painter       = MenuPainter{}
+	_ menu.LayoutMetrics = MenuPainter{}
+)

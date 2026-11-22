@@ -292,6 +292,47 @@ func TestLayout_TightConstraints(t *testing.T) {
 	}
 }
 
+type compactDropdownPainter struct{ testPainter }
+
+func (compactDropdownPainter) TriggerHeight() float32  { return 28 }
+func (compactDropdownPainter) MenuItemHeight() float32 { return 28 }
+func (compactDropdownPainter) MenuPaddingV() float32   { return 4 }
+
+func TestLayout_CustomLayoutMetrics(t *testing.T) {
+	painter := &compactDropdownPainter{}
+	dd := dropdown.New(
+		dropdown.Items("Red", "Green", "Blue"),
+		dropdown.PainterOpt(painter),
+	)
+	ctx := widget.NewContext()
+	om := setupOverlayManager(ctx)
+
+	size := dd.Layout(ctx, geometry.Loose(geometry.Sz(400, 400)))
+	if size.Height != 28 {
+		t.Fatalf("trigger height = %v, want 28", size.Height)
+	}
+	dd.SetBounds(geometry.FromPointSize(geometry.Pt(0, 0), size))
+	dd.Open(ctx)
+
+	menuW, ok := om.lastWidget.(interface{ Bounds() geometry.Rect })
+	if !ok || menuW == nil {
+		t.Fatal("missing dropdown menu overlay")
+	}
+	wantMenuH := float32(3*28 + 4*2)
+	if got := menuW.Bounds().Height(); got != wantMenuH {
+		t.Fatalf("menu height = %v, want %v", got, wantMenuH)
+	}
+
+	// Row 1 starts at Y = menu.Min.Y + 4 + 28; click near middle of row 1 (offset 4 + 28 + 14).
+	clickY := menuW.Bounds().Min.Y + 4 + 28 + 14
+	click := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(10, clickY), geometry.Pt(10, clickY), event.ModNone)
+	om.lastWidget.Event(ctx, click)
+	if dd.SelectedIndex() != 1 {
+		t.Errorf("SelectedIndex = %d, want 1", dd.SelectedIndex())
+	}
+}
+
 // --- Draw Tests ---
 
 func TestDraw_DefaultPlaceholder(t *testing.T) {

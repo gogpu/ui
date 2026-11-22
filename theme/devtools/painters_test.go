@@ -791,14 +791,21 @@ func TestPaintDialog(t *testing.T) {
 		Title:  "Confirm",
 		Bounds: geometry.NewRect(100, 100, 300, 200),
 		Actions: []dialog.Action{
-			{Label: "OK"},
-			{Label: "Cancel"},
+			{Label: "OK", Variant: dialog.VariantFilled},
+			{Label: "Cancel", Variant: dialog.VariantOutlined},
 		},
+		Focused:       true,
+		FocusedAction: 0,
 	})
 
 	roundRects := canvas.methodCalls(methodDrawRoundRect)
-	if len(roundRects) < 1 {
-		t.Error("dialog should draw at least 1 DrawRoundRect (surface)")
+	if len(roundRects) < 2 { //nolint:mnd // shadow + surface + filled button
+		t.Errorf("dialog should draw shadow, surface, and filled action pill, got %d DrawRoundRect", len(roundRects))
+	}
+
+	strokes := canvas.methodCalls(methodStrokeRoundRect)
+	if len(strokes) < 3 { //nolint:mnd // dialog border + outlined button border + focused action ring
+		t.Errorf("dialog should stroke border, outlined action, and focus ring, got %d StrokeRoundRect", len(strokes))
 	}
 
 	texts := canvas.methodCalls(methodDrawText)
@@ -1299,11 +1306,25 @@ func TestPaintDropdownMenuHighlighted(t *testing.T) {
 		SelectedIndex:    -1,
 		VisibleCount:     2,
 		ItemHeight:       28,
+		MenuPaddingV:     4,
 	})
 
-	rects := canvas.methodCalls(methodDrawRect)
-	if len(rects) < 1 {
-		t.Error("menu with highlighted item should draw at least 1 DrawRect (highlight)")
+	roundRects := canvas.methodCalls(methodDrawRoundRect)
+	if len(roundRects) < 3 { //nolint:mnd // shadow + menu bg + rounded highlight pill
+		t.Errorf("menu with highlighted item should draw shadow, surface, and highlight pill, got %d DrawRoundRect", len(roundRects))
+	}
+}
+
+func TestDropdownPainterImplementsLayoutMetrics(t *testing.T) {
+	var lm dropdown.LayoutMetrics = devtools.DropdownPainter{}
+	if lm.TriggerHeight() != 28 {
+		t.Errorf("TriggerHeight = %v, want 28", lm.TriggerHeight())
+	}
+	if lm.MenuItemHeight() != 28 {
+		t.Errorf("MenuItemHeight = %v, want 28", lm.MenuItemHeight())
+	}
+	if lm.MenuPaddingV() != 4 {
+		t.Errorf("MenuPaddingV = %v, want 4", lm.MenuPaddingV())
 	}
 }
 

@@ -18,6 +18,7 @@ type menuWidget struct {
 	scrollOffset     int
 	maxVisible       int
 	itemHeight       float32
+	paddingV         float32
 	painter          Painter
 	colorScheme      DropdownColorScheme
 
@@ -35,12 +36,14 @@ func newMenuWidget(
 	painter Painter,
 	onSelect func(index int),
 ) *menuWidget {
+	_, itemH, padV := resolveLayoutMetrics(painter)
 	m := &menuWidget{
 		items:            items,
 		selectedIndex:    selectedIndex,
 		highlightedIndex: selectedIndex,
 		maxVisible:       maxVisible,
-		itemHeight:       menuItemHeight,
+		itemHeight:       itemH,
+		paddingV:         padV,
 		painter:          painter,
 		onSelect:         onSelect,
 	}
@@ -58,7 +61,7 @@ func newMenuWidget(
 // Layout calculates the menu size based on visible items.
 func (m *menuWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
 	visibleCount := m.visibleCount()
-	height := float32(visibleCount) * m.itemHeight
+	height := float32(visibleCount)*m.itemHeight + m.paddingV*2
 
 	// Width matches constraints (typically matched to trigger width).
 	width := constraints.MaxWidth
@@ -83,6 +86,7 @@ func (m *menuWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		ScrollOffset:     m.scrollOffset,
 		VisibleCount:     m.visibleCount(),
 		ItemHeight:       m.itemHeight,
+		MenuPaddingV:     m.paddingV,
 		ColorScheme:      m.colorScheme,
 	})
 }
@@ -271,11 +275,14 @@ func (m *menuWidget) visibleCount() int {
 // or -1 if outside the items area.
 func (m *menuWidget) indexAtPosition(pos geometry.Point) int {
 	bounds := m.Bounds()
-	localY := pos.Y - bounds.Min.Y
+	localY := pos.Y - bounds.Min.Y - m.paddingV
 	if localY < 0 {
 		return -1
 	}
 	row := int(localY / m.itemHeight)
+	if row >= m.visibleCount() {
+		return -1
+	}
 	index := m.scrollOffset + row
 	if index < 0 || index >= len(m.items) {
 		return -1

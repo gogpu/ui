@@ -1,6 +1,8 @@
 package button
 
 import (
+	"unicode/utf8"
+
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/gesture"
@@ -119,9 +121,9 @@ func (w *Widget) Layout(_ widget.Context, constraints geometry.Constraints) geom
 	fontSize := lm.ButtonFontSize(w.cfg.size)
 	padX, padY := lm.ButtonPadding(w.cfg.size)
 
-	// Estimate text width: approximate at ~7px per character for medium font.
+	// Estimate text width: approximate at ~7px per rune for medium font.
 	text := w.cfg.ResolvedText()
-	textWidth := float32(len(text)) * fontSize * charWidthRatio
+	textWidth := float32(utf8.RuneCountInString(text)) * fontSize * charWidthRatio
 
 	totalWidth := textWidth + padX*2
 	totalHeight := height

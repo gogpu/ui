@@ -655,6 +655,46 @@ func TestSurfaceWidget_ActionClick(t *testing.T) {
 	}
 }
 
+type compactDialogPainter struct{ DefaultPainter }
+
+func (compactDialogPainter) DialogPadding() float32      { return 16 }
+func (compactDialogPainter) DialogActionHeight() float32 { return 28 }
+
+func TestSurfaceWidget_ActionClickUsesPaintedRects(t *testing.T) {
+	clicked := false
+	w := New(
+		Title("Confirm"),
+		Actions(Action{Label: "Confirm Action", OnClick: func() { clicked = true }}),
+		PainterOpt(compactDialogPainter{}),
+	)
+	ctx := widget.NewContext()
+	ctx.SetWindowSize(geometry.Sz(800, 600))
+	om := &internalMockOverlayManager{}
+	ctx.SetOverlayManager(om)
+
+	w.Show(ctx)
+	s := w.surface
+	s.SetBounds(geometry.NewRect(0, 0, 800, 600))
+	canvas := &internalRecordingCanvas{}
+	s.Draw(ctx, canvas)
+
+	if len(s.lastActionRects) != 1 {
+		t.Fatalf("lastActionRects count = %d, want 1", len(s.lastActionRects))
+	}
+	if got := s.lastActionRects[0].Height(); got != 28 {
+		t.Fatalf("action rect height = %v, want 28", got)
+	}
+
+	center := s.lastActionRects[0].Center()
+	click := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		center, center, event.ModNone)
+	s.Event(ctx, click)
+
+	if !clicked {
+		t.Error("clicking center of Draw-computed action rect should trigger OnClick")
+	}
+}
+
 func TestSurfaceWidget_Modal_ConsumesAllEvents(t *testing.T) {
 	w := New(Title("Test"))
 	ctx := widget.NewContext()

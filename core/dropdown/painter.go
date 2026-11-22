@@ -67,8 +67,44 @@ type MenuPaintState struct {
 	// ItemHeight is the height of each item in the menu.
 	ItemHeight float32
 
+	// MenuPaddingV is the vertical padding at the top and bottom of the menu.
+	MenuPaddingV float32
+
 	// ColorScheme provides theme-derived colors. Zero value means use defaults.
 	ColorScheme DropdownColorScheme
+}
+
+// LayoutMetrics allows theme painters to customize dropdown trigger and menu dimensions.
+//
+// Painters that do not implement this interface receive the package defaults
+// (48px trigger height, 40px menu item height, 0px menu vertical padding).
+type LayoutMetrics interface {
+	// TriggerHeight returns the preferred height of the dropdown trigger.
+	TriggerHeight() float32
+
+	// MenuItemHeight returns the height of each item row in the dropdown menu.
+	MenuItemHeight() float32
+
+	// MenuPaddingV returns the vertical padding inside the top and bottom of the dropdown menu.
+	MenuPaddingV() float32
+}
+
+// resolveLayoutMetrics queries LayoutMetrics from painter with safe defaults.
+func resolveLayoutMetrics(p Painter) (trigH, itemH, padV float32) {
+	trigH = triggerHeight
+	itemH = menuItemHeight
+	if lm, ok := p.(LayoutMetrics); ok {
+		if th := lm.TriggerHeight(); th > 0 {
+			trigH = th
+		}
+		if ih := lm.MenuItemHeight(); ih > 0 {
+			itemH = ih
+		}
+		if pv := lm.MenuPaddingV(); pv >= 0 {
+			padV = pv
+		}
+	}
+	return trigH, itemH, padV
 }
 
 // DropdownColorScheme provides theme-derived colors for dropdown painting.
@@ -166,9 +202,10 @@ func (p DefaultPainter) PaintMenu(canvas widget.Canvas, st *MenuPaintState) {
 	for i := st.ScrollOffset; i < endIndex; i++ {
 		item := st.Items[i]
 		row := i - st.ScrollOffset
+		top := st.Bounds.Min.Y + st.MenuPaddingV + float32(row)*st.ItemHeight
 		itemRect := geometry.Rect{
-			Min: geometry.Pt(st.Bounds.Min.X, st.Bounds.Min.Y+float32(row)*st.ItemHeight),
-			Max: geometry.Pt(st.Bounds.Max.X, st.Bounds.Min.Y+float32(row+1)*st.ItemHeight),
+			Min: geometry.Pt(st.Bounds.Min.X, top),
+			Max: geometry.Pt(st.Bounds.Max.X, top+st.ItemHeight),
 		}
 
 		// Highlight.

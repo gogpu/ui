@@ -730,12 +730,15 @@ func (c *SceneCanvas) FillSVGPath(svgData string, viewBox float32, bounds geomet
 
 	dc := gg.NewContext(physW, physH)
 	dc.SetRasterizerMode(gg.RasterizerAnalytic) // CPU-only: bypass GPU queueing
-	// Scale SVG viewBox to physical pixel dimensions.
+	// Scale SVG viewBox uniformly and center within physical pixel dimensions.
 	svgScale := float64(physW) / float64(viewBox)
 	svgScaleY := float64(physH) / float64(viewBox)
 	if svgScaleY < svgScale {
 		svgScale = svgScaleY
 	}
+	offsetX := (float64(physW) - float64(viewBox)*svgScale) / 2
+	offsetY := (float64(physH) - float64(viewBox)*svgScale) / 2
+	dc.Translate(offsetX, offsetY)
 	dc.Scale(svgScale, svgScale)
 	dc.SetRGBA(float64(color.R), float64(color.G), float64(color.B), float64(color.A))
 	dc.SetFillRule(gg.FillRuleEvenOdd)
@@ -815,13 +818,25 @@ func (c *SceneCanvas) RenderSVG(svgXML []byte, bounds geometry.Rect, color widge
 	c.sc.PushClip(clip)
 	defer c.sc.PopClip()
 
+	// Preserve SVG aspect ratio and center within non-square target bounds.
+	drawX, drawY := bounds.Min.X, bounds.Min.Y
+	drawW, drawH := bounds.Width(), bounds.Height()
+	if doc.ViewBox.Width > 0 && doc.ViewBox.Height > 0 {
+		scale := min(float64(drawW)/doc.ViewBox.Width, float64(drawH)/doc.ViewBox.Height)
+		fitW := float32(doc.ViewBox.Width * scale)
+		fitH := float32(doc.ViewBox.Height * scale)
+		drawX += (drawW - fitW) / 2
+		drawY += (drawH - fitH) / 2
+		drawW, drawH = fitW, fitH
+	}
+
 	// Vector path: emit SVG as scene geometry (paths + fills/strokes).
 	// Resolution-independent — rendered at actual display resolution by the
 	// GPU or CPU scene renderer. No bitmap pre-rasterization, no Level 2
 	// image cache needed. Matches Skia/Jewel architecture where icons remain
 	// vector until final compositing. See gg#464.
-	doc.RenderToSceneWithColor(c.sc, bounds.Min.X, bounds.Min.Y,
-		bounds.Width(), bounds.Height(),
+	doc.RenderToSceneWithColor(c.sc, drawX, drawY,
+		drawW, drawH,
 		gg.RGBA{R: float64(color.R), G: float64(color.G), B: float64(color.B), A: float64(color.A)})
 }
 

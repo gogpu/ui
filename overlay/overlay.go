@@ -139,9 +139,10 @@ func (s *Stack) List() []Overlay {
 
 // HandleEvent dispatches an event to the top interactive overlay.
 // A modal overlay anywhere in the stack blocks unhandled events from
-// reaching the normal widget tree.
+// reaching the normal widget tree. Nested interactive overlays also block
+// pointer and wheel events from falling through to the tree.
 //
-// Returns true if the event was consumed or blocked by a modal overlay.
+// Returns true if the event was consumed or blocked.
 func (s *Stack) HandleEvent(ctx widget.Context, e event.Event) bool {
 	top := s.TopInteractive()
 	if top == nil {
@@ -150,8 +151,10 @@ func (s *Stack) HandleEvent(ctx widget.Context, e event.Event) bool {
 	if top.Event(ctx, e) {
 		return true
 	}
+	_, mouse := e.(*event.MouseEvent)
+	_, wheel := e.(*event.WheelEvent)
 	for _, o := range s.overlays {
-		if !IsPassive(o) && o.Modal() {
+		if !IsPassive(o) && (o.Modal() || (o != top && (mouse || wheel))) {
 			return true
 		}
 	}

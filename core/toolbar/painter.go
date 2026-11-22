@@ -34,9 +34,12 @@ type PaintButtonState struct {
 	ShowLabel bool
 	Hovered   bool
 	Pressed   bool
-	Focused   bool
-	Disabled  bool
-	Bounds    geometry.Rect
+	Focused      bool
+	Disabled     bool
+	JoinedLeft   bool // true when this item is attached to the previous button
+	JoinedRight  bool // true when the next button is attached to this item
+	GroupHovered bool // true when any button in this attached group is hovered or pressed
+	Bounds       geometry.Rect
 
 	// Pre-computed icon/label positions (ADR-034 Phase 4).
 	// The widget computes these during its draw loop. Painters should use

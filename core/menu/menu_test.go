@@ -96,6 +96,50 @@ func TestBarMenu(t *testing.T) {
 	}
 }
 
+func TestItemCheck(t *testing.T) {
+	item := menu.ItemCheck("Show Diff", "", true, nil)
+	if !item.Checkable || !item.Checked {
+		t.Errorf("ItemCheck should set Checkable and Checked, got %+v", item)
+	}
+}
+
+type compactMenuPainter struct {
+	testPainter
+}
+
+func (compactMenuPainter) MenuItemHeight() float32      { return 28 }
+func (compactMenuPainter) MenuSeparatorHeight() float32 { return 9 }
+func (compactMenuPainter) MenuPaddingV() float32        { return 4 }
+
+func TestContextMenu_CustomLayoutMetrics(t *testing.T) {
+	var picked string
+	cm := menu.NewContextMenu([]menu.MenuItem{
+		menu.ItemCheck("Diff", "", true, func() { picked = "diff" }),
+		menu.ItemCheck("Date", "", false, func() { picked = "date" }),
+	}, menu.ContextPainterOpt(&compactMenuPainter{}))
+
+	ctx := widget.NewContext()
+	setupOverlayManager(ctx)
+	cm.Show(ctx, geometry.Pt(0, 0))
+
+	panel := cm.Panel()
+	if panel == nil {
+		t.Fatal("panel should not be nil")
+	}
+	wantH := float32(2*28 + 4*2)
+	if got := panel.Bounds().Height(); got != wantH {
+		t.Errorf("panel height = %v, want %v", got, wantH)
+	}
+
+	// Second item starts at Y = paddingV (4) + 28 = 32; click at Y = 46 should hit item 1.
+	press := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft,
+		geometry.Pt(20, 46), geometry.Pt(20, 46), event.ModNone)
+	panel.Event(ctx, press)
+	if picked != "date" {
+		t.Errorf("clicked item = %q, want %q", picked, "date")
+	}
+}
+
 // =============================================================================
 // MenuBar Construction Tests
 // =============================================================================

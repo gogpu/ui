@@ -547,6 +547,9 @@ func (b *BoxWidget) layoutHorizontalSimple(
 			}
 		}
 		remaining.MinWidth = 0
+		if b.crossAlign != CrossAxisStretch {
+			remaining.MinHeight = 0
+		}
 
 		size := widget.LayoutChild(child, ctx, remaining)
 
@@ -597,6 +600,9 @@ func (b *BoxWidget) layoutHorizontalTwoPass(
 		}
 		remaining := childConstraints
 		remaining.MinWidth = 0
+		if b.crossAlign != CrossAxisStretch {
+			remaining.MinHeight = 0
+		}
 		size := widget.LayoutChild(child, ctx, remaining)
 		fixedSizes[i] = size
 		fixedWidth += size.Width
@@ -620,10 +626,14 @@ func (b *BoxWidget) layoutHorizontalTwoPass(
 	for i, child := range children {
 		var size geometry.Size
 		if isExpanded(child) {
+			ecMinHeight := childConstraints.MinHeight
+			if b.crossAlign == CrossAxisCenter || b.crossAlign == CrossAxisEnd {
+				ecMinHeight = 0
+			}
 			ec := geometry.Constraints{
 				MinWidth:  expandedWidth,
 				MaxWidth:  expandedWidth,
-				MinHeight: childConstraints.MinHeight,
+				MinHeight: ecMinHeight,
 				MaxHeight: childConstraints.MaxHeight,
 			}
 			size = widget.LayoutChild(child, ctx, ec)

@@ -239,6 +239,73 @@ func TestLayout_ButtonWidthOverride(t *testing.T) {
 	}
 }
 
+func TestLayout_AttachedSplitButton(t *testing.T) {
+	options := IconButton("Options", icon.ExpChevronDown, nil)
+	options.Width = 16
+	options.Attached = true
+	tb := New(
+		Items(IconButton("Pull", icon.Add, nil), options, IconButton("Next", icon.Close, nil)),
+		Height(42), ButtonHeight(32), ButtonSize(32), Gap(6),
+	)
+	ctx := widget.NewContext()
+	tb.Layout(ctx, geometry.Loose(geometry.Sz(200, 42)))
+
+	pullBounds := tb.ItemBounds(0)
+	optBounds := tb.ItemBounds(1)
+	nextBounds := tb.ItemBounds(2)
+	if pullBounds.Max.X != optBounds.Min.X {
+		t.Fatalf("attached split pair has gap: pull=%v options=%v", pullBounds, optBounds)
+	}
+	if optBounds.Width() != 16 {
+		t.Fatalf("options width = %v, want 16", optBounds.Width())
+	}
+	if nextBounds.Min.X != optBounds.Max.X+6 {
+		t.Fatalf("gap after split pair = %v, want 6", nextBounds.Min.X-optBounds.Max.X)
+	}
+	if got := tb.HitTestItem(geometry.Pt(pullBounds.Max.X-0.5, 20)); got != 0 {
+		t.Errorf("left side of seam hit %d, want 0", got)
+	}
+	if got := tb.HitTestItem(geometry.Pt(optBounds.Min.X+0.5, 20)); got != 1 {
+		t.Errorf("right side of seam hit %d, want 1", got)
+	}
+}
+
+func TestMousePress_DoesNotPaintFocusRing(t *testing.T) {
+	var states []PaintButtonState
+	p := &captureButtonPainter{onPaint: func(s PaintButtonState) { states = append(states, s) }}
+	tb := New(Items(IconButton("Menu", icon.ExpChevronDown, nil)), PainterOpt(p))
+	ctx := widget.NewContext()
+	tb.Layout(ctx, geometry.Loose(geometry.Sz(200, 40)))
+
+	center := tb.ItemBounds(0).Center()
+	tb.Event(ctx, event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft, center, center, event.ModNone))
+	tb.Event(ctx, event.NewMouseEvent(event.MouseRelease, event.ButtonLeft, 0, center, center, event.ModNone))
+
+	tb.Draw(ctx, &mockCanvas{})
+	if len(states) != 1 || states[0].Focused {
+		t.Fatalf("mouse click should not mark toolbar item focused, got %+v", states)
+	}
+
+	states = nil
+	tb.SetFocused(true)
+	tb.SetFocusVisible(true)
+	tb.Draw(ctx, &mockCanvas{})
+	if len(states) != 1 || !states[0].Focused {
+		t.Fatalf("keyboard focus should mark toolbar item focused, got %+v", states)
+	}
+}
+
+type captureButtonPainter struct {
+	testPainter
+	onPaint func(PaintButtonState)
+}
+
+func (p *captureButtonPainter) PaintButtonItem(_ widget.Canvas, s PaintButtonState) {
+	if p.onPaint != nil {
+		p.onPaint(s)
+	}
+}
+
 func TestButtonHeight_ExpandsHitAreaIntoPaddingAndGap(t *testing.T) {
 	var clicks []int
 	tb := New(
