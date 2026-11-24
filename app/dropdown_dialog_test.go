@@ -38,10 +38,15 @@ func TestDropdownSelectionKeepsCallbackDialog(t *testing.T) {
 	application.HandleEvent(event.NewKeyEvent(event.KeyPress, event.KeyEnter, 0, event.ModNone))
 	application.Frame()
 	if selector.IsOpen() || selector.SelectedIndex() != 1 {
-		t.Fatal("selection should update the index and close the menu")
+		t.Fatalf("after selection got open=%v selected=%d, want open=false selected=1",
+			selector.IsOpen(), selector.SelectedIndex())
 	}
-	if opened == nil || !opened.IsOpen() || window.OverlayCount() != 1 {
-		t.Fatalf("callback dialog should own the remaining overlay, got %d", window.OverlayCount())
+	if opened == nil {
+		t.Fatal("OnChange did not run, so no dialog was opened")
+	}
+	if !opened.IsOpen() || window.OverlayCount() != 1 {
+		t.Fatalf("after selection got dialog open=%v with %d overlays, want open=true with 1",
+			opened.IsOpen(), window.OverlayCount())
 	}
 	opened.Close(ctx)
 	if count := window.OverlayCount(); count != 0 {
