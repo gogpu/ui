@@ -177,8 +177,8 @@ Before submitting:
 - [ ] `go fmt` applied
 - [ ] `golangci-lint run` passes
 - [ ] Docs and README updated where your change makes them stale
-- [ ] No edits to `CHANGELOG.md` — the maintainer writes the entry under `[Unreleased]` with your credit
-      (`(#123, by @you)`) when merging, so entries are written once and in one voice and no two PRs conflict on
+- [ ] **Don't edit `CHANGELOG.md`.** The maintainer writes the entry under `[Unreleased]` with your credit
+      (`(#123, by @you)`) when merging, so entries are written once and in one voice — and no two PRs conflict on
       the same `[Unreleased]` section. Write the user-visible summary in your PR description instead.
 - [ ] Commit messages follow convention
 - [ ] No breaking changes to public API (or discussed first)
