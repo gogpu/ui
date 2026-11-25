@@ -1,5 +1,9 @@
 package gesture
 
+import (
+	"github.com/gogpu/ui/geometry"
+)
+
 // Disposition is the result of a recognizer's arena evaluation.
 type Disposition uint8
 
@@ -178,6 +182,20 @@ func (a *Arena) Sweep(pointerID int) {
 // Route dispatches a pointer event to all members tracking the given pointer.
 // Called for PointerMove, PointerUp, and PointerCancel events.
 func (a *Arena) Route(ev *PointerEvent) {
+	a.RouteLocalized(ev, nil)
+}
+
+// RouteLocalized dispatches a pointer event to all members tracking the given
+// pointer, mapping the event's window position (GlobalPosition) into each
+// member's local coordinate space first.
+//
+// originFor returns the window-space origin of the coordinate system a member
+// expects Position in (the space of the derived MouseEvents its widget
+// receives). Such a member gets a copy with Position = GlobalPosition - origin,
+// the same mapping its PointerDown received. Members without a known origin
+// receive the event unchanged. A nil originFor routes the event as-is, like
+// Route.
+func (a *Arena) RouteLocalized(ev *PointerEvent, originFor func(ArenaMember) (geometry.Point, bool)) {
 	members, ok := a.pendingRoute[ev.PointerID]
 	if !ok {
 		return
@@ -186,10 +204,27 @@ func (a *Arena) Route(ev *PointerEvent) {
 	routeMembers := make([]ArenaMember, len(members))
 	copy(routeMembers, members)
 	for _, m := range routeMembers {
-		if r, ok := m.(Recognizer); ok {
-			r.HandleEvent(ev)
+		r, ok := m.(Recognizer)
+		if !ok {
+			continue
 		}
+		local := ev
+		if originFor != nil {
+			if origin, hasOrigin := originFor(m); hasOrigin {
+				local = newLocalizedEvent(ev, origin)
+			}
+		}
+		r.HandleEvent(local)
 	}
+}
+
+// newLocalizedEvent copies ev with Position set to its window position,
+// GlobalPosition, translated into the coordinate space anchored at the given
+// window-space origin. GlobalPosition is kept in window coordinates.
+func newLocalizedEvent(ev *PointerEvent, origin geometry.Point) *PointerEvent {
+	local := *ev
+	local.Position = ev.GlobalPosition.Sub(origin)
+	return &local
 }
 
 // MemberCount returns the number of members currently in the arena for a pointer.
