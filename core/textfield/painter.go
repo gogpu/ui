@@ -66,6 +66,25 @@ type PaintState struct {
 
 	// ColorScheme provides theme-derived colors. Zero value means use built-in defaults.
 	ColorScheme TextFieldColorScheme
+
+	// CompositionText is the current IME preedit. It is rendered separately
+	// from DisplayText so committed content never changes until composition end.
+	CompositionText string
+
+	// CompositionTextRect is the preedit's draw area, positioned at the
+	// committed caret and shifted with TextRect when the field scrolls.
+	CompositionTextRect geometry.Rect
+
+	// CompositionSelectionRect highlights the marked/selected segment supplied
+	// by the IME. It is empty when no segment is selected.
+	CompositionSelectionRect geometry.Rect
+
+	// CompositionCursorRect is the active cursor range inside the preedit. A
+	// hidden IME cursor is represented by an empty rectangle.
+	CompositionCursorRect geometry.Rect
+
+	// ShowComposition is true while a non-password field has an active preedit.
+	ShowComposition bool
 }
 
 // LayoutMetrics allows theme painters to provide spatial metrics used by the
@@ -100,7 +119,15 @@ type TextFieldColorScheme struct {
 	DisabledBg  widget.Color
 	DisabledFg  widget.Color
 	SelectionBg widget.Color
-	ErrorText   widget.Color
+	// CompositionColor is the preedit text color. Zero falls back to TextColor.
+	CompositionColor widget.Color
+	// CompositionUnderline is used for the IME preedit underline. Zero falls
+	// back to CursorColor.
+	CompositionUnderline widget.Color
+	// CompositionSelection is used for a marked segment. Zero falls back to
+	// SelectionBg.
+	CompositionSelection widget.Color
+	ErrorText            widget.Color
 }
 
 // DefaultPainter provides a minimal fallback painter with no design system styling.
@@ -199,6 +226,57 @@ func paintContent(canvas widget.Canvas, st *PaintState, colors TextFieldColorSch
 	}
 
 	canvas.DrawText(st.DisplayText, st.TextRect, fontSize, textColor, false, textAlignLeft)
+	PaintComposition(canvas, st, colors)
+}
+
+// PaintComposition renders the focused IME preedit with a marked-segment
+// highlight, underline, and optional cursor. Theme painters call this helper
+// from their content path so all design systems share the same UTF-8/range
+// geometry computed by TextField.
+func PaintComposition(canvas widget.Canvas, st *PaintState, colors TextFieldColorScheme) {
+	if st == nil || !st.ShowComposition || st.CompositionText == "" || st.CompositionTextRect.IsEmpty() {
+		return
+	}
+	fontSize := st.FontSize
+	if fontSize <= 0 {
+		fontSize = defaultFontSize
+	}
+
+	textColor := colors.CompositionColor
+	if textColor.IsTransparent() {
+		textColor = colors.TextColor
+	}
+	underlineColor := colors.CompositionUnderline
+	if underlineColor.IsTransparent() {
+		underlineColor = colors.CursorColor
+	}
+	selectionColor := colors.CompositionSelection
+	if selectionColor.IsTransparent() {
+		selectionColor = colors.SelectionBg
+	}
+
+	if !st.CompositionSelectionRect.IsEmpty() {
+		canvas.DrawRect(st.CompositionSelectionRect, selectionColor)
+	}
+	canvas.DrawText(st.CompositionText, st.CompositionTextRect, fontSize, textColor, false, textAlignLeft)
+
+	// A one-pixel underline is the common cross-platform representation of an
+	// IME preedit. The marked segment gets a stronger underline when present.
+	lineY := st.CompositionTextRect.Max.Y - 1
+	from := geometry.Pt(st.CompositionTextRect.Min.X, lineY)
+	to := geometry.Pt(st.CompositionTextRect.Max.X, lineY)
+	canvas.DrawLine(from, to, underlineColor, 1)
+	if !st.CompositionSelectionRect.IsEmpty() {
+		selectionFrom := geometry.Pt(st.CompositionSelectionRect.Min.X, lineY)
+		selectionTo := geometry.Pt(st.CompositionSelectionRect.Max.X, lineY)
+		canvas.DrawLine(selectionFrom, selectionTo, underlineColor, 2)
+	}
+
+	if !st.CompositionCursorRect.IsEmpty() {
+		top := geometry.Pt(st.CompositionCursorRect.Min.X, st.CompositionCursorRect.Min.Y)
+		bottom := geometry.Pt(st.CompositionCursorRect.Min.X, st.CompositionCursorRect.Max.Y)
+		canvas.DrawLine(top, bottom, underlineColor, st.CompositionCursorRect.Width())
+	}
 }
 
 // paintCursorFromState draws the cursor using pre-computed CursorRect.
