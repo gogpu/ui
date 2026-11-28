@@ -327,6 +327,10 @@ func (w *Widget) selectItem(ctx widget.Context, index int) {
 
 	w.selectedIndex = index
 
+	// Removing the menu also removes overlays above it. Close before
+	// notifying selection observers, which may open another overlay.
+	w.close(ctx)
+
 	// Update signal if bound.
 	if w.cfg.signal != nil {
 		w.cfg.signal.Set(index)
@@ -336,8 +340,6 @@ func (w *Widget) selectItem(ctx widget.Context, index int) {
 	if w.cfg.onChange != nil {
 		w.cfg.onChange(index, items[index].Value)
 	}
-
-	w.close(ctx)
 }
 
 // handleMouseEvent processes mouse events on the trigger.

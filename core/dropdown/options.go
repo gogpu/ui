@@ -134,7 +134,7 @@ func Placeholder(text string) Option {
 }
 
 // OnChange sets the callback invoked when the selection changes.
-// The callback receives the new index and the selected item's value.
+// The menu closes before the callback receives the new index and value.
 func OnChange(fn func(index int, value string)) Option {
 	return func(c *config) {
 		c.onChange = fn
